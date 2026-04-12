@@ -282,7 +282,7 @@ export function Dashboard() {
             <Aperture className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground tracking-wide">魔因漫创</h1>
+            <h1 className="text-lg font-bold text-foreground tracking-wide">JuBu AI</h1>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Moyin Creator Studio</p>
           </div>
         </div>
