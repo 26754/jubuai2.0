@@ -32,10 +32,9 @@ import type { IProvider } from "@/lib/api-key-manager";
 
 /**
  * 平台预设配置
- * 1. JuBu API (memefast) - 全功能中转（推荐）
- * 2. 火山引擎豆包 (doubao) - 火山引擎大模型
- * 3. RunningHub - 视角切换/多角度生成
- * 4. 自定义 - OpenAI 兼容 API
+ * 1. 火山引擎豆包 (doubao) - 火山引擎大模型
+ * 2. RunningHub - 视角切换/多角度生成
+ * 3. 自定义 - OpenAI 兼容 API
  */
 const PLATFORM_PRESETS: Array<{
   platform: string;
@@ -44,29 +43,7 @@ const PLATFORM_PRESETS: Array<{
   description: string;
   services: string[];
   models: string[];
-  recommended?: boolean;
 }> = [
-  {
-    platform: "memefast",
-    name: "JuBu API",
-    baseUrl: "https://memefast.top",
-    description: "543+ 模型中转，支持 GPT/Claude/Gemini/DeepSeek/Veo/Sora 等",
-    services: ["对话", "图片生成", "视频生成", "图片理解"],
-    models: [
-      "deepseek-v3.2",
-      "glm-4.7",
-      "gemini-3-pro-preview",
-      "gemini-3-pro-image-preview",
-      "gpt-image-1.5",
-      "doubao-seedance-1-5-pro-251215",
-      "veo3.1",
-      "sora-2-all",
-      "wan2.6-i2v",
-      "grok-video-3-10s",
-      "claude-haiku-4-5-20251001",
-    ],
-    recommended: true,
-  },
   {
     platform: "doubao",
     name: "火山引擎豆包",
@@ -208,11 +185,6 @@ export function AddProviderDialog({
                   <SelectItem key={preset.platform} value={preset.platform}>
                     <span className="flex items-center gap-2">
                       {preset.name}
-                      {preset.recommended && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded font-medium">
-                          推荐
-                        </span>
-                      )}
                     </span>
                   </SelectItem>
                 ))}
