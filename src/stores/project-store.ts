@@ -13,6 +13,8 @@ export interface Project {
   name: string;
   createdAt: number;
   updatedAt: number;
+  // 全局视觉风格（剧本模块设置，其他模块可跟随）
+  visualStyleId?: string;
 }
 
 interface ProjectStore {
@@ -24,6 +26,8 @@ interface ProjectStore {
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
   ensureDefaultProject: () => void;
+  // 设置项目视觉风格
+  setProjectVisualStyle: (id: string, styleId: string) => void;
 }
 
 // Default project for desktop app
@@ -32,6 +36,7 @@ const DEFAULT_PROJECT: Project = {
   name: "JuBu AI项目",
   createdAt: Date.now(),
   updatedAt: Date.now(),
+  visualStyleId: "2d_ghibli", // 默认视觉风格
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -113,6 +118,18 @@ export const useProjectStore = create<ProjectStore>()(
             activeProject: project,
           };
         });
+      },
+
+      setProjectVisualStyle: (id, styleId) => {
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id ? { ...p, visualStyleId: styleId, updatedAt: Date.now() } : p
+          ),
+          activeProject:
+            state.activeProject?.id === id
+              ? { ...state.activeProject, visualStyleId: styleId, updatedAt: Date.now() }
+              : state.activeProject,
+        }));
       },
     }),
     {

@@ -2384,11 +2384,13 @@ export function ScriptView() {
             onDurationChange={(v) => setTargetDuration(projectId, v)}
             onStyleChange={(v) => {
               setStyleId(projectId, v);
+              // 同步视觉风格到项目全局设置
+              useProjectStore.getState().setProjectVisualStyle(projectId, v);
               // 同步视觉风格到导演模块
               const style = getStyleById(v);
               if (style) {
                 setStoryboardConfig({ visualStyleId: style.id, styleTokens: [style.prompt] });
-                console.log('[ScriptView] Synced style to director:', style.id);
+                console.log('[ScriptView] Synced style to project and director:', style.id);
               }
             }}
             onSceneCountChange={(v) => setSceneCount(projectId, v === "auto" ? undefined : v)}

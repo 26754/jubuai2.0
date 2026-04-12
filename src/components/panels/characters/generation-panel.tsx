@@ -886,7 +886,26 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
 
           {/* Style */}
           <div className="space-y-2">
-            <Label className="text-xs">视觉风格</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">视觉风格</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // 从项目设置中读取剧本的视觉风格
+                  const projectStyle = useProjectStore.getState().activeProject?.visualStyleId;
+                  if (projectStyle) {
+                    setStyleId(projectStyle);
+                    toast.success(`已跟随剧本风格`);
+                  } else {
+                    toast.info('剧本模块尚未设置视觉风格');
+                  }
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                跟随剧本
+              </Button>
+            </div>
             <StylePicker
               value={styleId}
               onChange={(id) => setStyleId(id)}
