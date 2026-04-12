@@ -35,20 +35,13 @@ import {
   BookOpen,
   Palette,
   Upload,
-  Users,
-  MapPin,
-  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { StylePicker } from "@/components/ui/style-picker";
 import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import type { PromptLanguage } from "@/types/script";
 import { useScriptStore } from "@/stores/script-store";
-import { useCharacterLibraryStore } from "@/stores/character-library-store";
-import { useSceneStore } from "@/stores/scene-store";
-import { useProjectStore } from "@/stores/project-store";
 import { parseDocument, validateFile } from "@/lib/document-parser";
-import { extractCharacters, extractScenes, type ExtractedCharacter, type ExtractedScene } from "@/lib/script-extractor";
 import { toast } from "sonner";
 
 const PROMPT_LANGUAGE_OPTIONS = [
@@ -132,9 +125,6 @@ interface ScriptInputProps {
   // 提示词语言
   promptLanguage?: PromptLanguage;
   onPromptLanguageChange?: (value: PromptLanguage) => void;
-  // 角色/场景提取完成回调
-  onCharactersExtracted?: (characters: ExtractedCharacter[]) => void;
-  onScenesExtracted?: (scenes: ExtractedScene[]) => void;
 }
 
 export function ScriptInput({
@@ -170,8 +160,6 @@ export function ScriptInput({
   secondPassTypes,
   promptLanguage,
   onPromptLanguageChange,
-  onCharactersExtracted,
-  onScenesExtracted,
 }: ScriptInputProps) {
   const scriptActiveProjectId = useScriptStore((state) => state.activeProjectId);
   const inputDraft = useScriptStore((state) => {
@@ -182,10 +170,6 @@ export function ScriptInput({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isExtractingCharacters, setIsExtractingCharacters] = useState(false);
-  const [isExtractingScenes, setIsExtractingScenes] = useState(false);
-  const [extractedCharacters, setExtractedCharacters] = useState<ExtractedCharacter[] | null>(null);
-  const [extractedScenes, setExtractedScenes] = useState<ExtractedScene[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // 视觉风格与剧本语言联动状态
@@ -320,9 +304,6 @@ export function ScriptInput({
       onRawScriptChange(result.content);
       toast.success(`成功解析 ${file.name}`);
       
-      setExtractedCharacters(null);
-      setExtractedScenes(null);
-      
     } catch (error) {
       console.error('[ScriptInput] 文件上传失败:', error);
       const errorMsg = error instanceof Error ? error.message : "文件上传失败";
@@ -333,147 +314,6 @@ export function ScriptInput({
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    }
-  };
-
-  // 提取角色
-  const handleExtractCharacters = async () => {
-    if (!rawScript.trim()) {
-      toast.error("请先上传或粘贴剧本");
-      return;
-    }
-
-    setIsExtractingCharacters(true);
-    setExtractedCharacters(null);
-
-    try {
-      const result = await extractCharacters(rawScript);
-      
-      if (!result.success) {
-        toast.error(result.error || "角色提取失败");
-        return;
-      }
-
-      const characters = result.data?.characters || [];
-      setExtractedCharacters(characters);
-      
-      // 自动将提取的角色添加到角色库
-      if (characters.length > 0) {
-        const { addCharacter, getOrCreateProjectFolder } = useCharacterLibraryStore.getState();
-        const projectId = useProjectStore.getState().activeProjectId;
-        
-        // 获取或创建项目文件夹
-        const folderId = projectId 
-          ? getOrCreateProjectFolder(projectId, '当前项目') 
-          : null;
-        
-        // 批量添加角色
-        let addedCount = 0;
-        for (const char of characters) {
-          try {
-            addCharacter({
-              name: char.name,
-              description: char.description,
-              visualTraits: char.description, // 使用description作为visualTraits
-              gender: char.gender,
-              age: char.age,
-              personality: char.personality,
-              role: char.role,
-              appearance: char.appearance,
-              projectId: projectId,
-              folderId: folderId,
-              views: [], // 初始为空，等待生成形象图
-              variations: [],
-              tags: [`#提取角色`, `#重要性${characters.indexOf(char) + 1}`],
-              notes: `音色：${char.voice || '未指定'}`,
-              status: 'draft',
-            });
-            addedCount++;
-          } catch (err) {
-            console.warn(`添加角色失败: ${char.name}`, err);
-          }
-        }
-        
-        onCharactersExtracted?.(characters);
-        toast.success(`成功提取 ${characters.length} 个角色，已自动添加到角色库（${addedCount}个）`);
-      } else {
-        onCharactersExtracted?.(characters);
-        toast.success(`成功提取 ${characters.length} 个角色`);
-      }
-      
-    } catch (error) {
-      console.error('[ScriptInput] 角色提取失败:', error);
-      toast.error(error instanceof Error ? error.message : "角色提取失败");
-    } finally {
-      setIsExtractingCharacters(false);
-    }
-  };
-
-  // 提取场景
-  const handleExtractScenes = async () => {
-    if (!rawScript.trim()) {
-      toast.error("请先上传或粘贴剧本");
-      return;
-    }
-
-    setIsExtractingScenes(true);
-    setExtractedScenes(null);
-
-    try {
-      const result = await extractScenes(rawScript);
-      
-      if (!result.success) {
-        toast.error(result.error || "场景提取失败");
-        return;
-      }
-
-      const scenes = result.data?.scenes || [];
-      setExtractedScenes(scenes);
-      
-      // 自动将提取的场景添加到场景库
-      if (scenes.length > 0) {
-        const { addScene, getOrCreateProjectFolder } = useSceneStore.getState();
-        const projectId = useProjectStore.getState().activeProjectId;
-        
-        // 获取或创建项目文件夹
-        const folderId = projectId 
-          ? getOrCreateProjectFolder(projectId, '当前项目') 
-          : null;
-        
-        // 批量添加场景
-        let addedCount = 0;
-        for (const scene of scenes) {
-          try {
-            addScene({
-              name: scene.name,
-              location: scene.location,
-              time: scene.time,
-              atmosphere: scene.atmosphere,
-              visualPrompt: scene.visualPrompt || `${scene.name} - ${scene.location} - ${scene.details}`,
-              projectId: projectId,
-              folderId: folderId,
-              tags: [`#提取场景`, `#重要性${scenes.indexOf(scene) + 1}`],
-              notes: scene.details || '',
-              status: 'draft',
-            });
-            addedCount++;
-          } catch (err) {
-            console.warn(`添加场景失败: ${scene.name}`, err);
-          }
-        }
-        
-        onScenesExtracted?.(scenes);
-        toast.success(`成功提取 ${scenes.length} 个场景，已自动添加到场景库（${addedCount}个）`);
-      } else {
-        onScenesExtracted?.(scenes);
-        toast.success(`成功提取 ${scenes.length} 个场景`);
-      }
-      
-    } catch (error) {
-      console.error('[ScriptInput] 场景提取失败:', error);
-      toast.error(error instanceof Error ? error.message : "场景提取失败");
-    } finally {
-      setIsExtractingScenes(false);
     }
   };
 
@@ -1213,66 +1053,6 @@ export function ScriptInput({
             </Button>
           )}
 
-          {/* 智能提取区域 - 角色提取和场景提取 */}
-          {mode === "import" && rawScript.trim() && (
-            <div className="pt-2 border-t space-y-2">
-              <Label className="text-xs text-muted-foreground">AI解析剧本下方 - 智能提取</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExtractCharacters}
-                  disabled={isExtractingCharacters || !chatConfigured}
-                  className="h-9"
-                >
-                  {isExtractingCharacters ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      提取中...
-                    </>
-                  ) : extractedCharacters ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1 text-green-500" />
-                      {extractedCharacters.length} 角色
-                    </>
-                  ) : (
-                    <>
-                      <Users className="h-4 w-4 mr-1" />
-                      角色提取
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExtractScenes}
-                  disabled={isExtractingScenes || !chatConfigured}
-                  className="h-9"
-                >
-                  {isExtractingScenes ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      提取中...
-                    </>
-                  ) : extractedScenes ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1 text-green-500" />
-                      {extractedScenes.length} 场景
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="h-4 w-4 mr-1" />
-                      场景提取
-                    </>
-                  )}
-                </Button>
-              </div>
-              {!chatConfigured && (
-                <p className="text-[10px] text-amber-500">请先在设置中配置 API</p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* 解析错误 */}
