@@ -1,0 +1,102 @@
+{
+  "app": {
+    "name": "JuBu AI",
+    "tagline": "AI驱动的分镜创作工具"
+  },
+  "common": {
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "add": "添加",
+    "search": "搜索",
+    "close": "关闭",
+    "back": "返回",
+    "next": "下一步",
+    "skip": "跳过",
+    "done": "完成",
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告"
+  },
+  "nav": {
+    "script": "剧本",
+    "character": "角色",
+    "scene": "场景",
+    "director": "导演",
+    "timeline": "时间线",
+    "settings": "设置"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "欢迎使用 JuBu AI",
+      "description": "AI驱动的动漫/短剧分镜创作工具，让你的创意快速变成视觉作品"
+    },
+    "step1": {
+      "title": "导入或创作剧本",
+      "description": "上传剧本文件或使用AI生成剧本，系统会自动解析剧本结构"
+    },
+    "step2": {
+      "title": "生成角色和场景",
+      "description": "使用AI提取角色信息，生成角色形象和场景背景"
+    },
+    "step3": {
+      "title": "生成分镜",
+      "description": "选择剧本片段，一键生成分镜画面"
+    },
+    "step4": {
+      "title": "导出成片",
+      "description": "将分镜导出为视频或图片，用于后期制作"
+    }
+  },
+  "script": {
+    "upload": "上传剧本",
+    "uploadHint": "支持 txt/docx/pdf 格式",
+    "paste": "或粘贴剧本内容",
+    "parse": "AI解析剧本",
+    "extractCharacters": "提取角色",
+    "extractScenes": "提取场景",
+    "import": "导入完整剧本",
+    "create": "创作模式",
+    "generate": "AI生成剧本"
+  },
+  "character": {
+    "title": "角色库",
+    "add": "添加角色",
+    "generate": "生成形象",
+    "noCharacters": "暂无角色，请先提取或添加"
+  },
+  "scene": {
+    "title": "场景库",
+    "add": "添加场景",
+    "generate": "生成背景",
+    "noScenes": "暂无场景，请先提取或添加"
+  },
+  "director": {
+    "title": "AI导演",
+    "generate": "生成分镜",
+    "selectShot": "选择分镜",
+    "noShots": "暂无分镜，请先生成"
+  },
+  "settings": {
+    "title": "设置",
+    "api": "API配置",
+    "theme": "主题设置",
+    "language": "语言设置",
+    "about": "关于",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "themeSystem": "跟随系统",
+    "languageZh": "中文",
+    "languageEn": "English"
+  },
+  "errors": {
+    "loadFailed": "加载失败",
+    "saveFailed": "保存失败",
+    "apiError": "API调用失败",
+    "networkError": "网络错误",
+    "unknownError": "未知错误"
+  }
+}

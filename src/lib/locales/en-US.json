@@ -1,0 +1,102 @@
+{
+  "app": {
+    "name": "JuBu AI",
+    "tagline": "AI-powered storyboard creation tool"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "done": "Done",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning"
+  },
+  "nav": {
+    "script": "Script",
+    "character": "Character",
+    "scene": "Scene",
+    "director": "Director",
+    "timeline": "Timeline",
+    "settings": "Settings"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to JuBu AI",
+      "description": "AI-powered storyboard creation tool for anime and short dramas. Transform your ideas into visual content quickly."
+    },
+    "step1": {
+      "title": "Import or Create Script",
+      "description": "Upload a script file or use AI to generate one. The system will automatically parse the script structure."
+    },
+    "step2": {
+      "title": "Generate Characters & Scenes",
+      "description": "Use AI to extract character information and generate character designs and scene backgrounds."
+    },
+    "step3": {
+      "title": "Create Storyboards",
+      "description": "Select script segments and generate storyboard images with one click."
+    },
+    "step4": {
+      "title": "Export Final Content",
+      "description": "Export storyboards as video or images for post-production."
+    }
+  },
+  "script": {
+    "upload": "Upload Script",
+    "uploadHint": "Supports txt/docx/pdf formats",
+    "paste": "Or paste script content",
+    "parse": "AI Parse Script",
+    "extractCharacters": "Extract Characters",
+    "extractScenes": "Extract Scenes",
+    "import": "Import Full Script",
+    "create": "Create Mode",
+    "generate": "AI Generate Script"
+  },
+  "character": {
+    "title": "Character Library",
+    "add": "Add Character",
+    "generate": "Generate Design",
+    "noCharacters": "No characters yet. Extract or add characters first."
+  },
+  "scene": {
+    "title": "Scene Library",
+    "add": "Add Scene",
+    "generate": "Generate Background",
+    "noScenes": "No scenes yet. Extract or add scenes first."
+  },
+  "director": {
+    "title": "AI Director",
+    "generate": "Generate Storyboard",
+    "selectShot": "Select Shot",
+    "noShots": "No shots yet. Generate storyboards first."
+  },
+  "settings": {
+    "title": "Settings",
+    "api": "API Configuration",
+    "theme": "Theme",
+    "language": "Language",
+    "about": "About",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "languageZh": "中文",
+    "languageEn": "English"
+  },
+  "errors": {
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "apiError": "API call failed",
+    "networkError": "Network error",
+    "unknownError": "Unknown error"
+  }
+}

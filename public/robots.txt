@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://jubuai.com/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
