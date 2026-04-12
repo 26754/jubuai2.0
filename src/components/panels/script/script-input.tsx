@@ -44,6 +44,9 @@ import { StylePicker } from "@/components/ui/style-picker";
 import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import type { PromptLanguage } from "@/types/script";
 import { useScriptStore } from "@/stores/script-store";
+import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useSceneStore } from "@/stores/scene-store";
+import { useProjectStore } from "@/stores/project-store";
 import { parseDocument, validateFile } from "@/lib/document-parser";
 import { extractCharacters, extractScenes, type ExtractedCharacter, type ExtractedScene } from "@/lib/script-extractor";
 import { toast } from "sonner";
@@ -321,8 +324,50 @@ export function ScriptInput({
 
       const characters = result.data?.characters || [];
       setExtractedCharacters(characters);
-      onCharactersExtracted?.(characters);
-      toast.success(`成功提取 ${characters.length} 个角色`);
+      
+      // 自动将提取的角色添加到角色库
+      if (characters.length > 0) {
+        const { addCharacter, getOrCreateProjectFolder } = useCharacterLibraryStore.getState();
+        const projectId = useProjectStore.getState().activeProjectId;
+        
+        // 获取或创建项目文件夹
+        const folderId = projectId 
+          ? getOrCreateProjectFolder(projectId, '当前项目') 
+          : null;
+        
+        // 批量添加角色
+        let addedCount = 0;
+        for (const char of characters) {
+          try {
+            addCharacter({
+              name: char.name,
+              description: char.description,
+              visualTraits: char.description, // 使用description作为visualTraits
+              gender: char.gender,
+              age: char.age,
+              personality: char.personality,
+              role: char.role,
+              appearance: char.appearance,
+              projectId: projectId,
+              folderId: folderId,
+              views: [], // 初始为空，等待生成形象图
+              variations: [],
+              tags: [`#提取角色`, `#重要性${characters.indexOf(char) + 1}`],
+              notes: `音色：${char.voice || '未指定'}`,
+              status: 'draft',
+            });
+            addedCount++;
+          } catch (err) {
+            console.warn(`添加角色失败: ${char.name}`, err);
+          }
+        }
+        
+        onCharactersExtracted?.(characters);
+        toast.success(`成功提取 ${characters.length} 个角色，已自动添加到角色库（${addedCount}个）`);
+      } else {
+        onCharactersExtracted?.(characters);
+        toast.success(`成功提取 ${characters.length} 个角色`);
+      }
       
     } catch (error) {
       console.error('[ScriptInput] 角色提取失败:', error);
@@ -352,8 +397,45 @@ export function ScriptInput({
 
       const scenes = result.data?.scenes || [];
       setExtractedScenes(scenes);
-      onScenesExtracted?.(scenes);
-      toast.success(`成功提取 ${scenes.length} 个场景`);
+      
+      // 自动将提取的场景添加到场景库
+      if (scenes.length > 0) {
+        const { addScene, getOrCreateProjectFolder } = useSceneStore.getState();
+        const projectId = useProjectStore.getState().activeProjectId;
+        
+        // 获取或创建项目文件夹
+        const folderId = projectId 
+          ? getOrCreateProjectFolder(projectId, '当前项目') 
+          : null;
+        
+        // 批量添加场景
+        let addedCount = 0;
+        for (const scene of scenes) {
+          try {
+            addScene({
+              name: scene.name,
+              location: scene.location,
+              time: scene.time,
+              atmosphere: scene.atmosphere,
+              visualPrompt: scene.visualPrompt || `${scene.name} - ${scene.location} - ${scene.details}`,
+              projectId: projectId,
+              folderId: folderId,
+              tags: [`#提取场景`, `#重要性${scenes.indexOf(scene) + 1}`],
+              notes: scene.details || '',
+              status: 'draft',
+            });
+            addedCount++;
+          } catch (err) {
+            console.warn(`添加场景失败: ${scene.name}`, err);
+          }
+        }
+        
+        onScenesExtracted?.(scenes);
+        toast.success(`成功提取 ${scenes.length} 个场景，已自动添加到场景库（${addedCount}个）`);
+      } else {
+        onScenesExtracted?.(scenes);
+        toast.success(`成功提取 ${scenes.length} 个场景`);
+      }
       
     } catch (error) {
       console.error('[ScriptInput] 场景提取失败:', error);
@@ -1088,16 +1170,17 @@ export function ScriptInput({
             </Button>
           )}
 
-          {/* 智能提取按钮 - 角色提取和场景提取 */}
+          {/* 智能提取区域 - 角色提取和场景提取 */}
           {mode === "import" && rawScript.trim() && (
             <div className="pt-2 border-t space-y-2">
-              <Label className="text-xs text-muted-foreground">智能提取</Label>
+              <Label className="text-xs text-muted-foreground">AI解析剧本下方 - 智能提取</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleExtractCharacters}
                   disabled={isExtractingCharacters || !chatConfigured}
+                  className="h-9"
                 >
                   {isExtractingCharacters ? (
                     <>
@@ -1112,7 +1195,7 @@ export function ScriptInput({
                   ) : (
                     <>
                       <Users className="h-4 w-4 mr-1" />
-                      提取角色
+                      角色提取
                     </>
                   )}
                 </Button>
@@ -1122,6 +1205,7 @@ export function ScriptInput({
                   size="sm"
                   onClick={handleExtractScenes}
                   disabled={isExtractingScenes || !chatConfigured}
+                  className="h-9"
                 >
                   {isExtractingScenes ? (
                     <>
@@ -1136,7 +1220,7 @@ export function ScriptInput({
                   ) : (
                     <>
                       <MapPin className="h-4 w-4 mr-1" />
-                      提取场景
+                      场景提取
                     </>
                   )}
                 </Button>
