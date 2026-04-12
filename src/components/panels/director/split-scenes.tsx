@@ -25,6 +25,7 @@ import {
 } from "@/stores/director-store";
 import { useCharacterLibraryStore, type Character, type CharacterVariation } from "@/stores/character-library-store";
 import { useScriptStore } from "@/stores/script-store";
+import { useProjectStore } from "@/stores/project-store";
 import { 
   ArrowLeft, 
   Trash2, 
@@ -447,6 +448,26 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
       toast.success(`已切换为 ${style.name} 风格`);
     }
   }, [setStoryboardConfig]);
+
+  // 从剧本模块获取视觉风格并同步到导演模块
+  const scriptProjectId = useProjectStore((state) => state.activeProjectId);
+  const scriptProject = useScriptStore((state) => {
+    if (!scriptProjectId) return null;
+    return state.projects[scriptProjectId] || null;
+  });
+  const scriptStyleId = scriptProject?.styleId;
+
+  const handleSyncFromScript = useCallback(() => {
+    if (!scriptStyleId) {
+      toast.error('剧本模块尚未设置视觉风格');
+      return;
+    }
+    const style = getStyleById(scriptStyleId);
+    if (style) {
+      setStoryboardConfig({ visualStyleId: style.id, styleTokens: [style.prompt] });
+      toast.success(`已跟随剧本风格: ${style.name}`);
+    }
+  }, [scriptStyleId, setStoryboardConfig]);
 
   // Update aspect ratio
   const handleAspectRatioChange = useCallback((ratio: '16:9' | '9:16') => {
@@ -3482,6 +3503,23 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                     onChange={handleStyleChange}
                     disabled={isGenerating}
                   />
+                  {/* 跟随剧本风格按钮 */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSyncFromScript}
+                        disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
+                        className="h-8 px-2 text-xs"
+                      >
+                        跟随剧本
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>从剧本模块同步视觉风格</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">画面比例:</span>
@@ -3693,6 +3731,23 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
             onChange={handleStyleChange}
             disabled={isGenerating}
           />
+          {/* 跟随剧本风格按钮 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncFromScript}
+                disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
+                className="h-8 px-2 text-xs"
+              >
+                跟随剧本
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>从剧本模块同步视觉风格</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Cinematography Profile Selector */}

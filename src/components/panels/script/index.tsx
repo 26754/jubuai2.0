@@ -72,7 +72,7 @@ import { EpisodeTree } from "./episode-tree";
 import { PropertyPanel } from "./property-panel";
 import { FileText } from "lucide-react";
 import { toast } from "sonner";
-import { getStyleTokens, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
+import { getStyleTokens, getStyleById, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -216,6 +216,7 @@ export function ScriptView() {
     setTrailerScenes, 
     clearTrailer,
     addScenesFromScript,
+    setStoryboardConfig,
   } = useDirectorStore();
   const directorProject = useActiveDirectorProject();
   const trailerConfig = directorProject?.trailerConfig || null;
@@ -2381,7 +2382,15 @@ export function ScriptView() {
               : (v) => setRawScript(projectId, v)}
             onLanguageChange={(v) => setLanguage(projectId, v)}
             onDurationChange={(v) => setTargetDuration(projectId, v)}
-            onStyleChange={(v) => setStyleId(projectId, v)}
+            onStyleChange={(v) => {
+              setStyleId(projectId, v);
+              // 同步视觉风格到导演模块
+              const style = getStyleById(v);
+              if (style) {
+                setStoryboardConfig({ visualStyleId: style.id, styleTokens: [style.prompt] });
+                console.log('[ScriptView] Synced style to director:', style.id);
+              }
+            }}
             onSceneCountChange={(v) => setSceneCount(projectId, v === "auto" ? undefined : v)}
             onShotCountChange={(v) => setShotCount(projectId, v === "auto" ? undefined : v)}
             onParse={handleParse}
