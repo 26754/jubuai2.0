@@ -3504,22 +3504,16 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                     disabled={isGenerating}
                   />
                   {/* 跟随剧本风格按钮 */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSyncFromScript}
-                        disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
-                        className="h-8 px-2 text-xs"
-                      >
-                        跟随剧本
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>从剧本模块同步视觉风格</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncFromScript}
+                    disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
+                    className="h-8 px-2 text-xs"
+                    title="从剧本模块同步视觉风格"
+                  >
+                    跟随剧本
+                  </Button>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">画面比例:</span>
@@ -3732,22 +3726,16 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
             disabled={isGenerating}
           />
           {/* 跟随剧本风格按钮 */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSyncFromScript}
-                disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
-                className="h-8 px-2 text-xs"
-              >
-                跟随剧本
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>从剧本模块同步视觉风格</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncFromScript}
+            disabled={isGenerating || !scriptStyleId || scriptStyleId === currentStyleId}
+            className="h-8 px-2 text-xs"
+            title="从剧本模块同步视觉风格"
+          >
+            跟随剧本
+          </Button>
         </div>
 
         {/* Cinematography Profile Selector */}
