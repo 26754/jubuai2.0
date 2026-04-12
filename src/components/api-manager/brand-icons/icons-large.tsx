@@ -9,6 +9,28 @@ export const iconsLarge: Record<string, BrandIconFn> = {
     </svg>
   ),
 
+  doubao: (s) => (
+    <svg height={s} width={s} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="doubao-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF6B6B"/>
+          <stop offset="50%" stopColor="#FF8E53"/>
+          <stop offset="100%" stopColor="#FFA726"/>
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="20" fill="url(#doubao-grad)"/>
+      <ellipse cx="18" cy="20" rx="3" ry="4" fill="white"/>
+      <ellipse cx="30" cy="20" rx="3" ry="4" fill="white"/>
+      <ellipse cx="18" cy="21" rx="1.5" ry="2" fill="#333"/>
+      <ellipse cx="30" cy="21" rx="1.5" ry="2" fill="#333"/>
+      <path d="M20 30 Q24 35 28 30" stroke="#333" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <circle cx="14" cy="16" r="2" fill="white" opacity="0.6"/>
+      <circle cx="34" cy="16" r="2" fill="white" opacity="0.6"/>
+      <ellipse cx="12" cy="26" rx="3" ry="2" fill="#FF8E53" opacity="0.5"/>
+      <ellipse cx="36" cy="26" rx="3" ry="2" fill="#FF8E53" opacity="0.5"/>
+    </svg>
+  ),
+
   kling: (s) => (
     <svg height={s} width={s} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path d="M5.412 13.775A23.193 23.193 0 017.41 9.32c3.17-5.492 7.795-8.757 10.33-7.294C12.038-1.266 4.598.944 1.122 6.964A13.378 13.378 0 00.085 9.22c-.259.739.092 1.534.77 1.926l4.557 2.63z" fill="url(#kling-g0)" />

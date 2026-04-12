@@ -33,8 +33,9 @@ import type { IProvider } from "@/lib/api-key-manager";
 /**
  * 平台预设配置
  * 1. 魔因API (memefast) - 全功能中转（推荐）
- * 2. RunningHub - 视角切换/多角度生成
- * 3. 自定义 - OpenAI 兼容 API
+ * 2. 火山引擎豆包 (doubao) - 火山引擎大模型
+ * 3. RunningHub - 视角切换/多角度生成
+ * 4. 自定义 - OpenAI 兼容 API
  */
 const PLATFORM_PRESETS: Array<{
   platform: string;
@@ -65,6 +66,20 @@ const PLATFORM_PRESETS: Array<{
       "claude-haiku-4-5-20251001",
     ],
     recommended: true,
+  },
+  {
+    platform: "doubao",
+    name: "火山引擎豆包",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    description: "字节跳动豆包大模型，支持对话/图片理解等多种能力",
+    services: ["对话", "图片理解"],
+    models: [
+      "doubao-pro-32k",
+      "doubao-pro-128k",
+      "doubao-lite-32k",
+      "doubao-lite-128k",
+      "doubao-seedance-1-5-pro-251215",
+    ],
   },
   {
     platform: "runninghub",

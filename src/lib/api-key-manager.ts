@@ -64,6 +64,22 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
     model: ['2009613632530812930'],
     capabilities: ['image_generation', 'vision'],
   },
+  {
+    platform: 'doubao',
+    name: '火山引擎豆包',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: [
+      'doubao-pro-32k',
+      'doubao-pro-128k',
+      'doubao-lite-32k',
+      'doubao-lite-128k',
+      'doubao-seed-1-5-px',
+      'doubao-seed-1-5',
+      'doubao-seed-1-0-thinking-pro',
+    ],
+    capabilities: ['text', 'vision', 'function_calling'],
+    contextLimit: 128000,
+  },
 ];
 
 // ==================== Model Classification ====================
@@ -89,14 +105,19 @@ export function classifyModelByName(modelName: string): ModelCapability[] {
   const imageGenPatterns = [
     'dall-e', 'dalle', 'flux', 'midjourney', 'niji', 'imagen', 'cogview',
     'gpt-image', 'ideogram', 'sd3', 'stable-diffusion', 'sdxl',
-    'playground', 'recraft', 'kolors', 'seedream',
+    'playground', 'recraft', 'kolors', 'seedream', 'seed-',
   ];
   if (imageGenPatterns.some(p => name.includes(p))) return ['image_generation'];
   // "xxx-image-preview" 类（如 gemini-3-pro-image-preview）
   if (/image[- ]?preview/.test(name)) return ['image_generation'];
+  // 豆包图片生成模型 (seed-)
+  if (/seed-/.test(name)) return ['image_generation'];
 
   // ---- 视觉/识图模型 ----
   if (/vision/.test(name)) return ['text', 'vision'];
+
+  // ---- 豆包对话模型 ----
+  if (name.includes('doubao')) return ['text', 'vision', 'function_calling'];
 
   // ---- TTS / Audio 模型（不归入任何主分类）----
   if (/tts|whisper|audio/.test(name)) return ['text'];
