@@ -188,6 +188,9 @@ export function ScriptInput({
   const [extractedScenes, setExtractedScenes] = useState<ExtractedScene[] | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // 视觉风格与剧本语言联动状态
+  const [styleManuallyChanged, setStyleManuallyChanged] = useState(false);
+
   const [mode, setMode] = useState<"import" | "create">(inputDraft?.mode || "import");
   const [idea, setIdea] = useState(inputDraft?.idea || "");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -197,10 +200,39 @@ export function ScriptInput({
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isGeneratingSynopsis, setIsGeneratingSynopsis] = useState(false);
 
+  // 剧本语言推荐视觉风格映射
+  const languageRecommendedStyles: Record<string, string> = {
+    '中文': '3d_xuanhuan',      // 中文 → 3D玄幻风格
+    'English': '3d_american',   // 英文 → 3D美式风格
+    '日本語': '2d_animation',   // 日文 → 2D动画风格
+  };
+
+  // 当剧本语言改变时，如果用户没有手动更改过风格，则自动更新
+  useEffect(() => {
+    if (!styleManuallyChanged && languageRecommendedStyles[language]) {
+      onStyleChange(languageRecommendedStyles[language]);
+    }
+  }, [language, styleManuallyChanged]);
+
+  // 当用户手动选择风格时，记录下来
+  const handleStyleChange = (styleId: string) => {
+    setStyleManuallyChanged(true);
+    onStyleChange(styleId);
+  };
+
+  // 当剧本改变时，重置手动选择状态（剧本可能需要不同的风格）
+  useEffect(() => {
+    if (rawScript.trim()) {
+      setStyleManuallyChanged(false);
+    }
+  }, [rawScript]);
+
   // Reload persisted draft when project switches
   useEffect(() => {
     setMode(inputDraft?.mode || "import");
     setIdea(inputDraft?.idea || "");
+    // 切换项目时重置手动选择状态
+    setStyleManuallyChanged(false);
   }, [scriptActiveProjectId, inputDraft?.mode, inputDraft?.idea]);
 
   // Persist mode/idea draft to survive panel switching
@@ -890,14 +922,19 @@ export function ScriptInput({
               <Label className="text-xs flex items-center gap-1">
                 <Palette className="h-3 w-3" />
                 视觉风格
+                {styleManuallyChanged && (
+                  <span className="text-[10px] text-muted-foreground ml-1">(已独立选择)</span>
+                )}
               </Label>
               <StylePicker
                 value={styleId}
-                onChange={(id) => onStyleChange(id)}
+                onChange={handleStyleChange}
                 disabled={parseStatus === "parsing"}
               />
               <p className="text-[10px] text-muted-foreground">
-                此风格将用于AI校准分镜时生成视觉描述
+                {styleManuallyChanged 
+                  ? "已独立选择风格，不再跟随剧本语言"
+                  : "默认跟随剧本语言选择，也可独立选择"}
               </p>
             </div>
           </div>
@@ -968,10 +1005,16 @@ export function ScriptInput({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">风格</Label>
+                <Label className="text-xs flex items-center gap-1">
+                  <Palette className="h-3 w-3" />
+                  风格
+                  {styleManuallyChanged && (
+                    <span className="text-[10px] text-muted-foreground ml-1">(已独立)</span>
+                  )}
+                </Label>
                 <StylePicker
                   value={styleId}
-                  onChange={(id) => onStyleChange(id)}
+                  onChange={handleStyleChange}
                   disabled={parseStatus === "parsing"}
                 />
               </div>
