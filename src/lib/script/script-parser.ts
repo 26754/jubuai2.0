@@ -320,11 +320,26 @@ export async function callChatAPI(
       console.log('[callChatAPI] 已关闭深度思考 (thinking: disabled)');
     }
 
-    const response = await corsFetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    try {
+      response = await corsFetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (networkError: any) {
+      console.error('[callChatAPI] Network error:', networkError);
+      console.error('[callChatAPI] Network error type:', networkError?.constructor?.name);
+      console.error('[callChatAPI] Network error message:', networkError?.message);
+      
+      // 检查是否是 CORS 错误
+      if (networkError?.message?.includes('CORS') || 
+          networkError?.message?.includes('Failed to fetch') ||
+          networkError?.message?.includes('NetworkError')) {
+        throw new Error('网络请求失败，可能是CORS问题或网络连接问题，请检查API配置');
+      }
+      throw new Error(`网络请求失败: ${networkError?.message || '未知网络错误'}`);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -482,8 +497,22 @@ ${rawScript}
 
 语言：${options.language || '中文'}${sceneCountHint}`;
 
-  const response = await callChatAPI(PARSE_SYSTEM_PROMPT, userPrompt, options);
+  let response: string;
+  try {
+    response = await callChatAPI(PARSE_SYSTEM_PROMPT, userPrompt, options);
+  } catch (apiError: any) {
+    console.error('[parseScript] API call failed:', apiError);
+    const errorMsg = apiError?.message || 'API调用失败';
+    throw new Error(`剧本解析API调用失败: ${errorMsg}`);
+  }
+
+  if (!response) {
+    throw new Error('AI未返回任何内容，请检查网络连接');
+  }
+
   const cleaned = cleanJsonString(response);
+  console.log('[parseScript] Cleaned response length:', cleaned.length);
+  console.log('[parseScript] Cleaned response preview:', cleaned.slice(0, 200));
 
   try {
     const parsed = JSON.parse(cleaned);
@@ -564,7 +593,9 @@ ${rawScript}
     return scriptData;
   } catch (e) {
     console.error('[parseScript] Failed to parse JSON:', cleaned);
-    throw new Error('无法解析AI返回的剧本数据');
+    console.error('[parseScript] Raw response preview:', response.slice(0, 500));
+    console.error('[parseScript] Parse error:', e);
+    throw new Error('无法解析AI返回的剧本数据，请检查网络连接或API配置');
   }
 }
 
