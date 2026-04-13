@@ -22,6 +22,7 @@ interface ProjectStore {
   activeProjectId: string | null;
   activeProject: Project | null;
   createProject: (name?: string) => Project;
+  createDemoProject: () => Project;
   renameProject: (id: string, name: string) => void;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
@@ -77,6 +78,23 @@ export const useProjectStore = create<ProjectStore>()(
           // 避免 switchProject 因 ID 已相同而跳过 rehydration
         }));
         return newProject;
+      },
+
+      createDemoProject: () => {
+        const demoProject: Project = {
+          id: 'demo-project',
+          name: '星际探险 - 演示项目',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          visualStyleId: 'sci-fi',
+        };
+        set({
+          projects: [demoProject],
+          activeProjectId: demoProject.id,
+          activeProject: demoProject,
+        });
+        console.log('[Demo] Demo project created');
+        return demoProject;
       },
 
       renameProject: (id, name) => {
