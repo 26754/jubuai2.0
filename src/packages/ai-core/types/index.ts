@@ -150,7 +150,7 @@ export interface GenerationConfig {
 /**
  * API provider identifier
  */
-export type ProviderId = 'memefast' | 'runninghub' | 'openai' | 'custom';
+export type ProviderId = 'memefast' | 'runninghub' | 'openai' | 'volcengine' | 'doubao' | 'custom';
 
 /**
  * Service type

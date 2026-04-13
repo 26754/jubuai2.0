@@ -506,7 +506,9 @@ export interface APIConfigStatus {
 const PROVIDER_INFO: Record<ProviderId, { name: string; services: ServiceType[] }> = {
   memefast: { name: 'JuBu API', services: ['chat', 'image', 'video', 'vision'] },
   runninghub: { name: 'RunningHub', services: ['image', 'vision'] },
-  openai: { name: 'OpenAI', services: [] },
+  openai: { name: 'OpenAI', services: ['chat', 'vision'] },
+  volcengine: { name: '火山引擎', services: ['chat', 'image', 'video', 'vision'] },
+  doubao: { name: '豆包', services: ['chat', 'vision'] },
   custom: { name: 'Custom', services: [] },
 };
 

@@ -42,12 +42,16 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
 
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({
     memefast: false,
+    volcengine: false,
+    doubao: false,
     runninghub: false,
   });
 
   const [testing, setTesting] = useState<ProviderId | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
     memefast: null,
+    volcengine: null,
+    doubao: null,
     runninghub: null,
   });
 
@@ -81,6 +85,18 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
       name: "JuBu API",
       description: "全功能 AI 中转，支持对话/图片/视频/图片理解",
       services: ["对话", "图片", "视频", "图片理解"],
+    },
+    {
+      id: "volcengine",
+      name: "火山引擎",
+      description: "豆包大模型，支持对话/图片生成/视频生成",
+      services: ["对话", "图片", "视频", "图片理解"],
+    },
+    {
+      id: "doubao",
+      name: "豆包",
+      description: "豆包 AI 对话助手",
+      services: ["对话", "图片理解"],
     },
     {
       id: "runninghub",
