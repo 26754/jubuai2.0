@@ -6,9 +6,12 @@
  * 提供快捷操作入口和品牌展示
  */
 
+import { useState } from "react";
 import { useThemeStore } from "@/stores/theme-store";
 import { useDirectorStore } from "@/stores/director-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
+import { AuthPage } from "./auth/AuthPage";
 import { 
   Film, 
   Plus, 
@@ -17,7 +20,9 @@ import {
   Moon, 
   Monitor,
   Sparkles,
-  Layers
+  Layers,
+  LogIn,
+  UserPlus
 } from "lucide-react";
 
 interface SplashScreenProps {
@@ -27,6 +32,16 @@ interface SplashScreenProps {
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const { theme, setTheme } = useThemeStore();
   const { setActiveProjectId } = useDirectorStore();
+  const { isAuthenticated } = useAuthStore();
+  const [showAuthPage, setShowAuthPage] = useState(false);
+
+  const handleLogin = () => {
+    setShowAuthPage(true);
+  };
+
+  const handleRegister = () => {
+    setShowAuthPage(true);
+  };
 
   const handleCreateProject = () => {
     // 生成新的项目 ID
@@ -39,6 +54,11 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
     // 触发打开项目对话框
     const event = new CustomEvent('openProjectDialog');
     window.dispatchEvent(event);
+    onEnter();
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthPage(false);
     onEnter();
   };
 
@@ -88,20 +108,29 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           <Button 
             size="lg" 
             className="h-14 text-lg font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
-            onClick={handleCreateProject}
+            onClick={handleLogin}
           >
-            <Plus className="mr-2 h-5 w-5" />
-            新建项目
+            <LogIn className="mr-2 h-5 w-5" />
+            登录
           </Button>
           
           <Button 
             variant="outline" 
             size="lg" 
             className="h-14 text-lg font-medium"
-            onClick={handleOpenProject}
+            onClick={handleRegister}
           >
-            <FolderOpen className="mr-2 h-5 w-5" />
-            打开项目
+            <UserPlus className="mr-2 h-5 w-5" />
+            注册
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="lg" 
+            className="h-12 text-base font-normal"
+            onClick={handleCreateProject}
+          >
+            游客体验
           </Button>
         </div>
 
@@ -262,6 +291,13 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           animation: pulse-subtle 3s ease-in-out infinite;
         }
       `}</style>
+
+      {/* 认证页面 */}
+      {showAuthPage && (
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <AuthPage onSuccess={handleAuthSuccess} onCancel={() => setShowAuthPage(false)} />
+        </div>
+      )}
     </div>
   );
 }

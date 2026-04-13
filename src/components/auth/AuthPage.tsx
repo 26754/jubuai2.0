@@ -13,9 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check } from "lucide-react";
+import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check, X } from "lucide-react";
 
-export function AuthPage() {
+interface AuthPageProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -32,10 +37,16 @@ export function AuthPage() {
       return;
     }
 
+    let success = false;
     if (mode === 'login') {
-      await login(username, password);
+      success = await login(username, password);
     } else {
-      await register(username, email, password);
+      success = await register(username, email, password);
+    }
+
+    // 登录或注册成功后调用 onSuccess
+    if (success && onSuccess) {
+      onSuccess();
     }
   };
 
@@ -120,7 +131,7 @@ export function AuthPage() {
       </div>
 
       {/* 右侧表单区域 */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative">
         <div className="w-full max-w-md">
           {/* Logo - 移动端显示 */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
@@ -141,6 +152,17 @@ export function AuthPage() {
                 : '注册账户开始创作之旅'}
             </p>
           </div>
+
+          {/* 关闭按钮 */}
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <X className="h-5 w-5 text-muted-foreground" />
+            </button>
+          )}
 
           {/* 表单 */}
           <form onSubmit={handleSubmit} className="space-y-5">

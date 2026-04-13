@@ -138,7 +138,7 @@ function App() {
     );
   }
 
-  // 显示启动页
+  // 显示启动页（始终显示，让用户选择登录/注册或继续体验）
   if (showSplash) {
     return (
       <div className="h-screen w-screen overflow-hidden">
@@ -148,28 +148,29 @@ function App() {
     );
   }
 
-  // 未登录显示登录页面
-  if (!isAuthenticated) {
+  // 已登录用户显示主界面
+  if (isAuthenticated) {
     return (
       <div className="h-screen w-screen overflow-hidden">
-        <AuthPage />
+        <Layout />
+        <UpdateDialog
+          open={updateDialogOpen}
+          onOpenChange={setUpdateDialogOpen}
+          updateInfo={startupUpdate}
+          onIgnoreVersion={(version) => {
+            setUpdateSettings({ ignoredVersion: version });
+            setStartupUpdate(null);
+          }}
+        />
         <Toaster richColors position="top-center" />
       </div>
     );
   }
 
+  // 未登录用户显示登录页面
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <Layout />
-      <UpdateDialog
-        open={updateDialogOpen}
-        onOpenChange={setUpdateDialogOpen}
-        updateInfo={startupUpdate}
-        onIgnoreVersion={(version) => {
-          setUpdateSettings({ ignoredVersion: version });
-          setStartupUpdate(null);
-        }}
-      />
+      <AuthPage />
       <Toaster richColors position="top-center" />
     </div>
   );
