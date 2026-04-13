@@ -102,6 +102,7 @@ export function EditProviderDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="供应商名称"
+              autoComplete="off"
             />
           </div>
 
@@ -112,6 +113,7 @@ export function EditProviderDialog({
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://api.example.com/v1"
+              autoComplete="off"
             />
           </div>
 
@@ -128,6 +130,7 @@ export function EditProviderDialog({
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="输入 API Keys（每行一个，或用逗号分隔）"
               className="font-mono text-sm min-h-[100px]"
+              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
               💡 支持多个 Key 轮换使用，失败时自动切换到下一个

@@ -291,6 +291,7 @@ export function AddProviderDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="供应商名称"
+              autoComplete="off"
             />
           </div>
 
@@ -315,6 +316,7 @@ export function AddProviderDialog({
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="输入 API Key"
               className="font-mono"
+              autoComplete="new-password"
             />
             <p className="text-xs text-muted-foreground">
               支持多个 Key，用逗号分隔

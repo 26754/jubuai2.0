@@ -233,6 +233,7 @@ export function ApiKeyEditorDialog({
                       disabled={!key.editing}
                       placeholder="输入 API Key"
                       className="font-mono text-sm"
+                      autoComplete="off"
                     />
                   </div>
 
