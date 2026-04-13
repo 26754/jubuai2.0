@@ -13,21 +13,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check, X } from "lucide-react";
+import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check, X, Key } from "lucide-react";
 
 interface AuthPageProps {
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
+type AuthMode = 'login' | 'register' | 'forgot';
+
 export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   
-  const { login, register, isLoading, error, clearError } = useAuthStore();
+  const { login, register, resetPassword, isLoading, error, clearError } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,25 +43,196 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
     let success = false;
     if (mode === 'login') {
       success = await login(email, password);
-    } else {
+    } else if (mode === 'register') {
       success = await register(email, password, username || undefined);
     }
 
-    // 登录或注册成功后调用 onSuccess
     if (success && onSuccess) {
       onSuccess();
     }
   };
 
-  const switchMode = () => {
-    setMode(mode === 'login' ? 'register' : 'login');
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    
+    const success = await resetPassword(email);
+    if (success) {
+      setResetSent(true);
+    }
+  };
+
+  const switchMode = (newMode: AuthMode) => {
+    setMode(newMode);
     clearError();
     setPassword("");
     setConfirmPassword("");
+    setResetSent(false);
   };
 
   const passwordMatch = mode === 'login' || password === confirmPassword || !confirmPassword;
 
+  // 忘记密码模式
+  if (mode === 'forgot') {
+    return (
+      <div className="min-h-screen w-full flex">
+        {/* 左侧装饰区域 */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-background relative overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-primary/10 rounded-full blur-3xl" />
+          </div>
+          
+          <div className="relative z-10 flex flex-col justify-center px-16 py-12">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
+                <Clapperboard className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">JuBu AI</h1>
+                <p className="text-sm text-muted-foreground">AI 驱动的动漫/短剧分镜创作工具</p>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">智能剧本生成</h3>
+                  <p className="text-sm text-muted-foreground">AI 帮你快速创作精彩剧本</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 右侧表单区域 */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative">
+          <div className="w-full max-w-md">
+            {/* Logo - 移动端显示 */}
+            <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Clapperboard className="w-6 h-6 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground">JuBu AI</h1>
+            </div>
+
+            {/* 标题 */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-2">找回密码</h2>
+              <p className="text-muted-foreground">
+                {resetSent ? '重置邮件已发送' : '输入您的邮箱地址'}
+              </p>
+            </div>
+
+            {/* 关闭按钮 */}
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            )}
+
+            {resetSent ? (
+              // 重置邮件已发送
+              <div className="space-y-6">
+                <div className="p-6 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                  <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-6 h-6 text-green-500" />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-2">邮件已发送</h3>
+                  <p className="text-sm text-muted-foreground">
+                    我们已向 <strong>{email}</strong> 发送了密码重置链接。<br />
+                    请查收邮件并点击链接重置密码。
+                  </p>
+                </div>
+                
+                <Button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className="w-full h-12 text-base font-medium"
+                >
+                  返回登录
+                </Button>
+              </div>
+            ) : (
+              // 邮箱表单
+              <form onSubmit={handleForgotPassword} className="space-y-5">
+                {/* 邮箱 */}
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email" className="text-sm font-medium">
+                    邮箱
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="输入注册时的邮箱地址"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+
+                {/* 错误提示 */}
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    {error}
+                  </div>
+                )}
+
+                {/* 提交按钮 */}
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-medium"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      发送中...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="mr-2 h-4 w-4" />
+                      发送重置链接
+                    </>
+                  )}
+                </Button>
+
+                {/* 返回登录 */}
+                <p className="text-center text-sm text-muted-foreground">
+                  想起密码了？
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="ml-1 text-primary hover:underline font-medium"
+                  >
+                    返回登录
+                  </button>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 登录/注册模式
   return (
     <div className="min-h-screen w-full flex">
       {/* 左侧装饰区域 */}
@@ -209,24 +383,26 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
             )}
 
             {/* 密码 */}
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                密码
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={mode === 'login' ? '输入密码' : '至少6个字符'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-12"
-                  required
-                  autoComplete="off"
-                />
+            {mode !== 'forgot' && (
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  密码
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder={mode === 'login' ? '输入密码' : '至少6个字符'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 h-12"
+                    required
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 确认密码 - 仅注册时显示 */}
             {mode === 'register' && (
@@ -247,7 +423,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                       !passwordMatch && "border-destructive focus:border-destructive"
                     )}
                     required
-                    autoComplete="off"
+                    autoComplete="new-password"
                   />
                   {confirmPassword && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -289,8 +465,21 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
             </Button>
           </form>
 
+          {/* 忘记密码链接 - 仅登录时显示 */}
+          {mode === 'login' && (
+            <p className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                忘记密码？
+              </button>
+            </p>
+          )}
+
           {/* 分隔线 */}
-          <div className="relative my-8">
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
@@ -304,7 +493,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
             {mode === 'login' ? '还没有账户？' : '已有账户？'}
             <button
               type="button"
-              onClick={switchMode}
+              onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
               className="ml-1 text-primary hover:underline font-medium"
             >
               {mode === 'login' ? '立即注册' : '立即登录'}
