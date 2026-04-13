@@ -12,6 +12,8 @@ import { parseApiKeys } from "@/lib/api-key-manager";
 import { Loader2 } from "lucide-react";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migration";
 import type { AvailableUpdateInfo } from "@/types/update";
+import { useAuthStore } from "@/stores/auth-store";
+import { AuthPage } from "@/components/auth/AuthPage";
 
 let hasTriggeredStartupUpdateCheck = false;
 
@@ -21,6 +23,9 @@ function App() {
   const [isMigrating, setIsMigrating] = useState(true);
   const [startupUpdate, setStartupUpdate] = useState<AvailableUpdateInfo | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  
+  // 认证状态
+  const { isAuthenticated } = useAuthStore();
 
   // 启动时运行存储迁移 + 数据恢复
   useEffect(() => {
@@ -125,6 +130,16 @@ function App() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">正在初始化...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 未登录显示登录页面
+  if (!isAuthenticated) {
+    return (
+      <div className="h-screen w-screen overflow-hidden">
+        <AuthPage />
+        <Toaster richColors position="top-center" />
       </div>
     );
   }

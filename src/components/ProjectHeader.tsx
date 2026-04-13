@@ -12,8 +12,22 @@ import { useEffect, useRef, useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
 import { useScriptStore } from "@/stores/script-store";
 import { useMediaPanelStore, stages } from "@/stores/media-panel-store";
-import { Cloud, CloudOff, Loader2, Check, ChevronRight } from "lucide-react";
+import { useAuthStore } from "@/stores/auth-store";
+import { Cloud, CloudOff, Loader2, Check, ChevronRight, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 export type SaveStatus = "saved" | "saving" | "unsaved";
 
@@ -21,6 +35,7 @@ export function ProjectHeader() {
   const { activeProject } = useProjectStore();
   const { activeStage, activeEpisodeIndex, backToSeries } = useMediaPanelStore();
   const scriptStore = useScriptStore();
+  const { currentUser, logout } = useAuthStore();
   
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,9 +114,39 @@ export function ProjectHeader() {
         )}
       </div>
 
-      {/* Right: Save Status */}
-      <div className="flex items-center gap-2">
+      {/* Right: Save Status + User Menu */}
+      <div className="flex items-center gap-3">
         <SaveStatusIndicator status={saveStatus} />
+        
+        {/* User Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 gap-2 text-zinc-400 hover:text-white"
+            >
+              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <span className="text-xs font-medium">{currentUser?.username || '用户'}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">{currentUser?.username}</p>
+              <p className="text-[10px]">{currentUser?.email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={logout}
+              className="text-destructive focus:text-destructive cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              退出登录
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
