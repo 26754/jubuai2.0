@@ -762,30 +762,83 @@ async function callVolcVideoApi(
     imageCount: imageWithRoles.filter(i => i.url).length,
   });
 
-  const submitResponse = await fetch(`${baseUrl}/volc/v1/contents/generations/tasks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
+  let submitResponse: Response;
+  try {
+    submitResponse = await fetch(`${baseUrl}/volc/v1/contents/generations/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (fetchError: any) {
+    // 处理网络错误（超时、DNS 失败等）
+    if (fetchError.name === 'AbortError' || fetchError.message.includes('abort')) {
+      throw new Error('视频生成请求超时，请检查网络连接');
+    }
+    console.error('[VideoGen] Volc fetch error:', fetchError);
+    throw new Error(`网络请求失败: ${fetchError.message}`);
+  }
 
   if (!submitResponse.ok) {
     const errorText = await submitResponse.text();
     console.error('[VideoGen] Volc video submit error:', submitResponse.status, errorText);
-    handleVideoSubmitError(submitResponse.status, errorText, keyManager);
+    
+    // 解析错误信息，提供更友好的提示
+    let userFriendlyError = '';
+    try {
+      const errorJson = JSON.parse(errorText);
+      userFriendlyError = errorJson.error?.message || errorJson.message || errorJson.error?.code || '';
+    } catch { /* ignore */ }
+    
+    // 根据状态码提供具体建议
+    switch (submitResponse.status) {
+      case 400:
+        if (userFriendlyError.includes('model') || userFriendlyError.includes('Model')) {
+          throw new Error(`模型 ${model} 不存在或不可用`);
+        }
+        throw new Error(`请求参数错误: ${userFriendlyError}`);
+      case 401:
+      case 403:
+        throw new Error('API Key 无效或权限不足');
+      case 429:
+        throw new Error('请求频率超限，请稍后重试');
+      case 500:
+      case 502:
+      case 503:
+        throw new Error('火山引擎服务暂时不可用，请稍后重试');
+      default:
+        throw new Error(userFriendlyError || `视频 API 错误: ${submitResponse.status}`);
+    }
   }
 
-  const submitData = await submitResponse.json();
+  let submitData: any;
+  try {
+    submitData = await submitResponse.json();
+  } catch (e) {
+    const text = await submitResponse.text();
+    console.error('[VideoGen] Failed to parse volc response:', text.substring(0, 200));
+    throw new Error('视频 API 返回格式异常');
+  }
+  
   console.log('[VideoGen] Volc submit response:', JSON.stringify(submitData).substring(0, 500));
 
   // 检测代理包装的业务级错误（HTTP 200 但 body.status 为 failed/error）
   // 典型场景：MemeFast 中转将上游 451（内容审核）等错误包装为 {status: "failed", message: "..."}
   if (submitData.status === 'failed' || submitData.status === 'error') {
-    const proxyMsg = submitData.message || submitData.error?.message || '视频提交失败（代理返回业务错误）';
+    const proxyMsg = submitData.message || submitData.error?.message || '视频提交失败';
     console.error('[VideoGen] Volc: proxy-wrapped business error:', proxyMsg);
+    
+    // 根据错误消息提供友好提示
+    if (proxyMsg.includes('content') || proxyMsg.includes('审核')) {
+      throw new Error('内容审核未通过，请修改提示词后重试');
+    }
+    if (proxyMsg.includes('balance') || proxyMsg.includes('quota')) {
+      throw new Error('账户额度不足，请充值后重试');
+    }
+    
     // 尝试从错误信息中提取原始 HTTP 状态码
     const statusMatch = proxyMsg.match(/status\s+(\d+)/);
     const inferredStatus = statusMatch ? parseInt(statusMatch[1]) : 400;
@@ -823,27 +876,47 @@ async function callVolcVideoApi(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
 
-    const statusResponse = await fetch(
-      `${baseUrl}/volc/v1/contents/generations/tasks/${taskId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+    let statusResponse: Response;
+    try {
+      statusResponse = await fetch(
+        `${baseUrl}/volc/v1/contents/generations/tasks/${taskId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          signal,
         },
-        signal,
-      },
-    );
+      );
+    } catch (fetchError: any) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error('视频生成已取消');
+      }
+      console.warn('[VideoGen] Volc query fetch error:', fetchError.message);
+      await sleepOrAbort(pollInterval, signal);
+      continue;
+    }
 
     if (!statusResponse.ok) {
-      if (statusResponse.status === 404) throw new Error('任务不存在');
+      if (statusResponse.status === 404) {
+        throw new Error('视频生成任务不存在，可能已过期');
+      }
       console.warn('[VideoGen] Volc query failed:', statusResponse.status);
       await sleepOrAbort(pollInterval, signal);
       continue;
     }
 
-    const statusData = await statusResponse.json();
+    let statusData: any;
+    try {
+      statusData = await statusResponse.json();
+    } catch (e) {
+      console.warn('[VideoGen] Failed to parse volc status response');
+      await sleepOrAbort(pollInterval, signal);
+      continue;
+    }
+    
     console.log(`[VideoGen] Volc task ${taskId} status:`, statusData);
 
     // Volcengine 状态: queued | running | succeeded | failed | expired | cancelled
@@ -860,20 +933,43 @@ async function callVolcVideoApi(
         extractVideoUrl(statusData);
       if (!videoUrl) {
         console.error('[VideoGen] Volc: task succeeded but no video URL. statusData:', JSON.stringify(statusData));
-        throw new Error('任务完成但没有视频 URL');
+        throw new Error('视频生成完成但无法获取视频地址');
       }
       return videoUrl;
     }
 
-    if (status === 'failed' || status === 'expired' || status === 'cancelled') {
-      const errorMsg = statusData.error?.message || statusData.error?.code || '视频生成失败';
-      throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+    if (status === 'failed') {
+      // 提取详细的失败原因
+      const errorMsg = 
+        statusData.error?.message || 
+        statusData.error?.code || 
+        statusData.failure_reason ||
+        statusData.message ||
+        '视频生成失败';
+      
+      // 提供更友好的错误提示
+      let friendlyMsg = errorMsg;
+      if (friendlyMsg.includes('content') || friendlyMsg.includes('审核')) {
+        friendlyMsg = '内容审核未通过，请修改提示词后重试';
+      } else if (friendlyMsg.includes('resource') || friendlyMsg.includes('quota')) {
+        friendlyMsg = '账户资源不足，请检查额度';
+      }
+      
+      throw new Error(friendlyMsg);
+    }
+
+    if (status === 'expired') {
+      throw new Error('视频生成任务已过期');
+    }
+
+    if (status === 'cancelled') {
+      throw new Error('视频生成任务已取消');
     }
 
     // queued / running → 继续轮询
     await sleepOrAbort(pollInterval, signal);
   }
-  throw new Error('视频生成超时');
+  throw new Error('视频生成超时（超过15分钟），请重试');
 }
 
 // ==================== 通义万象 wan 格式 ====================

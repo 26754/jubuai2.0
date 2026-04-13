@@ -1,17 +1,54 @@
 // Copyright (c) 2025 JuBu AI
 // 火山引擎豆包 API 测试工具
 
-const DOUBAN_API_ENDPOINT = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+// 火山引擎 ARK 多区域端点
+export const DOUBAN_ENDPOINTS = {
+  'cn-beijing': 'https://ark.cn-beijing.volces.com/api/v3',
+  'cn-shanghai': 'https://ark.cn-shanghai.volces.com/api/v3',
+  'cn-guangzhou': 'https://ark.cn-guangzhou.volces.com/api/v3',
+} as const;
+
+export type DoubanEndpointRegion = keyof typeof DOUBAN_ENDPOINTS;
+
+// 默认端点（北京区域）
+const DEFAULT_ENDPOINT = DOUBAN_ENDPOINTS['cn-beijing'];
+
+// 请求超时时间（毫秒）
+const REQUEST_TIMEOUT = 30000;
+
+/**
+ * 创建带超时的 fetch 请求
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeout: number = REQUEST_TIMEOUT
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * 测试豆包 API 可用性
  * @param apiKey 火山引擎 API Key
  * @param model 模型名称 (默认: doubao-pro-32k)
+ * @param region 区域选择 (默认: cn-beijing)
  * @returns 测试结果
  */
 export async function testDoubaoAPI(
   apiKey: string,
-  model: string = 'doubao-pro-32k'
+  model: string = 'doubao-pro-32k',
+  region: DoubanEndpointRegion = 'cn-beijing'
 ): Promise<{
   success: boolean;
   message: string;
@@ -19,9 +56,10 @@ export async function testDoubaoAPI(
   latency?: number;
 }> {
   const startTime = Date.now();
+  const endpoint = DOUBAN_ENDPOINTS[region] || DEFAULT_ENDPOINT;
   
   try {
-    const response = await fetch(DOUBAN_API_ENDPOINT, {
+    const response = await fetchWithTimeout(`${endpoint}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,9 +82,34 @@ export async function testDoubaoAPI(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      let errorMessage = '';
+      
+      // 根据状态码提供更友好的错误信息
+      switch (response.status) {
+        case 401:
+          errorMessage = 'API Key 无效或已过期';
+          break;
+        case 403:
+          errorMessage = 'API Key 权限不足';
+          break;
+        case 404:
+          errorMessage = `模型 ${model} 不存在`;
+          break;
+        case 429:
+          errorMessage = '请求频率超限，请稍后重试';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          errorMessage = '火山引擎服务器繁忙，请稍后重试';
+          break;
+        default:
+          errorMessage = errorData.error?.message || errorData.error || `HTTP ${response.status}`;
+      }
+      
       return {
         success: false,
-        message: `API 调用失败: ${response.status} - ${errorData.error?.message || errorData.error || '未知错误'}`,
+        message: errorMessage,
         latency,
       };
     }
@@ -73,6 +136,15 @@ export async function testDoubaoAPI(
       };
     }
   } catch (error: any) {
+    // 处理超时
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        message: `请求超时（${REQUEST_TIMEOUT / 1000}秒），请检查网络或 API 可用性`,
+        latency: Date.now() - startTime,
+      };
+    }
+    
     return {
       success: false,
       message: `网络错误: ${error.message}`,
@@ -86,12 +158,14 @@ export async function testDoubaoAPI(
  * @param apiKey 火山引擎 API Key
  * @param imageUrl 图片 URL
  * @param question 关于图片的问题
+ * @param region 区域选择 (默认: cn-beijing)
  * @returns 测试结果
  */
 export async function testDoubaoVisionAPI(
   apiKey: string,
   imageUrl: string,
-  question: string = '描述这张图片'
+  question: string = '描述这张图片',
+  region: DoubanEndpointRegion = 'cn-beijing'
 ): Promise<{
   success: boolean;
   message: string;
@@ -99,9 +173,10 @@ export async function testDoubaoVisionAPI(
   latency?: number;
 }> {
   const startTime = Date.now();
+  const endpoint = DOUBAN_ENDPOINTS[region] || DEFAULT_ENDPOINT;
   
   try {
-    const response = await fetch(DOUBAN_API_ENDPOINT, {
+    const response = await fetchWithTimeout(`${endpoint}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -134,9 +209,28 @@ export async function testDoubaoVisionAPI(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      let errorMessage = '';
+      
+      switch (response.status) {
+        case 401:
+          errorMessage = 'API Key 无效或已过期';
+          break;
+        case 403:
+          errorMessage = 'API Key 权限不足，请确认已开通视觉理解能力';
+          break;
+        case 404:
+          errorMessage = '模型不支持视觉功能';
+          break;
+        case 429:
+          errorMessage = '请求频率超限，请稍后重试';
+          break;
+        default:
+          errorMessage = errorData.error?.message || errorData.error || `HTTP ${response.status}`;
+      }
+      
       return {
         success: false,
-        message: `API 调用失败: ${response.status} - ${errorData.error?.message || errorData.error || '未知错误'}`,
+        message: errorMessage,
         latency,
       };
     }
@@ -163,6 +257,14 @@ export async function testDoubaoVisionAPI(
       };
     }
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        message: `请求超时（${REQUEST_TIMEOUT / 1000}秒），请检查网络连接`,
+        latency: Date.now() - startTime,
+      };
+    }
+    
     return {
       success: false,
       message: `网络错误: ${error.message}`,
@@ -201,8 +303,26 @@ export const DOUBAN_MODELS = [
   },
   {
     id: 'doubao-seedance-1-5-pro-251215',
-    name: 'Seedance 1.5 Pro',
-    description: '视频生成模型',
+    name: 'Seedance 1.5 Pro 视频生成',
+    description: '高性能视频生成模型，支持文生视频和图生视频',
     supports: ['video']
+  },
+  {
+    id: 'doubao-seedance-1-0-pro-fast-251015',
+    name: 'Seedance 1.0 Pro Fast 视频生成',
+    description: '快速视频生成模型',
+    supports: ['video']
+  },
+  {
+    id: 'doubao-seedream-4-5-251128',
+    name: 'Seedream 4.5 图像生成',
+    description: '高质量图像生成模型',
+    supports: ['image']
+  },
+  {
+    id: 'doubao-seedream-3-0-t2i-250415',
+    name: 'Seedream 3.0 图像生成',
+    description: '图像生成模型',
+    supports: ['image']
   },
 ];
