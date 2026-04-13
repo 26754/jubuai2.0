@@ -76,10 +76,9 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="relative">
               <img 
-                src="/logo-main.png" 
+                src="/logo.png" 
                 alt="JuBu AI Logo" 
-                className="h-[120px] w-auto animate-pulse-subtle"
-                style={{ objectFit: 'contain' }}
+                className="h-[50px] w-auto animate-pulse-subtle" 
               />
             </div>
           </div>

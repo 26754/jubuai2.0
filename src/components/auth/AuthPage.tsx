@@ -74,11 +74,13 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
         {/* 内容 */}
         <div className="relative z-10 flex flex-col justify-center px-16 py-12">
           <div className="flex items-center gap-3 mb-8">
-            <img 
-              src="/logo-main.png" 
-              alt="JuBu AI Logo" 
-              className="h-16 w-auto"
-            />
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
+              <Clapperboard className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">JuBu AI</h1>
+              <p className="text-sm text-muted-foreground">AI 驱动的动漫/短剧分镜创作工具</p>
+            </div>
           </div>
           
           <div className="space-y-6">
@@ -135,11 +137,10 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
         <div className="w-full max-w-md">
           {/* Logo - 移动端显示 */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <img 
-              src="/logo-main.png" 
-              alt="JuBu AI Logo" 
-              className="h-16 w-auto"
-            />
+            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Clapperboard className="w-6 h-6 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">JuBu AI</h1>
           </div>
 
           {/* 标题 */}
