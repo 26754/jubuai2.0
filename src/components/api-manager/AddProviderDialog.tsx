@@ -271,6 +271,15 @@ export const PLATFORM_PRESETS: PlatformPreset[] = [
 
   // ========== 自定义 ==========
   {
+    platform: "memefast",
+    name: "JuBu API",
+    baseUrl: "",
+    description: "JuBu 专属 API，整合多个模型供应商",
+    services: ["对话", "图片理解", "视频生成", "图像生成"],
+    models: [],
+    category: "multi",
+  },
+  {
     platform: "custom",
     name: "自定义 API",
     baseUrl: "",
