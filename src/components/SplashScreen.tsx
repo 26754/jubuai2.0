@@ -67,14 +67,9 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
   ];
 
   return (
-    <div className="h-screen w-screen overflow-hidden relative">
-      {/* 动态渐变背景 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/20 animate-gradient-shift" />
-      
-      {/* 装饰性几何图形 */}
-      <div className="absolute top-20 left-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-float-delayed" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/3 rounded-full blur-3xl" />
+    <div className="h-screen w-screen overflow-hidden relative bg-background">
+      {/* 背景装饰 */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
 
       {/* 主内容区 */}
       <div className="relative z-10 h-full flex flex-col items-center justify-center px-8">
