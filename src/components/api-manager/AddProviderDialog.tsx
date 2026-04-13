@@ -33,8 +33,9 @@ import type { IProvider } from "@/lib/api-key-manager";
 /**
  * 平台预设配置
  * 1. 魔因API (memefast) - 全功能中转（推荐）
- * 2. RunningHub - 视角切换/多角度生成
- * 3. 自定义 - OpenAI 兼容 API
+ * 2. 火山引擎豆包 - 官方豆包 API，支持 Seedance 2.0
+ * 3. RunningHub - 视角切换/多角度生成
+ * 4. 自定义 - OpenAI 兼容 API
  */
 const PLATFORM_PRESETS: Array<{
   platform: string;
@@ -52,12 +53,19 @@ const PLATFORM_PRESETS: Array<{
     description: "543+ 模型中转，支持 GPT/Claude/Gemini/DeepSeek/Veo/Sora 等",
     services: ["对话", "图片生成", "视频生成", "图片理解"],
     models: [
+      // 对话模型
       "deepseek-v3.2",
       "glm-4.7",
       "gemini-3-pro-preview",
       "gemini-3-pro-image-preview",
       "gpt-image-1.5",
+      // Seedance 2.0 系列（最新）
+      "doubao-seedance-2-0-pro-t2v-260610",
+      "doubao-seedance-2-0-pro-i2v-260610",
+      "doubao-seedance-2-0-pro-t2v-fast-260610",
+      // Seedance 1.5 系列
       "doubao-seedance-1-5-pro-251215",
+      // 其他视频模型
       "veo3.1",
       "sora-2-all",
       "wan2.6-i2v",
@@ -65,6 +73,30 @@ const PLATFORM_PRESETS: Array<{
       "claude-haiku-4-5-20251001",
     ],
     recommended: true,
+  },
+  {
+    platform: "doubao",
+    name: "火山引擎豆包",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    description: "字节跳动豆包大模型，官方 API，支持 Seedance 2.0",
+    services: ["对话", "图片理解", "视频生成", "图像生成"],
+    models: [
+      // 对话模型
+      "doubao-pro-32k",
+      "doubao-pro-128k",
+      "doubao-lite-32k",
+      "doubao-lite-128k",
+      // Seedance 2.0 系列
+      "doubao-seedance-2-0-pro-t2v-260610",
+      "doubao-seedance-2-0-pro-i2v-260610",
+      "doubao-seedance-2-0-pro-t2v-fast-260610",
+      // Seedance 1.5 系列
+      "doubao-seedance-1-5-pro-251215",
+      "doubao-seedance-1-0-pro-fast-251015",
+      // 图像生成
+      "doubao-seedream-4-5-251128",
+      "doubao-seedream-3-0-t2i-250415",
+    ],
   },
   {
     platform: "runninghub",

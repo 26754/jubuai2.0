@@ -850,7 +850,52 @@ export const T2V_MODELS: T2VModel[] = [
       resolution: resolutionInput(['720p', '1080p'], '720p'),
     },
   },
-  // 6
+  // 6 - Seedance 2.0 Pro T2V
+  {
+    id: 'seedance-2.0-pro-t2v',
+    providerAliases: ["seedance-2.0-pro-t2v", "doubao-seedance-2-0-pro-t2v-260610"],
+    name: 'Seedance 2.0 Pro T2V',
+    category: 'premium',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '3:4', '4:3', '21:9',
+      ]),
+      duration: durationInput({ default: 5 }),
+      resolution: resolutionInput(['480p', '720p', '1080p'], '720p'),
+    },
+  },
+  // 7 - Seedance 2.0 Pro I2V
+  {
+    id: 'seedance-2.0-pro-i2v',
+    providerAliases: ["seedance-2.0-pro-i2v", "doubao-seedance-2-0-pro-i2v-260610"],
+    name: 'Seedance 2.0 Pro I2V',
+    category: 'premium',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '3:4', '4:3', '21:9',
+      ]),
+      duration: durationInput({ default: 5 }),
+      resolution: resolutionInput(['480p', '720p', '1080p'], '720p'),
+    },
+  },
+  // 8 - Seedance 2.0 Pro Fast T2V
+  {
+    id: 'seedance-2.0-pro-t2v-fast',
+    providerAliases: ["seedance-2.0-pro-t2v-fast", "doubao-seedance-2-0-pro-t2v-fast-260610"],
+    name: 'Seedance 2.0 Pro Fast T2V',
+    category: 'fast',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '3:4', '4:3', '21:9',
+      ]),
+      duration: durationInput({ default: 5 }),
+      resolution: resolutionInput(['480p', '720p', '1080p'], '720p'),
+    },
+  },
+  // 9
   {
     id: 'kling-v2.1-master-t2v',
     providerAliases: ["kling-v2.1-master-t2v","kling-v2-1-master"],
