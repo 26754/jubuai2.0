@@ -1,8 +1,8 @@
 // Copyright (c) 2025 JuBu AI
 // 火山引擎豆包 API 测试工具
 
-// API 代理端点（API Server 在 3001 端口）
-const API_PROXY_URL = 'http://localhost:3001/api/proxy-doubao';
+// API 代理端点（通过 Vite 代理转发到 API Server）
+const API_PROXY_URL = '/api/proxy-doubao';
 
 // 火山引擎 ARK 多区域端点（备用）
 export const DOUBAN_ENDPOINTS = {
@@ -299,6 +299,7 @@ export async function testDoubaoVisionAPI(
 
 /**
  * 获取豆包支持的模型列表
+ * 注意：火山引擎 ARK API 模型 ID 格式可能需要添加后缀（如 :chat）
  */
 export const DOUBAN_MODELS = [
   {
@@ -358,7 +359,7 @@ export const DOUBAN_MODELS = [
     supports: ['video']
   },
   {
-    id: 'doubao-seedream-4-5 
+    id: 'doubao-seedream-4-5',
     name: 'Seedream 4.5 图像生成',
     description: '高质量图像生成模型',
     supports: ['image']
@@ -368,5 +369,11 @@ export const DOUBAN_MODELS = [
     name: 'Seedream 3.0 图像生成',
     description: '图像生成模型',
     supports: ['image']
+  },
+  {
+    id: 'doubao-thinking-pro-250715',
+    name: '豆包思考 Pro',
+    description: '深度思考推理模型',
+    supports: ['chat']
   },
 ];

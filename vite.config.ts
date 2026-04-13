@@ -95,5 +95,15 @@ export default defineConfig({
   server: {
     port: 5000,
     host: true,
+    proxy: {
+      '/api/proxy-doubao': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/__api_proxy': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 })
