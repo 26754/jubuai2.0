@@ -14,6 +14,7 @@ import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migrat
 import type { AvailableUpdateInfo } from "@/types/update";
 import { useAuthStore } from "@/stores/auth-store";
 import { AuthPage } from "@/components/auth/AuthPage";
+import { SplashScreen } from "@/components/SplashScreen";
 
 let hasTriggeredStartupUpdateCheck = false;
 
@@ -23,6 +24,7 @@ function App() {
   const [isMigrating, setIsMigrating] = useState(true);
   const [startupUpdate, setStartupUpdate] = useState<AvailableUpdateInfo | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
   
   // 认证状态
   const { isAuthenticated } = useAuthStore();
@@ -38,6 +40,8 @@ function App() {
         console.error('[App] Migration/recovery error:', err);
       } finally {
         setIsMigrating(false);
+        // 迁移完成后显示启动页
+        setShowSplash(true);
       }
     })();
   }, []);
@@ -130,6 +134,16 @@ function App() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">正在初始化...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 显示启动页
+  if (showSplash) {
+    return (
+      <div className="h-screen w-screen overflow-hidden">
+        <SplashScreen onEnter={() => setShowSplash(false)} />
+        <Toaster richColors position="top-center" />
       </div>
     );
   }
