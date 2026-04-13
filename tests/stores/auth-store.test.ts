@@ -94,4 +94,35 @@ describe('Auth Login Test', () => {
     console.log('Found user with wrong password:', user);
     expect(user).toBeUndefined();
   });
+
+  it('should find registered user by username and password', () => {
+    // 模拟注册后的 users 数组
+    const registeredUsers: User[] = [
+      {
+        id: 'test-user-001',
+        username: 'test',
+        email: 'test@example.com',
+        createdAt: Date.now(),
+        passwordHash: hashPassword('test123'),
+      },
+      {
+        id: 'user-002',
+        username: 'newuser',
+        email: 'newuser@example.com',
+        createdAt: Date.now(),
+        passwordHash: hashPassword('mypassword'),
+      }
+    ];
+
+    // 模拟登录：查找 newuser 用户
+    const inputPasswordHash = hashPassword('mypassword');
+    const user = registeredUsers.find(
+      u => u.username === 'newuser' && u.passwordHash === inputPasswordHash
+    );
+
+    console.log('Found registered user:', user);
+    expect(user).toBeDefined();
+    expect(user?.username).toBe('newuser');
+    expect(user?.email).toBe('newuser@example.com');
+  });
 });

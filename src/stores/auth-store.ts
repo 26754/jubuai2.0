@@ -202,14 +202,26 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
       }),
-      // 自定义合并逻辑，确保测试账号始终存在
-      merge: (persistedState: any, currentState) => {
-        const persisted = persistedState || {};
-        const users = ensureTestUser(persisted.users || []);
+      // 自定义合并逻辑，确保测试账号始终存在且保留已注册用户
+      merge: (persistedState: any, currentState: any) => {
+        // 处理空或无效的 persistedState
+        if (!persistedState || typeof persistedState !== 'object') {
+          return currentState;
+        }
+        
+        // 获取 persisted 中的用户列表
+        const persistedUsers = Array.isArray(persistedState.users) 
+          ? persistedState.users 
+          : [];
+        
+        // 确保测试账号存在，同时保留所有已注册用户
+        const mergedUsers = ensureTestUser(persistedUsers);
+        
         return {
           ...currentState,
-          ...persisted,
-          users,
+          isAuthenticated: persistedState.isAuthenticated ?? currentState.isAuthenticated,
+          currentUser: persistedState.currentUser ?? currentState.currentUser,
+          users: mergedUsers,
         };
       },
     }
