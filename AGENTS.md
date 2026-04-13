@@ -2,29 +2,44 @@
 
 ## 技术栈
 
-- **核心**: Vite 7, TypeScript, Express
-- **UI**: Tailwind CSS
+- **核心**: Vite 8, TypeScript, React 18, Express
+- **UI**: Tailwind CSS 4, Radix UI
+- **状态管理**: Zustand
+- **测试**: Vitest, jsdom
+- **存储**: Supabase, IndexedDB
 
 ## 目录结构
 
 ```
-├── scripts/            # 构建与启动脚本
-│   ├── build.sh        # 构建脚本
-│   ├── dev.sh          # 开发环境启动脚本
-│   ├── prepare.sh      # 预处理脚本
-│   └── start.sh        # 生产环境启动脚本
-├── server/             # 服务端逻辑
-│   ├── routes/         # API 路由
-│   ├── server.ts       # Express 服务入口
-│   └── vite.ts         # Vite 中间件集成
-├── src/                # 前端源码
-│   ├── index.css       # 全局样式
-│   ├── index.ts        # 客户端入口
-│   └── main.ts         # 主逻辑
-├── index.html          # 入口 HTML
-├── package.json        # 项目依赖管理
-├── tsconfig.json       # TypeScript 配置
-└── vite.config.ts      # Vite 配置
+├── src/
+│   ├── components/           # React 组件
+│   │   ├── api-manager/      # API 管理组件
+│   │   │   ├── ProviderCard.tsx      # 品牌卡片组件
+│   │   │   ├── ModelList.tsx         # 模型列表组件
+│   │   │   ├── UnifiedApiTestDialog.tsx  # 统一 API 测试对话框
+│   │   │   ├── FeatureBindingPanel.tsx   # 功能绑定面板
+│   │   │   └── index.ts              # 导出所有组件
+│   │   └── ui/               # UI 基础组件
+│   ├── lib/                  # 工具库
+│   │   ├── error-handler.tsx  # 统一错误处理
+│   │   ├── proxy-config.ts    # 代理配置
+│   │   ├── api-key-manager.ts # API Key 管理
+│   │   └── brand-mapping.ts   # 品牌映射
+│   ├── stores/                # Zustand Store
+│   │   ├── api-config-store.ts  # API 配置状态
+│   │   └── director-store.ts    # 导演状态
+│   └── pages/                 # 页面组件
+├── tests/                     # 测试文件
+│   ├── lib/                   # 工具库测试
+│   │   ├── error-handler.test.ts
+│   │   └── proxy-config.test.ts
+│   └── components/           # 组件测试
+│       └── ModelList.test.ts
+├── server/                    # Express 服务端
+├── package.json
+├── vite.config.ts
+├── vitest.config.ts           # Vitest 测试配置
+└── tsconfig.json
 ```
 
 ## 包管理规范
@@ -36,6 +51,16 @@
 - 安装所有依赖：`pnpm install`
 - 移除依赖：`pnpm remove <package>`
 
+## 测试规范
+
+使用 Vitest 进行单元测试。
+- 运行所有测试：`pnpm test`
+- 运行测试（单次）：`pnpm test:run`
+- 运行测试（覆盖率）：`pnpm test:coverage`
+
 ## 开发规范
 
 - 使用 Tailwind CSS 进行样式开发
+- 遵循组件拆分原则：ProviderCard、ModelList 等可复用组件应独立封装
+- 错误处理统一使用 `src/lib/error-handler.tsx` 模块
+- API 代理配置统一使用 `src/lib/proxy-config.ts` 模块
