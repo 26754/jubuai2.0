@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { IProvider } from "@/lib/api-key-manager";
+import { DoubaoModelWindow } from "./DoubaoModelWindow";
 
 /**
  * 平台预设配置
@@ -273,6 +274,15 @@ export function AddProviderDialog({
               支持多个 Key，用逗号分隔
             </p>
           </div>
+
+          {/* 火山引擎模型窗口 - 仅在选择魔因API时显示 */}
+          {platform === "memefast" && (
+            <DoubaoModelWindow
+              onModelSelect={(modelId) => {
+                toast.success(`已复制模型 ID: ${modelId}`);
+              }}
+            />
+          )}
 
           {/* Model - optional input */}
           <div className="space-y-2">
