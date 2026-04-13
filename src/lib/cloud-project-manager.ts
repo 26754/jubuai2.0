@@ -39,7 +39,7 @@ export class CloudProjectManager {
   async getProjects(userId: string): Promise<CloudProject[]> {
     try {
       const { data, error } = await this.supabase
-        .from('user_projects')
+        .from('projects')
         .select('*')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
@@ -71,7 +71,7 @@ export class CloudProjectManager {
   async createProject(userId: string, name: string, visualStyleId?: string): Promise<CloudProject> {
     try {
       const { data, error } = await this.supabase
-        .from('user_projects')
+        .from('projects')
         .insert({
           user_id: userId,
           name,
@@ -115,7 +115,7 @@ export class CloudProjectManager {
       updateData.updated_at = new Date().toISOString();
 
       const { error } = await this.supabase
-        .from('user_projects')
+        .from('projects')
         .update(updateData)
         .eq('id', projectId);
 
@@ -135,7 +135,7 @@ export class CloudProjectManager {
   async deleteProject(projectId: string): Promise<void> {
     try {
       const { error } = await this.supabase
-        .from('user_projects')
+        .from('projects')
         .delete()
         .eq('id', projectId);
 

@@ -1,269 +1,298 @@
-# JuBu AI 云端存储文档
+# JuBu AI 云端存储系统
 
 ## 概述
 
-JuBu AI 使用 Supabase 实现用户项目的云端存储和同步。
+使用 Supabase 实现用户项目的云端存储和同步功能。
 
-## 功能特性
+### 核心优势
 
-- ✅ 用户认证（注册/登录/登出）
-- ✅ 项目云端存储
-- ✅ 项目数据同步
-- ✅ 离线支持
-- ✅ 多设备同步
-- ✅ 团队协作（计划中）
+| 特性 | 说明 |
+|------|------|
+| 免费额度 | 每月 500MB 数据库、50GB 存储、10万月活跃用户 |
+| 实时同步 | 支持多设备实时数据同步 |
+| 用户认证 | 内置邮箱/社交账号认证系统 |
+| 安全性 | 行级安全策略 (RLS) 保护用户数据 |
+| 无后端 | 前端直连数据库，无需自建服务器 |
+
+---
 
 ## 快速开始
 
-### 1. 配置 Supabase
+### Step 1: 配置环境变量
 
-1. 访问 [Supabase](https://supabase.com) 注册账号
-2. 创建新项目
-3. 复制项目 URL 和 Anon Key
-
-### 2. 配置环境变量
+项目已配置好 Supabase 连接：
 
 ```bash
-# 复制示例配置文件
-cp .env.example .env
-
-# 编辑 .env 文件，填入您的 Supabase 配置
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+# .env 文件
+VITE_SUPABASE_URL=https://vrfzkmzqebbfwcqnvqsi.supabase.co
+VITE_SUPABASE_ANON_KEY=你的 Anon Key
 ```
 
-### 3. 运行数据库迁移
+### Step 2: 创建数据库表
 
-```bash
-# 方法1：使用 Supabase Dashboard
-# 1. 访问 https://supabase.com/dashboard
-# 2. 进入 SQL Editor
-# 3. 依次运行 migrations/000_create_tables.sql
-# 4. 依次运行 migrations/001_rls_policies.sql
+在 Supabase SQL Editor 中执行迁移脚本：
 
-# 方法2：使用 Supabase CLI
-supabase db push
-```
+1. 打开 [Supabase Dashboard](https://supabase.com/dashboard)
+2. 选择你的项目
+3. 进入 **SQL Editor**
+4. 粘贴并执行 `migrations/000_create_tables.sql`
 
-### 4. 启用邮箱认证（可选）
+**执行结果：**
+- ✅ `profiles` 表 - 存储用户资料
+- ✅ `projects` 表 - 存储项目元数据
+- ✅ `project_data` 表 - 存储项目详细内容（剧本、分镜等）
+- ✅ RLS 安全策略 - 保护用户数据
+- ✅ 自动触发器 - 记录创建/更新时间
 
-1. 在 Supabase Dashboard 中，访问 "Authentication" > "Providers"
-2. 启用 "Email" 提供商
-3. 配置邮件设置（可使用 Supabase 提供的测试邮件）
+### Step 3: 启用邮箱认证
 
-## 使用指南
+1. 进入 **Authentication** → **Providers**
+2. 启用 **Email** 提供商
+3. （可选）配置自定义邮件模板
 
-### 用户认证
+---
+
+## 数据库表结构
+
+### profiles 用户资料表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 用户ID（关联 auth.users） |
+| email | TEXT | 邮箱地址 |
+| display_name | TEXT | 显示名称 |
+| avatar_url | TEXT | 头像URL |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+
+### projects 项目表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 项目ID |
+| user_id | UUID | 所属用户ID |
+| name | TEXT | 项目名称 |
+| description | TEXT | 项目描述 |
+| visual_style_id | TEXT | 视觉风格ID |
+| metadata | JSONB | 其他元数据 |
+| thumbnail | TEXT | 缩略图URL |
+| is_template | BOOLEAN | 是否为模板 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+
+### project_data 项目数据表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 数据ID |
+| project_id | UUID | 所属项目ID |
+| data_type | TEXT | 数据类型（script/shots/characters/assets） |
+| data | JSONB | 具体内容 |
+| version | INTEGER | 版本号 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
+
+---
+
+## API 参考
+
+### 导入
 
 ```typescript
-import { cloudAuth } from '@/lib/cloud-auth';
+// 从统一入口导入所有功能
+import { 
+  cloudAuth,           // 认证管理器
+  cloudProjectManager,  // 项目管理器
+  useCloudAuth,        // React Hook - 认证状态
+  useCloudProjects,    // React Hook - 项目列表
+} from '@/cloud-storage';
+```
 
-// 注册
-const result = await cloudAuth.register('user@example.com', 'password123', '用户名');
+### 用户认证 (cloudAuth)
 
-// 登录
-const loginResult = await cloudAuth.login('user@example.com', 'password123');
+```typescript
+// 注册新用户
+const result = await cloudAuth.register(email, password, username?);
 
-// 登出
+// 用户登录
+const result = await cloudAuth.login(email, password);
+
+// 用户登出
 await cloudAuth.logout();
 
-// 监听登录状态
+// 获取当前用户
+const user = await cloudAuth.getCurrentUser();
+
+// 监听登录状态变化
 const unsubscribe = cloudAuth.onAuthStateChange((user) => {
-  if (user) {
-    console.log('用户已登录:', user);
-  } else {
-    console.log('用户已登出');
-  }
+  console.log('登录状态变化:', user);
 });
 
-// 获取当前用户
-const currentUser = await cloudAuth.getCurrentUser();
+// 发送密码重置邮件
+await cloudAuth.resetPassword(email);
+
+// 更新用户资料
+await cloudAuth.updateProfile({ username: '新昵称' });
 ```
 
-### 项目管理
+### 项目管理 (cloudProjectManager)
 
 ```typescript
-import { cloudProjectManager } from '@/lib/cloud-project-manager';
-
 // 获取用户所有项目
 const projects = await cloudProjectManager.getProjects(userId);
 
 // 创建新项目
-const newProject = await cloudProjectManager.createProject(
-  userId,
-  '我的新项目',
-  'visual_style_id'
-);
+const project = await cloudProjectManager.createProject(userId, name, visualStyleId?);
 
 // 更新项目
 await cloudProjectManager.updateProject(projectId, {
-  name: '更新后的项目名',
+  name: '新名称',
+  description: '描述',
+  visualStyleId: '风格ID',
+  metadata: { key: 'value' },
 });
 
 // 删除项目
 await cloudProjectManager.deleteProject(projectId);
+
+// 保存项目数据（剧本、分镜等）
+await cloudProjectManager.saveProjectData(projectId, dataType, data);
+
+// 加载项目数据
+const projectData = await cloudProjectManager.loadProjectData(projectId, dataType?);
 ```
 
-### 项目数据
+---
 
-```typescript
-// 保存剧本数据
-await cloudProjectManager.saveProjectData(projectId, 'script', {
-  title: '剧本标题',
-  content: '剧本内容...',
-  scenes: [...],
-});
+## React Hooks
 
-// 保存分镜数据
-await cloudProjectManager.saveProjectData(projectId, 'shots', {
-  shots: [...],
-});
+### useCloudAuth - 认证状态管理
 
-// 加载项目所有数据
-const allData = await cloudProjectManager.loadProjectData(projectId);
+```tsx
+import { useCloudAuth } from '@/cloud-storage';
 
-// 加载特定类型数据
-const scriptData = await cloudProjectManager.loadProjectData(projectId, 'script');
-```
+function AuthComponent() {
+  const { 
+    user,           // CloudUser | null
+    loading,        // boolean - 加载状态
+    error,          // string | null - 错误信息
+    isAuthenticated,// boolean - 是否已登录
+    login,          // (email, password) => Promise
+    register,       // (email, password, username?) => Promise
+    logout,         // () => Promise
+  } = useCloudAuth();
 
-### 混合存储策略
-
-项目支持本地和云端混合存储：
-
-```typescript
-// 本地优先，云端备份
-async function saveProject(project) {
-  // 1. 先保存到本地
-  localStorage.setItem(`project_${project.id}`, JSON.stringify(project));
+  if (loading) return <div>加载中...</div>;
+  if (!isAuthenticated) return <LoginPage onLogin={login} />;
   
-  // 2. 后台同步到云端
-  try {
-    await cloudProjectManager.updateProject(project.id, project);
-  } catch (error) {
-    console.error('云端同步失败:', error);
-  }
-}
-
-// 加载项目（优先云端，降级本地）
-async function loadProject(projectId) {
-  try {
-    // 1. 尝试从云端加载
-    const cloudData = await cloudProjectManager.loadProjectData(projectId);
-    return cloudData;
-  } catch (error) {
-    // 2. 云端失败，从本地加载
-    const localData = localStorage.getItem(`project_${projectId}`);
-    return localData ? JSON.parse(localData) : null;
-  }
+  return (
+    <div>
+      欢迎, {user?.email}
+      <button onClick={logout}>登出</button>
+    </div>
+  );
 }
 ```
+
+### useCloudProjects - 项目列表管理
+
+```tsx
+import { useCloudProjects } from '@/cloud-storage';
+
+function ProjectList({ userId }: { userId: string }) {
+  const {
+    projects,       // CloudProject[]
+    loading,        // boolean
+    error,          // string | null
+    fetchProjects,  // () => Promise - 刷新列表
+    createProject,  // (name, visualStyleId?) => Promise
+    updateProject,  // (id, updates) => Promise
+    deleteProject,  // (id) => Promise
+  } = useCloudProjects(userId);
+
+  const handleCreate = async () => {
+    await createProject('新项目', 'default-style');
+  };
+
+  return (
+    <div>
+      <button onClick={handleCreate}>创建项目</button>
+      {projects.map(p => (
+        <div key={p.id}>{p.name}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+---
 
 ## 数据类型
 
-项目数据支持以下类型：
-
-- `script` - 剧本数据
-- `shots` - 分镜数据
-- `characters` - 角色数据
-- `assets` - 资产数据
-- `settings` - 设置数据
-
-## 安全
-
-### 行级安全策略（RLS）
-
-所有数据表都启用了行级安全策略：
-- 用户只能访问自己的项目
-- 未认证用户无法访问任何数据
-- 项目数据与项目权限绑定
-
-### 认证
-
-使用 Supabase Auth 进行用户认证：
-- 邮箱/密码认证
-- 邮箱验证（可选）
-- 密码重置（可选）
-
-## 费用
-
-### Supabase 免费额度
-
-- 月活跃用户：500
-- 数据库存储：500MB
-- 传输流量：2GB/月
-- 认证邮件：50封/天
-
-### 超出免费额度
-
-按实际使用量计费，详见 [Supabase 定价](https://supabase.com/pricing)。
-
-## 故障排除
-
-### 问题：登录失败
-
-**可能原因**：
-1. 邮箱或密码错误
-2. 邮箱未验证
-3. Supabase 配置错误
-
-**解决方案**：
-1. 检查邮箱和密码是否正确
-2. 检查是否收到验证邮件
-3. 确认 `.env` 文件配置正确
-
-### 问题：无法保存项目
-
-**可能原因**：
-1. 网络连接问题
-2. 超出存储配额
-3. RLS 策略阻止
-
-**解决方案**：
-1. 检查网络连接
-2. 检查 Supabase 存储配额
-3. 确认用户已正确认证
-
-### 问题：数据不同步
-
-**可能原因**：
-1. 多设备同时编辑
-2. 网络延迟
-3. 本地数据过期
-
-**解决方案**：
-1. 实现冲突检测和解决机制
-2. 增加同步间隔
-3. 提供手动刷新功能
-
-## API 参考
-
-### cloudAuth
+### CloudUser
 
 ```typescript
-class CloudAuthManager {
-  register(email: string, password: string, username?: string): Promise<AuthResult>
-  login(email: string, password: string): Promise<AuthResult>
-  logout(): Promise<void>
-  getCurrentUser(): Promise<CloudUser | null>
-  onAuthStateChange(callback: (user: CloudUser | null) => void): () => void
-  resetPassword(email: string): Promise<{ success: boolean; error?: string }>
-  updateProfile(data: { username?: string }): Promise<{ success: boolean; error?: string }>
+interface CloudUser {
+  id: string;           // 用户UUID
+  email: string;         // 邮箱
+  username?: string;    // 用户名
+  createdAt: number;     // 创建时间戳
 }
 ```
 
-### cloudProjectManager
+### CloudProject
 
 ```typescript
-class CloudProjectManager {
-  getProjects(userId: string): Promise<CloudProject[]>
-  createProject(userId: string, name: string, visualStyleId?: string): Promise<CloudProject>
-  updateProject(projectId: string, updates: Partial<CloudProject>): Promise<void>
-  deleteProject(projectId: string): Promise<void>
-  saveProjectData(projectId: string, dataType: string, data: any): Promise<void>
-  loadProjectData(projectId: string, dataType?: string): Promise<ProjectData[]>
+interface CloudProject {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  visualStyleId?: string;
+  metadata: Record<string, any>;
+  createdAt: number;
+  updatedAt: number;
 }
 ```
 
-## 许可证
+---
 
-本项目使用 AGPL-3.0 许可证。
+## 安全策略
+
+### RLS 行级安全
+
+- 用户只能查看和修改自己的资料
+- 用户只能操作自己的项目
+- 模板项目对所有用户可见
+- 项目数据通过项目权限间接控制
+
+### 触发器
+
+- 新用户注册自动创建 profile
+- 记录创建和更新时间
+
+---
+
+## 测试页面
+
+项目包含测试页面用于验证连接：
+
+```
+/test-supabase
+```
+
+---
+
+## 常见问题
+
+### Q: 忘记密码怎么办？
+A: 使用 `cloudAuth.resetPassword(email)` 发送重置邮件
+
+### Q: 如何实现多设备同步？
+A: 使用 `useCloudProjects` hook，自动同步项目列表
+
+### Q: 如何导出项目数据？
+A: 使用 `cloudProjectManager.loadProjectData()` 获取完整数据
+
+### Q: 数据库迁移失败怎么办？
+A: 检查 Supabase 控制台的错误信息，确保 RLS 策略不冲突
