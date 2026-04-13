@@ -7,6 +7,7 @@ import { saveVideoToLocal, readImageAsBase64 } from "@/lib/image-storage";
 import { normalizeUrl } from "./use-image-generation";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { retryOperation } from "@/lib/utils/retry";
+import { corsFetch } from "@/lib/cors-fetch";
 
 // ==================== Content Moderation ====================
 
@@ -764,7 +765,7 @@ async function callVolcVideoApi(
 
   let submitResponse: Response;
   try {
-    submitResponse = await fetch(`${baseUrl}/volc/v1/contents/generations/tasks`, {
+    submitResponse = await corsFetch(`${baseUrl}/volc/v1/contents/generations/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -878,7 +879,7 @@ async function callVolcVideoApi(
 
     let statusResponse: Response;
     try {
-      statusResponse = await fetch(
+      statusResponse = await corsFetch(
         `${baseUrl}/volc/v1/contents/generations/tasks/${taskId}`,
         {
           method: 'GET',

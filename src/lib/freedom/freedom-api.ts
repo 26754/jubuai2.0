@@ -18,6 +18,7 @@ import { resolveImageApiFormat } from '@/lib/api-key-manager';
 import { uploadBase64Image } from '@/lib/utils/image-upload';
 import { isVeoModel, resolveVeoUploadCapability } from '@/lib/freedom/veo-capability';
 import { type AIFeature, useAPIConfigStore } from '@/stores/api-config-store';
+import { corsFetch } from '@/lib/cors-fetch';
 import { useMediaStore } from '@/stores/media-store';
 import { useProjectStore } from '@/stores/project-store';
 import { toast } from 'sonner';
@@ -1313,7 +1314,7 @@ async function generateVideoViaVolc(
 
   const body = { model, content };
 
-  const submitResp = await fetch(`${rootBase}/volc/v1/contents/generations/tasks`, {
+  const submitResp = await corsFetch(`${rootBase}/volc/v1/contents/generations/tasks`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1332,7 +1333,7 @@ async function generateVideoViaVolc(
   const pollUrl = `${rootBase}/volc/v1/contents/generations/tasks/${taskId}`;
   for (let i = 0; i < VIDEO_POLL_MAX_ATTEMPTS; i++) {
     await new Promise((r) => setTimeout(r, VIDEO_POLL_INTERVAL));
-    const pollResp = await fetch(pollUrl, {
+    const pollResp = await corsFetch(pollUrl, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
     if (!pollResp.ok) continue;
