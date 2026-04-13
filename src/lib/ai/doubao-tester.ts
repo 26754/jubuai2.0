@@ -301,6 +301,26 @@ export const DOUBAN_MODELS = [
     description: '轻量级对话模型，128K 上下文，性价比高',
     supports: ['chat', 'function']
   },
+  // Seedance 2.0 系列
+  {
+    id: 'doubao-seedance-2-0-pro-t2v-260610',
+    name: 'Seedance 2.0 Pro 文生视频',
+    description: '新一代高性能视频生成模型，支持文生视频',
+    supports: ['video']
+  },
+  {
+    id: 'doubao-seedance-2-0-pro-i2v-260610',
+    name: 'Seedance 2.0 Pro 图生视频',
+    description: '新一代高性能视频生成模型，支持图生视频',
+    supports: ['video']
+  },
+  {
+    id: 'doubao-seedance-2-0-pro-t2v-fast-260610',
+    name: 'Seedance 2.0 Pro Fast 文生视频',
+    description: '新一代快速视频生成模型',
+    supports: ['video']
+  },
+  // Seedance 1.5 系列
   {
     id: 'doubao-seedance-1-5-pro-251215',
     name: 'Seedance 1.5 Pro 视频生成',
@@ -314,7 +334,7 @@ export const DOUBAN_MODELS = [
     supports: ['video']
   },
   {
-    id: 'doubao-seedream-4-5-251128',
+    id: 'doubao-seedream-4-5 
     name: 'Seedream 4.5 图像生成',
     description: '高质量图像生成模型',
     supports: ['image']

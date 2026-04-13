@@ -48,7 +48,13 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
       'gemini-3-pro-preview',
       'gemini-3-pro-image-preview',
       'gpt-image-1.5',
+      // Seedance 2.0 系列
+      'doubao-seedance-2-0-pro-t2v-260610',
+      'doubao-seedance-2-0-pro-i2v-260610',
+      'doubao-seedance-2-0-pro-t2v-fast-260610',
+      // Seedance 1.5 系列
       'doubao-seedance-1-5-pro-251215',
+      // 其他视频模型
       'veo3.1',
       'sora-2-all',
       'wan2.6-i2v',

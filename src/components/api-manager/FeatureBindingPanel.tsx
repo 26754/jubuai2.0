@@ -154,8 +154,14 @@ const MODEL_CAPABILITIES: Record<string, ModelCapability[]> = {
   // ---- 视频生成模型 ----
   'cogvideox': ['video_generation'],
   'gemini-veo': ['video_generation'],
+  // Seedance 2.0 系列
+  'doubao-seedance-2-0-pro-t2v-260610': ['video_generation'],
+  'doubao-seedance-2-0-pro-i2v-260610': ['video_generation'],
+  'doubao-seedance-2-0-pro-t2v-fast-260610': ['video_generation'],
+  // Seedance 1.5 系列
   'doubao-seedance-1-5-pro': ['video_generation'],
   'doubao-seedance-1-5-pro-251215': ['video_generation'],
+  // Seedream 图像系列
   'doubao-seedream-4-5-251128': ['image_generation'],
   'veo3.1': ['video_generation'],
   'sora-2-all': ['video_generation'],

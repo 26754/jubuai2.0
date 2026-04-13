@@ -50,6 +50,13 @@ function resolveVideoCapabilityModelId(modelId: string): string {
     return 'vidu2.0';
   }
   if (/^doubao-seedance-/i.test(modelId)) {
+    // Seedance 2.0 系列
+    if (modelId.includes('seedance-2-0')) {
+      if (modelId.includes('pro-fast')) return 'seedance-2-0-pro-t2v-fast';
+      if (modelId.includes('i2v')) return 'seedance-2-0-pro-i2v';
+      return 'seedance-2-0-pro-t2v';
+    }
+    // Seedance 1.x 系列
     if (modelId.includes('pro-fast')) return 'seedance-pro-t2v-fast';
     if (modelId.includes('lite')) return 'seedance-lite-t2v';
     return 'seedance-pro-t2v';

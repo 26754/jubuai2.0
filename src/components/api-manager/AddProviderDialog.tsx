@@ -55,8 +55,15 @@ const PLATFORM_PRESETS: Array<{
       "doubao-pro-128k",
       "doubao-lite-32k",
       "doubao-lite-128k",
+      // Seedance 2.0 系列
+      "doubao-seedance-2-0-pro-t2v-260610",
+      "doubao-seedance-2-0-pro-i2v-260610",
+      "doubao-seedance-2-0-pro-t2v-fast-260610",
+      // Seedance 1.5 系列
       "doubao-seedance-1-5-pro-251215",
+      // Seedance 1.0 系列
       "doubao-seedance-1-0-pro-fast-251015",
+      // Seedream 图像系列
       "doubao-seedream-4-5-251128",
       "doubao-seedream-3-0-t2i-250415",
     ],

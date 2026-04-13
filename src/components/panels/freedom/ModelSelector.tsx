@@ -130,7 +130,14 @@ const WAN_VIDEO_VARIANTS = [
 ];
 
 const SEEDANCE_VIDEO_VARIANTS = [
+  // Seedance 2.0 系列
+  'doubao-seedance-2-0-pro-t2v-260610',
+  'doubao-seedance-2-0-pro-i2v-260610',
+  'doubao-seedance-2-0-pro-t2v-fast-260610',
+  // Seedance 1.5 系列
   'doubao-seedance-1-5-pro-251215',
+  'doubao-seedance-1-5-pro-250428',
+  // Seedance 1.0 系列
   'doubao-seedance-1-0-pro-250528',
   'doubao-seedance-1-0-pro-fast-251015',
   'doubao-seedance-1-0-lite-t2v-250428',

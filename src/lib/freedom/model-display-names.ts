@@ -265,16 +265,22 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'kling-v2-6': 'Kling V2.6',
 
   // --- Doubao / 豆包 / Seedance ---
+  // Seedance 2.0 系列
+  'doubao-seedance-2-0-pro-t2v-260610': 'Seedance 2.0 Pro 文生视频',
+  'doubao-seedance-2-0-pro-i2v-260610': 'Seedance 2.0 Pro 图生视频',
+  'doubao-seedance-2-0-pro-t2v-fast-260610': 'Seedance 2.0 Pro Fast 文生视频',
+  // Seedance 1.5 系列
+  'doubao-seedance-1-5-pro-251215': 'Seedance 1.5 Pro',
+  'doubao-seedance-1-5-pro-250428': 'Seedance 1.5 Pro',
+  'doubao-seedance-1-5-lite-251215': 'Seedance 1.5 Lite',
+  'doubao-seedance-1-5-pro-i2v-251215': 'Seedance 1.5 Pro 图生视频',
+  // Seedance 1.0 系列
   'doubao-seedance-1-0-pro-250528': 'Seedance 1.0 Pro',
   'doubao-seedance-1-0-pro-fast-251015': 'Seedance 1.0 Pro Fast',
   'doubao-seedance-1-0-lite-t2v-250428': 'Seedance 1.0 Lite T2V',
   'doubao-seedance-1-0-lite-i2v-250428': 'Seedance 1.0 Lite I2V',
-  'doubao-seedance-1-5-pro-250428': 'Seedance 1.5 Pro',
-  'doubao-seedance-1-5-pro-251215': 'Seedance 1.5 Pro',
   'doubao-seedance-1-0-lite-250428': 'Seedance 1.0 Lite',
   'doubao-seedance-1-0-pro-250428': 'Seedance 1.0 Pro',
-  'doubao-seedance-1-5-lite-251215': 'Seedance 1.5 Lite',
-  'doubao-seedance-1-5-pro-i2v-251215': 'Seedance 1.5 Pro 图生视频',
 
   // --- Vidu ---
   'vidu2.0': 'Vidu 2.0',

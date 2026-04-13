@@ -163,7 +163,7 @@ export function SettingsPanel() {
     const defaults: Record<string, string> = {
       script_analysis: `${pid}:deepseek-v3.2`,
       character_generation: `${pid}:gemini-3-pro-image-preview`,
-      video_generation: `${pid}:doubao-seedance-1-5-pro-251215`,
+      video_generation: `${pid}:doubao-seedance-2-0-pro-t2v-260610`,
       image_understanding: `${pid}:gemini-2.5-flash`,
     };
 
@@ -1567,7 +1567,7 @@ export function SettingsPanel() {
               // NOTE: MemeFast 端点已升级，旧的 deepseek-v3 已不在列表中，改用 deepseek-v3.2
               script_analysis: `${pid}:deepseek-v3.2`,
               character_generation: `${pid}:gemini-3-pro-image-preview`,
-              video_generation: `${pid}:doubao-seedance-1-5-pro-251215`,
+              video_generation: `${pid}:doubao-seedance-2-0-pro-t2v-260610`,
               image_understanding: `${pid}:gemini-2.5-flash`,
             };
             for (const [feature, binding] of Object.entries(MEMEFAST_DEFAULT_BINDINGS)) {
@@ -1626,7 +1626,7 @@ export function SettingsPanel() {
               // NOTE: MemeFast 端点已升级，旧的 deepseek-v3 已不在列表中，改用 deepseek-v3.2
               script_analysis: `${pid}:deepseek-v3.2`,
               character_generation: `${pid}:gemini-3-pro-image-preview`,
-              video_generation: `${pid}:doubao-seedance-1-5-pro-251215`,
+              video_generation: `${pid}:doubao-seedance-2-0-pro-t2v-260610`,
               image_understanding: `${pid}:gemini-2.5-flash`,
             };
             for (const [feature, binding] of Object.entries(MEMEFAST_DEFAULT_BINDINGS)) {
