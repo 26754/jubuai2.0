@@ -42,6 +42,7 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
 
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({
     memefast: false,
+    bailian: false,
     volcengine: false,
     doubao: false,
     runninghub: false,
@@ -50,6 +51,7 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
   const [testing, setTesting] = useState<ProviderId | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
     memefast: null,
+    bailian: null,
     volcengine: null,
     doubao: null,
     runninghub: null,
@@ -84,6 +86,12 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
       id: "memefast",
       name: "JuBu API",
       description: "全功能 AI 中转，支持对话/图片/视频/图片理解",
+      services: ["对话", "图片", "视频", "图片理解"],
+    },
+    {
+      id: "bailian",
+      name: "阿里云百炼",
+      description: "阿里云大模型服务平台，支持通义千问/万相生图/视频生成",
       services: ["对话", "图片", "视频", "图片理解"],
     },
     {

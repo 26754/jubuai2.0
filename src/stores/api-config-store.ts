@@ -36,6 +36,10 @@ function proxyUrl(url: string): string {
   if (url.includes('ark.cn-guangzhou.volces.com')) {
     return url.replace('https://ark.cn-guangzhou.volces.com', '/__proxy/volcengine-gz');
   }
+  // 阿里云百炼 API
+  if (url.includes('dashscope.aliyuncs.com')) {
+    return url.replace('https://dashscope.aliyuncs.com', '/__proxy/bailian');
+  }
   // 其他外部 API 暂不处理
   return url;
 }
@@ -509,6 +513,7 @@ const PROVIDER_INFO: Record<ProviderId, { name: string; services: ServiceType[] 
   openai: { name: 'OpenAI', services: ['chat', 'vision'] },
   volcengine: { name: '火山引擎', services: ['chat', 'image', 'video', 'vision'] },
   doubao: { name: '豆包', services: ['chat', 'vision'] },
+  bailian: { name: '阿里云百炼', services: ['chat', 'image', 'video', 'vision'] },
   custom: { name: 'Custom', services: [] },
 };
 

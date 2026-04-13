@@ -120,6 +120,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/__proxy\/volcengine-gz/, ''),
       },
+      // 阿里云百炼 API 代理
+      '/__proxy/bailian': {
+        target: 'https://dashscope.aliyuncs.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__proxy\/bailian/, ''),
+      },
     },
   },
 })

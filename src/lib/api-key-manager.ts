@@ -64,6 +64,35 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
     capabilities: ['text', 'vision', 'image_generation', 'video_generation'],
   },
   {
+    platform: 'bailian',
+    name: '阿里云百炼',
+    baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
+    model: [
+      // 通义千问系列
+      'qwen-plus',
+      'qwen-plus-128k',
+      'qwen-max',
+      'qwen-max-longcontext',
+      'qwen-turbo',
+      'qwen-turbo-0624',
+      'qwen-plus-0624',
+      'qwen-plus-july-2024',
+      'qwen2.5-72b-instruct',
+      'qwen2.5-32b-instruct',
+      'qwen2.5-14b-instruct',
+      'qwen2.5-7b-instruct',
+      'qwq-32b',
+      // 万相生图
+      'wanx2.1-t2i-turbo',
+      'wanx2.1-t2i-plus',
+      // 视频生成
+      'wanx2.0-i2v-turbo',
+      'wanx2.0-i2v-plus',
+    ],
+    capabilities: ['text', 'vision', 'function_calling', 'image_generation', 'video_generation'],
+    contextLimit: 128000,
+  },
+  {
     platform: 'runninghub',
     name: 'RunningHub',
     baseUrl: 'https://www.runninghub.cn/openapi/v2',
