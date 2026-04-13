@@ -180,6 +180,17 @@ const checkSupabaseConfig = (): boolean => {
   }
 };
 
+// 动态检查配置（用于运行时检查）
+const isSupabaseConfigured = (): boolean => {
+  try {
+    const url = import.meta.env.VITE_SUPABASE_URL as string;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    return !!(url && key);
+  } catch {
+    return false;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   currentUser: null,
@@ -190,7 +201,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isSupabaseConfigured: checkSupabaseConfig(),
 
   initialize: async () => {
-    const { isSupabaseConfigured } = get();
+    // 每次初始化时动态检查配置
+    if (!isSupabaseConfigured()) {
+      console.log('[Auth] Supabase not configured, skipping initialization');
+      set({ isSupabaseConfigured: false });
+      return;
+    }
+    
+    set({ isSupabaseConfigured: true });
     
     if (!isSupabaseConfigured) {
       console.log('[Auth] Supabase not configured, skipping initialization');
@@ -256,9 +274,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email: string, password: string): Promise<boolean> => {
-    const { isSupabaseConfigured } = get();
-    
-    if (!isSupabaseConfigured) {
+    // 动态检查 Supabase 配置
+    if (!isSupabaseConfigured()) {
       set({ error: 'Supabase 未配置，请联系管理员' });
       return false;
     }
@@ -278,7 +295,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           isLoading: false,
           error: error.message === 'Invalid login credentials'
-            ? '用户名或密码错误'
+            ? '邮箱或密码错误'
             : error.message,
         });
         return false;
@@ -313,9 +330,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (email: string, password: string, username?: string): Promise<boolean> => {
-    const { isSupabaseConfigured } = get();
-    
-    if (!isSupabaseConfigured) {
+    // 动态检查 Supabase 配置
+    if (!isSupabaseConfigured()) {
       set({ error: 'Supabase 未配置，请联系管理员' });
       return false;
     }
@@ -342,7 +358,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // 处理常见的注册错误
         let errorMessage = error.message;
         if (error.message.includes('already registered')) {
-          errorMessage = '该用户名已被注册';
+          errorMessage = '该邮箱已被注册';
         } else if (error.message.includes('Password should be at least')) {
           errorMessage = '密码长度至少为6个字符';
         }

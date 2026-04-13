@@ -5,7 +5,7 @@
 
 /**
  * 登录/注册页面
- * 使用用户名+密码登录
+ * 使用邮箱+密码登录
  */
 
 import React, { useState } from "react";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { Loader2, Clapperboard, User, Lock, ArrowRight, Check, X } from "lucide-react";
+import { Loader2, Clapperboard, Mail, Lock, ArrowRight, Check, X, Key } from "lucide-react";
 
 interface AuthPageProps {
   onSuccess?: () => void;
@@ -25,16 +25,11 @@ type AuthMode = 'login' | 'register';
 
 export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('login');
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
   const { login, register, isLoading, error, clearError } = useAuthStore();
-
-  // 将用户名转换为内部邮箱格式
-  const usernameToEmail = (name: string): string => {
-    return `${name}@jubu.local`;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,16 +39,11 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
       return;
     }
 
-    // 用户名验证
-    if (!username || username.length < 3) {
-      return;
-    }
-
     let success = false;
     if (mode === 'login') {
-      success = await login(usernameToEmail(username), password);
+      success = await login(email, password);
     } else if (mode === 'register') {
-      success = await register(usernameToEmail(username), password, username);
+      success = await register(email, password, email.split('@')[0]);
     }
 
     if (success && onSuccess) {
@@ -178,22 +168,22 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
 
           {/* 表单 */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* 用户名 - 登录和注册都需要 */}
+            {/* 邮箱 */}
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                用户名
+              <Label htmlFor="email" className="text-sm font-medium">
+                邮箱
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="username"
-                  type="text"
-                  placeholder={mode === 'login' ? '输入用户名' : '选择一个用户名（至少3个字符）'}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="输入邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12"
                   required
-                  autoComplete="off"
+                  autoComplete="email"
                 />
               </div>
             </div>
