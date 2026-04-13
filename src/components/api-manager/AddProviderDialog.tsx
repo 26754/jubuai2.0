@@ -79,24 +79,26 @@ const PLATFORM_PRESETS: Array<{
     platform: "doubao",
     name: "火山引擎豆包",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    description: "字节跳动豆包大模型，官方 API，支持 Seedance 2.0",
+    description: "字节跳动豆包大模型，官方 API，支持 Seedance 2.0 文生视频",
     services: ["对话", "图片理解", "视频生成", "图像生成"],
     models: [
-      // 对话模型
+      // 对话模型 - 豆包 Pro/Lite
       "doubao-pro-32k",
       "doubao-pro-128k",
       "doubao-lite-32k",
       "doubao-lite-128k",
-      // Seedance 2.0 系列
+      // Seedance 2.0 系列（最新视频生成）
       "doubao-seedance-2-0-pro-t2v-260610",
       "doubao-seedance-2-0-pro-i2v-260610",
       "doubao-seedance-2-0-pro-t2v-fast-260610",
       // Seedance 1.5 系列
       "doubao-seedance-1-5-pro-251215",
       "doubao-seedance-1-0-pro-fast-251015",
-      // 图像生成
-      "doubao-seedream-4-5-251128",
+      // Seedream 图像生成
+      "doubao-seedream-4-5",
       "doubao-seedream-3-0-t2i-250415",
+      // 思考模型
+      "doubao-thinking-pro-250715",
     ],
   },
   {
