@@ -61,6 +61,7 @@ export interface ScriptProjectData {
   language: string;
   targetDuration: string;
   styleId: string;
+  styleManuallyChanged: boolean; // 视觉风格是否被用户独立选择
   inputDraft: ScriptInputDraft;
   sceneCount?: string; // 鍦烘櫙鏁伴噺锛堝彲閫夛級
   shotCount?: string;  // 鍒嗛暅鏁伴噺锛堝彲閫夛級
@@ -98,6 +99,7 @@ interface ScriptStoreActions {
   setLanguage: (projectId: string, language: string) => void;
   setTargetDuration: (projectId: string, duration: string) => void;
   setStyleId: (projectId: string, styleId: string) => void;
+  setStyleManuallyChanged: (projectId: string, changed: boolean) => void;
   setInputDraft: (projectId: string, draft: Partial<ScriptInputDraft>) => void;
   setSceneCount: (projectId: string, sceneCount?: string) => void;
   setShotCount: (projectId: string, shotCount?: string) => void;
@@ -156,6 +158,7 @@ const defaultProjectData = (): ScriptProjectData => ({
   language: "涓枃",
   targetDuration: "60s",
   styleId: "2d_ghibli",
+  styleManuallyChanged: false, // 默认跟随剧本语言
   inputDraft: { ...defaultInputDraft },
   sceneCount: undefined,
   shotCount: undefined,
@@ -329,6 +332,20 @@ export const useScriptStore = create<ScriptStore>()(
             [projectId]: {
               ...state.projects[projectId],
               styleId,
+              updatedAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      setStyleManuallyChanged: (projectId, changed) => {
+        get().ensureProject(projectId);
+        set((state) => ({
+          projects: {
+            ...state.projects,
+            [projectId]: {
+              ...state.projects[projectId],
+              styleManuallyChanged: changed,
               updatedAt: Date.now(),
             },
           },

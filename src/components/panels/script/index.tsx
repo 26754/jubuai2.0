@@ -100,6 +100,7 @@ export function ScriptView() {
     setLanguage,
     setTargetDuration,
     setStyleId,
+    setStyleManuallyChanged,
     setSceneCount,
     setShotCount,
     setScriptData,
@@ -280,6 +281,7 @@ export function ScriptView() {
   const language = scriptProject?.language || "中文";
   const targetDuration = scriptProject?.targetDuration || "60s";
   const styleId = scriptProject?.styleId || DEFAULT_STYLE_ID;
+  const styleManuallyChanged = scriptProject?.styleManuallyChanged || false; // 视觉风格独立选择状态
   const sceneCount = scriptProject?.sceneCount;
   const shotCount = scriptProject?.shotCount;
   const scriptData = scriptProject?.scriptData || null;
@@ -2372,6 +2374,8 @@ export function ScriptView() {
             language={language}
             targetDuration={targetDuration}
             styleId={styleId}
+            styleManuallyChanged={styleManuallyChanged}
+            onStyleManuallyChanged={(changed) => setStyleManuallyChanged(projectId, changed)}
             sceneCount={sceneCount}
             shotCount={shotCount}
             parseStatus={parseStatus}

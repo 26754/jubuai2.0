@@ -89,6 +89,8 @@ interface ScriptInputProps {
   language: string;
   targetDuration: string;
   styleId: string;
+  styleManuallyChanged: boolean; // 视觉风格是否被用户独立选择
+  onStyleManuallyChanged: (changed: boolean) => void; // 通知父组件更新 store
   sceneCount?: string;
   shotCount?: string;
   parseStatus: "idle" | "parsing" | "ready" | "error";
@@ -132,6 +134,8 @@ export function ScriptInput({
   language,
   targetDuration,
   styleId,
+  styleManuallyChanged,
+  onStyleManuallyChanged,
   sceneCount,
   shotCount,
   parseStatus,
@@ -172,8 +176,8 @@ export function ScriptInput({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // 视觉风格与剧本语言联动状态
-  const [styleManuallyChanged, setStyleManuallyChanged] = useState(false);
+  // 视觉风格与剧本语言联动状态（现在从 props 传入，持久化到 store）
+  // styleManuallyChanged 直接使用 props，不再需要本地 state
 
   const [mode, setMode] = useState<"import" | "create">(inputDraft?.mode || "import");
   const [idea, setIdea] = useState(inputDraft?.idea || "");
@@ -198,16 +202,16 @@ export function ScriptInput({
     }
   }, [language, styleManuallyChanged]);
 
-  // 当用户手动选择风格时，记录下来
+  // 当用户手动选择风格时，记录下来（持久化到 store）
   const handleStyleChange = (styleId: string) => {
-    setStyleManuallyChanged(true);
+    onStyleManuallyChanged(true);
     onStyleChange(styleId);
   };
 
   // 当剧本改变时，重置手动选择状态（剧本可能需要不同的风格）
   useEffect(() => {
     if (rawScript.trim()) {
-      setStyleManuallyChanged(false);
+      onStyleManuallyChanged(false);
     }
   }, [rawScript]);
 
@@ -215,8 +219,7 @@ export function ScriptInput({
   useEffect(() => {
     setMode(inputDraft?.mode || "import");
     setIdea(inputDraft?.idea || "");
-    // 切换项目时重置手动选择状态
-    setStyleManuallyChanged(false);
+    // styleManuallyChanged 状态已持久化到 store，由父组件传递，无需在此重置
   }, [scriptActiveProjectId, inputDraft?.mode, inputDraft?.idea]);
 
   // Persist mode/idea draft to survive panel switching
