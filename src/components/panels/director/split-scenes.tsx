@@ -406,6 +406,8 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     addAngleSwitchHistory,
     deleteSplitScene,
     addBlankSplitScene,
+    insertSplitScene,
+    duplicateSplitScene,
     resetStoryboard,
     // 预告片功能
     clearTrailer,
@@ -693,6 +695,20 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
     setIsMergedRunning(false);
     toast.info('合并生成已停止');
   }, []);
+
+  // ========== 分镜操作处理函数 ==========
+  // 在指定分镜前插入新分镜
+  const handleInsertBefore = useCallback((sceneId: number) => {
+    // 使用 null 表示插入到指定分镜之前
+    insertSplitScene(sceneId);
+    toast.success('已在该分镜前插入新分镜');
+  }, [insertSplitScene]);
+
+  // 复制指定分镜
+  const handleDuplicate = useCallback((sceneId: number) => {
+    duplicateSplitScene(sceneId);
+    toast.success('分镜已复制');
+  }, [duplicateSplitScene]);
 
   // Handle angle switch click
   const handleAngleSwitchClick = useCallback((sceneId: number, type: "start" | "end") => {
@@ -3624,6 +3640,8 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
             isAngleSwitching={isAngleSwitching}
             isQuadGridGenerating={isQuadGridGenerating}
             isGeneratingAny={isGenerating}
+            onInsertBefore={handleInsertBefore}
+            onDuplicate={handleDuplicate}
           />
                 ))}
               </div>

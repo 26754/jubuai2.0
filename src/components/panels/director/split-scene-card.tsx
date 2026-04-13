@@ -54,6 +54,8 @@ import {
   Grid2X2,
   Square,
   ChevronRight,
+  Copy,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmotionTags } from "./emotion-tags";
@@ -126,6 +128,9 @@ export interface SplitSceneCardProps {
   isAngleSwitching?: boolean;
   isQuadGridGenerating?: boolean;
   isGeneratingAny?: boolean;
+  // 分镜操作回调
+  onInsertBefore?: (sceneId: number) => void;
+  onDuplicate?: (sceneId: number) => void;
 }
 
 export function SplitSceneCard({
@@ -163,6 +168,8 @@ export function SplitSceneCard({
   isAngleSwitching,
   isQuadGridGenerating,
   isGeneratingAny,
+  onInsertBefore,
+  onDuplicate,
 }: SplitSceneCardProps) {
   // 编辑状态：'none' | 'image' | 'video' | 'endFrame'
   const [editingPrompt, setEditingPrompt] = useState<'none' | 'image' | 'video' | 'endFrame'>('none');
@@ -405,7 +412,24 @@ export function SplitSceneCard({
           />
         </div>
         {!isGeneratingAny && (
-          <AlertDialog>
+          <div className="flex items-center gap-1">
+            {/* 插入分镜按钮 */}
+            <button
+              onClick={() => onInsertBefore?.(scene.id)}
+              className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+              title="在上方插入分镜"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            {/* 复制分镜按钮 */}
+            <button
+              onClick={() => onDuplicate?.(scene.id)}
+              className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+              title="复制分镜"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+            <AlertDialog>
             <AlertDialogTrigger asChild>
               <button className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -429,6 +453,7 @@ export function SplitSceneCard({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </div>
         )}
       </div>
 

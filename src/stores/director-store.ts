@@ -426,6 +426,10 @@ interface DirectorActions {
   addAngleSwitchHistory: (sceneId: number, type: 'start' | 'end', historyItem: { imageUrl: string; angleLabel: string; timestamp: number }) => void;
   deleteSplitScene: (sceneId: number) => void;
   addBlankSplitScene: () => void;
+  // 分镜操作
+  insertSplitScene: (afterSceneId: number | null) => void;  // 插入分镜，null表示插入最开头
+  duplicateSplitScene: (sceneId: number) => void;  // 复制分镜
+  moveSplitScene: (sceneId: number, newIndex: number) => void;  // 移动分镜位置
   setStoryboardConfig: (config: Partial<DirectorProjectData['storyboardConfig']>) => void;
   setScreenplayDraft: (draft: Partial<DirectorScreenplayDraft>) => void;
   clearScreenplayDraft: () => void;
@@ -1683,6 +1687,183 @@ export const useDirectorStore = create<DirectorStore>()(
     });
 
     console.log('[DirectorStore] Added blank scene, id:', newId, 'total:', splitScenes.length + 1);
+  },
+
+  // 插入分镜（在指定位置后插入，null表示插入到最开头）
+  insertSplitScene: (afterSceneId: number | null) => {
+    const { activeProjectId, projects } = get();
+    if (!activeProjectId) return;
+    const project = projects[activeProjectId];
+    const splitScenes = project?.splitScenes || [];
+    const newId = splitScenes.length > 0 ? Math.max(...splitScenes.map(s => s.id)) + 1 : 0;
+
+    const blankScene: SplitScene = {
+      id: newId,
+      sceneName: `新分镜 ${newId + 1}`,
+      sceneLocation: '',
+      imageDataUrl: '',
+      imageHttpUrl: null,
+      width: 0,
+      height: 0,
+      imagePrompt: '',
+      imagePromptZh: '',
+      videoPrompt: '',
+      videoPromptZh: '',
+      endFramePrompt: '',
+      endFramePromptZh: '',
+      needsEndFrame: false,
+      row: 0,
+      col: 0,
+      sourceRect: { x: 0, y: 0, width: 0, height: 0 },
+      endFrameImageUrl: null,
+      endFrameHttpUrl: null,
+      endFrameSource: null,
+      endFrameStatus: 'idle',
+      endFrameProgress: 0,
+      endFrameError: null,
+      characterIds: [],
+      emotionTags: [],
+      shotSize: null,
+      duration: 5,
+      ambientSound: '',
+      soundEffects: [],
+      soundEffectText: '',
+      dialogue: '',
+      actionSummary: '',
+      cameraMovement: '',
+      audioAmbientEnabled: true,
+      audioSfxEnabled: true,
+      audioDialogueEnabled: true,
+      audioBgmEnabled: false,
+      backgroundMusic: '',
+      imageStatus: 'idle',
+      imageProgress: 0,
+      imageError: null,
+      videoStatus: 'idle',
+      videoProgress: 0,
+      videoUrl: null,
+      videoError: null,
+      videoMediaId: null,
+    };
+
+    let newSplitScenes: SplitScene[];
+    if (afterSceneId === null) {
+      // 插入到最开头
+      newSplitScenes = [blankScene, ...splitScenes];
+    } else {
+      // 插入到指定位置后
+      const index = splitScenes.findIndex(s => s.id === afterSceneId);
+      if (index === -1) {
+        newSplitScenes = [...splitScenes, blankScene];
+      } else {
+        newSplitScenes = [
+          ...splitScenes.slice(0, index + 1),
+          blankScene,
+          ...splitScenes.slice(index + 1),
+        ];
+      }
+    }
+
+    set({
+      projects: {
+        ...projects,
+        [activeProjectId]: {
+          ...project,
+          splitScenes: newSplitScenes,
+          storyboardStatus: 'editing',
+        },
+      },
+    });
+
+    console.log('[DirectorStore] Inserted scene, id:', newId, 'after:', afterSceneId, 'total:', newSplitScenes.length);
+  },
+
+  // 复制分镜
+  duplicateSplitScene: (sceneId: number) => {
+    const { activeProjectId, projects } = get();
+    if (!activeProjectId) return;
+    const project = projects[activeProjectId];
+    const splitScenes = project?.splitScenes || [];
+    const sceneToDuplicate = splitScenes.find(s => s.id === sceneId);
+    if (!sceneToDuplicate) return;
+
+    const newId = splitScenes.length > 0 ? Math.max(...splitScenes.map(s => s.id)) + 1 : 0;
+
+    const duplicatedScene: SplitScene = {
+      ...sceneToDuplicate,
+      id: newId,
+      sceneName: `${sceneToDuplicate.sceneName} (副本)`,
+      // 重置生成状态
+      imageStatus: 'idle',
+      imageProgress: 0,
+      imageError: null,
+      endFrameStatus: 'idle',
+      endFrameProgress: 0,
+      endFrameError: null,
+      videoStatus: 'idle',
+      videoProgress: 0,
+      videoUrl: null,
+      videoError: null,
+      videoMediaId: null,
+      // 重置图片URL（新ID需要重新生成）
+      imageDataUrl: '',
+      imageHttpUrl: null,
+      endFrameImageUrl: null,
+      endFrameHttpUrl: null,
+    };
+
+    // 插入到原分镜后面
+    const index = splitScenes.findIndex(s => s.id === sceneId);
+    const newSplitScenes = [
+      ...splitScenes.slice(0, index + 1),
+      duplicatedScene,
+      ...splitScenes.slice(index + 1),
+    ];
+
+    set({
+      projects: {
+        ...projects,
+        [activeProjectId]: {
+          ...project,
+          splitScenes: newSplitScenes,
+          storyboardStatus: 'editing',
+        },
+      },
+    });
+
+    console.log('[DirectorStore] Duplicated scene, original id:', sceneId, 'new id:', newId);
+  },
+
+  // 移动分镜位置
+  moveSplitScene: (sceneId: number, newIndex: number) => {
+    const { activeProjectId, projects } = get();
+    if (!activeProjectId) return;
+    const project = projects[activeProjectId];
+    const splitScenes = project?.splitScenes || [];
+    
+    const currentIndex = splitScenes.findIndex(s => s.id === sceneId);
+    if (currentIndex === -1) return;
+    
+    // 限制 newIndex 范围
+    const validNewIndex = Math.max(0, Math.min(newIndex, splitScenes.length - 1));
+    if (currentIndex === validNewIndex) return;
+    
+    const scene = splitScenes[currentIndex];
+    const newSplitScenes = [...splitScenes];
+    newSplitScenes.splice(currentIndex, 1);
+    newSplitScenes.splice(validNewIndex, 0, scene);
+
+    set({
+      projects: {
+        ...projects,
+        [activeProjectId]: {
+          ...project,
+          splitScenes: newSplitScenes,
+        },
+      },
+    });
+
+    console.log('[DirectorStore] Moved scene, id:', sceneId, 'from:', currentIndex, 'to:', validNewIndex);
   },
 
   // Workflow actions
