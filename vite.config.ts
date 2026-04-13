@@ -104,6 +104,22 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // 火山引擎 ARK API 代理
+      '/__proxy/volcengine': {
+        target: 'https://ark.cn-beijing.volces.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__proxy\/volcengine/, ''),
+      },
+      '/__proxy/volcengine-sh': {
+        target: 'https://ark.cn-shanghai.volces.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__proxy\/volcengine-sh/, ''),
+      },
+      '/__proxy/volcengine-gz': {
+        target: 'https://ark.cn-guangzhou.volces.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__proxy\/volcengine-gz/, ''),
+      },
     },
   },
 })

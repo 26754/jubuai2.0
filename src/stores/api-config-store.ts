@@ -21,6 +21,25 @@ import {
 } from '@/lib/api-key-manager';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
 
+/**
+ * API URL 代理转换函数
+ * 将外部 API URL 转换为代理路径，避免 CORS 问题
+ */
+function proxyUrl(url: string): string {
+  // 火山引擎 ARK API
+  if (url.includes('ark.cn-beijing.volces.com')) {
+    return url.replace('https://ark.cn-beijing.volces.com', '/__proxy/volcengine');
+  }
+  if (url.includes('ark.cn-shanghai.volces.com')) {
+    return url.replace('https://ark.cn-shanghai.volces.com', '/__proxy/volcengine-sh');
+  }
+  if (url.includes('ark.cn-guangzhou.volces.com')) {
+    return url.replace('https://ark.cn-guangzhou.volces.com', '/__proxy/volcengine-gz');
+  }
+  // 其他外部 API 暂不处理
+  return url;
+}
+
 // Re-export IProvider for convenience
 export type { IProvider } from '@/lib/api-key-manager';
 
@@ -607,7 +626,7 @@ export const useAPIConfigStore = create<APIConfigStore>()(
           if (isMemefast) {
             // MemeFast: /api/pricing_new 获取全量元数据（公开接口）
             const domain = baseUrl.replace(/\/v\d+$/, '');
-            const pricingUrl = `${domain}/api/pricing_new`;
+            const pricingUrl = proxyUrl(`${domain}/api/pricing_new`);
 
             const response = await fetch(pricingUrl);
             if (!response.ok) {
@@ -650,13 +669,13 @@ export const useAPIConfigStore = create<APIConfigStore>()(
             }
 
             // 再遍历每个 key 查 /v1/models 补充该 key 独有模型
-            const modelsUrl = /\/v\d+$/.test(baseUrl)
+            const memefastModelsUrl = proxyUrl(/\/v\d+$/.test(baseUrl)
               ? `${baseUrl}/models`
-              : `${baseUrl}/v1/models`;
+              : `${baseUrl}/v1/models`);
 
             for (let ki = 0; ki < keys.length; ki++) {
               try {
-                const resp = await fetch(modelsUrl, {
+                const resp = await fetch(memefastModelsUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
                 });
                 if (!resp.ok) {
@@ -681,9 +700,9 @@ export const useAPIConfigStore = create<APIConfigStore>()(
             }
           } else {
             // Standard OpenAI-compatible: 遍历每个 key 查 /v1/models，合并去重
-            const modelsUrl = /\/v\d+$/.test(baseUrl)
+            const modelsUrl = proxyUrl(/\/v\d+$/.test(baseUrl)
               ? `${baseUrl}/models`
-              : `${baseUrl}/v1/models`;
+              : `${baseUrl}/v1/models`);
 
             const endpointUpdates: Record<string, string[]> = {};
             let anySuccess = false;
