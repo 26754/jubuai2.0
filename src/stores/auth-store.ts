@@ -48,6 +48,27 @@ const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
+// 测试账号的密码哈希
+const TEST_PASSWORD_HASH = '54c9a7a0'; // hashPassword('test123')
+
+// 确保测试账号存在
+const ensureTestUser = (users: (User & { passwordHash?: string })[]): (User & { passwordHash: string })[] => {
+  const hasTestUser = users.some(u => u.username === 'test');
+  if (!hasTestUser) {
+    return [
+      ...users,
+      {
+        id: 'test-user-001',
+        username: 'test',
+        email: 'test@example.com',
+        createdAt: Date.now(),
+        passwordHash: TEST_PASSWORD_HASH,
+      }
+    ];
+  }
+  return users as (User & { passwordHash: string })[];
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -60,7 +81,7 @@ export const useAuthStore = create<AuthState>()(
           username: 'test',
           email: 'test@example.com',
           createdAt: Date.now(),
-          passwordHash: hashPassword('test123'),
+          passwordHash: TEST_PASSWORD_HASH,
         }
       ] as (User & { passwordHash: string })[],
       isLoading: false,
@@ -181,6 +202,16 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
       }),
+      // 自定义合并逻辑，确保测试账号始终存在
+      merge: (persistedState: any, currentState) => {
+        const persisted = persistedState || {};
+        const users = ensureTestUser(persisted.users || []);
+        return {
+          ...currentState,
+          ...persisted,
+          users,
+        };
+      },
     }
   )
 );
