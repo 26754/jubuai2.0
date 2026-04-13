@@ -723,13 +723,21 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
             for (let ki = 0; ki < keys.length; ki++) {
               try {
-                const response = await fetch(modelsUrl, {
+                const requestUrl = modelsUrl;
+                console.log(`[APIConfig] Syncing models from ${provider.platform} key#${ki + 1}: ${requestUrl}`);
+                
+                const response = await fetch(requestUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
                 });
 
                 if (!response.ok) {
                   lastError = `key#${ki + 1} API 返回 ${response.status}`;
-                  console.warn(`[APIConfig] ${lastError}`);
+                  console.warn(`[APIConfig] ${lastError} - 平台: ${provider.platform}, BaseURL: ${baseUrl}`);
+                  // 尝试读取错误响应体
+                  try {
+                    const errorText = await response.text();
+                    console.warn(`[APIConfig] 错误响应预览: ${errorText.substring(0, 200)}`);
+                  } catch {}
                   continue;
                 }
 
@@ -749,10 +757,19 @@ export const useAPIConfigStore = create<APIConfigStore>()(
                     endpointUpdates[m.id] = m.supported_endpoint_types as string[];
                   }
                 }
-                console.log(`[APIConfig] key#${ki + 1} contributed models, total so far: ${allModelIds.size}`);
+                console.log(`[APIConfig] key#${ki + 1} 成功获取 ${data.length} 个模型`);
               } catch (e) {
+                const fetchError = e as Error;
                 lastError = `key#${ki + 1} 网络请求失败`;
-                console.warn(`[APIConfig] ${lastError}:`, e);
+                console.error(`[APIConfig] ${lastError} - 平台: ${provider.platform}, BaseURL: ${baseUrl}, 错误: ${fetchError.message}`);
+                // 区分网络错误类型
+                if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
+                  console.error(`[APIConfig] 可能原因: CORS跨域限制、网络连接问题、或API地址不可达`);
+                } else if (fetchError.message.includes('timeout')) {
+                  console.error(`[APIConfig] 可能原因: 请求超时，请检查网络连接`);
+                } else if (fetchError.message.includes('ECONNREFUSED')) {
+                  console.error(`[APIConfig] 可能原因: 拒绝连接，代理服务可能未启动`);
+                }
               }
             }
 

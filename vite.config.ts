@@ -126,6 +126,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/__proxy\/bailian/, ''),
       },
+      // MemeFast API 代理
+      '/__proxy/memefast': {
+        target: 'https://memefast.top',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__proxy\/memefast/, ''),
+      },
     },
   },
 })
