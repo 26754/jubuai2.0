@@ -12,7 +12,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuthStore, type User } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { LoginDialog } from "./LoginDialog";
 import { RegisterDialog } from "./RegisterDialog";
 import { LogOut, Settings, User as UserIcon, ChevronDown } from "lucide-react";
@@ -97,74 +97,74 @@ export function AuthButton() {
 
   // 已登录状态
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted transition-colors"
-      >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user?.avatar} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium">
-            {user?.username ? getInitials(user.username) : "U"}
-          </AvatarFallback>
-        </Avatar>
-        <span className="hidden md:block text-sm font-medium">
-          {user?.username || user?.email}
-        </span>
-        <ChevronDown className={cn(
-          "h-4 w-4 text-muted-foreground transition-transform",
-          showDropdown && "rotate-180"
-        )} />
-      </button>
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setShowDropdown(!showDropdown)}
+          className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted transition-colors"
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.avatar} />
+            <AvatarFallback className="bg-primary/10 text-primary font-medium">
+              {user?.username ? getInitials(user.username) : "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="hidden md:block text-sm font-medium">
+            {user?.username || user?.email}
+          </span>
+          <ChevronDown className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform",
+            showDropdown && "rotate-180"
+          )} />
+        </button>
 
-      {/* Dropdown Menu */}
-      {showDropdown && (
-        <div className="absolute right-0 mt-2 w-56 bg-card rounded-lg shadow-lg border overflow-hidden z-50">
-          {/* User Info */}
-          <div className="p-3 border-b bg-muted/30">
-            <p className="font-medium truncate">{user?.username}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+        {/* Dropdown Menu */}
+        {showDropdown && (
+          <div className="absolute right-0 mt-2 w-56 bg-card rounded-lg shadow-lg border overflow-hidden z-50">
+            {/* User Info */}
+            <div className="p-3 border-b bg-muted/30">
+              <p className="font-medium truncate">{user?.username}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </div>
+            
+            {/* Menu Items */}
+            <div className="p-1">
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+              >
+                <UserIcon className="h-4 w-4" />
+                个人资料
+              </button>
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                设置
+              </button>
+            </div>
+            
+            {/* Divider */}
+            <div className="border-t" />
+            
+            {/* Logout */}
+            <div className="p-1">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                退出登录
+              </button>
+            </div>
           </div>
-          
-          {/* Menu Items */}
-          <div className="p-1">
-            <button
-              onClick={() => {
-                setShowDropdown(false);
-                // TODO: 打开个人设置
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-            >
-              <UserIcon className="h-4 w-4" />
-              个人资料
-            </button>
-            <button
-              onClick={() => {
-                setShowDropdown(false);
-                // TODO: 打开设置
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-              设置
-            </button>
-          </div>
-          
-          {/* Divider */}
-          <div className="border-t" />
-          
-          {/* Logout */}
-          <div className="p-1">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              退出登录
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
