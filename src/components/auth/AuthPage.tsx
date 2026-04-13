@@ -181,7 +181,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10 h-12"
                   required
-                  autoComplete="username"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -202,7 +202,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12"
                     required
-                    autoComplete="email"
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -223,7 +223,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 h-12"
                   required
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -247,7 +247,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                       !passwordMatch && "border-destructive focus:border-destructive"
                     )}
                     required
-                    autoComplete="new-password"
+                    autoComplete="off"
                   />
                   {confirmPassword && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
