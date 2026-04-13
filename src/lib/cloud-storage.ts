@@ -5,7 +5,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { cloudAuth, cloudProjectManager, CloudUser, CloudProject } from '../cloud-storage';
+import { cloudAuth } from './cloud-auth';
+import type { CloudUser, AuthResult } from './cloud-auth';
+import { cloudProjectManager } from './cloud-project-manager';
+import type { CloudProject } from './cloud-project-manager';
 
 // =============================================
 // useCloudAuth - 认证状态管理
