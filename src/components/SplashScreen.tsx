@@ -80,15 +80,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       <div className="relative z-10 h-full flex flex-col items-center justify-center px-8">
         {/* Logo 和标题 */}
         <div className="text-center mb-16 animate-fade-in-up">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="relative">
-              <img 
-                src="/logo.png" 
-                alt="JuBu AI Logo" 
-                className="h-28 w-auto animate-pulse-subtle" 
-              />
-            </div>
-          </div>
+          <div className="flex items-center justify-center gap-4 mb-6" />
           
           <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
             JuBu AI
