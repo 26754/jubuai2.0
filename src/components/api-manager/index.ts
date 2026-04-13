@@ -6,7 +6,6 @@
 export { ApiKeyEditorDialog } from './ApiKeyEditorDialog';
 export { AddProviderDialog } from './AddProviderDialog';
 export { EditProviderDialog } from './EditProviderDialog';
-export { UnifiedApiTestDialog } from './UnifiedApiTestDialog';
 
 // 面板组件
 export { FeatureBindingPanel } from './FeatureBindingPanel';
