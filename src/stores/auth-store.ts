@@ -172,8 +172,8 @@ export const DEMO_PROJECT = {
 // 检查 Supabase 是否配置
 const checkSupabaseConfig = (): boolean => {
   try {
-    const url = process.env.COZE_SUPABASE_URL;
-    const key = process.env.COZE_SUPABASE_ANON_KEY;
+    const url = import.meta.env.VITE_SUPABASE_URL as string;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
     return !!(url && key);
   } catch {
     return false;

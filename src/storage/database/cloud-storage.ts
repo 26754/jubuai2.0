@@ -5,7 +5,7 @@
  * 提供统一的云端存储接口
  */
 
-import { getSupabaseClient } from './supabase-client';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
 
 // 导出子模块
 export * from './cloud-project-storage';
@@ -14,13 +14,7 @@ export * from './cloud-project-storage';
  * 检查云端存储是否可用
  */
 export function isCloudStorageAvailable(): boolean {
-  try {
-    const url = process.env.COZE_SUPABASE_URL;
-    const key = process.env.COZE_SUPABASE_ANON_KEY;
-    return !!(url && key);
-  } catch {
-    return false;
-  }
+  return isSupabaseConfigured();
 }
 
 /**

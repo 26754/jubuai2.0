@@ -1,128 +1,88 @@
+// Copyright (c) 2025 JuBu AI
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+/**
+ * Supabase 客户端 - 浏览器版本
+ * 使用 Vite 环境变量
+ */
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { execSync } from 'child_process';
 
-let envLoaded = false;
+// 环境变量（Vite 前缀 VITE_）
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string || '';
 
-interface SupabaseCredentials {
-  url: string;
-  anonKey: string;
+/**
+ * 检查 Supabase 是否配置
+ */
+export function isSupabaseConfigured(): boolean {
+  return !!(supabaseUrl && supabaseAnonKey);
 }
 
-function loadEnv(): void {
-  if (envLoaded || (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY)) {
-    return;
-  }
-
-  try {
-    try {
-      require('dotenv').config();
-      if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
-        envLoaded = true;
-        return;
-      }
-    } catch {
-      // dotenv not available
-    }
-
-    const pythonCode = `
-import os
-import sys
-try:
-    from coze_workload_identity import Client
-    client = Client()
-    env_vars = client.get_project_env_vars()
-    client.close()
-    for env_var in env_vars:
-        print(f"{env_var.key}={env_var.value}")
-except Exception as e:
-    print(f"# Error: {e}", file=sys.stderr)
-`;
-
-    const output = execSync(`python3 -c '${pythonCode.replace(/'/g, "'\"'\"'")}'`, {
-      encoding: 'utf-8',
-      timeout: 10000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const lines = output.trim().split('\n');
-    for (const line of lines) {
-      if (line.startsWith('#')) continue;
-      const eqIndex = line.indexOf('=');
-      if (eqIndex > 0) {
-        const key = line.substring(0, eqIndex);
-        let value = line.substring(eqIndex + 1);
-        if ((value.startsWith("'") && value.endsWith("'")) ||
-            (value.startsWith('"') && value.endsWith('"'))) {
-          value = value.slice(1, -1);
-        }
-        if (!process.env[key]) {
-          process.env[key] = value;
-        }
-      }
-    }
-
-    envLoaded = true;
-  } catch {
-    // Silently fail
-  }
+/**
+ * 获取环境配置信息
+ */
+export function getSupabaseConfig() {
+  return {
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+    isConfigured: isSupabaseConfigured(),
+  };
 }
 
-function getSupabaseCredentials(): SupabaseCredentials {
-  loadEnv();
-
-  const url = process.env.COZE_SUPABASE_URL;
-  const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
-
-  if (!url) {
-    throw new Error('COZE_SUPABASE_URL is not set');
-  }
-  if (!anonKey) {
-    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+/**
+ * 创建 Supabase 客户端（浏览器环境）
+ * @param accessToken - 可选的用户访问令牌（用于认证请求）
+ */
+export function getSupabaseClient(accessToken?: string): SupabaseClient {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase 未配置。请确保 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY 环境变量已设置。');
   }
 
-  return { url, anonKey };
-}
-
-function getSupabaseServiceRoleKey(): string | undefined {
-  loadEnv();
-  return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
-}
-
-function getSupabaseClient(token?: string): SupabaseClient {
-  const { url, anonKey } = getSupabaseCredentials();
-
-  let key: string;
-  if (token) {
-    key = anonKey;
-  } else {
-    const serviceRoleKey = getSupabaseServiceRoleKey();
-    key = serviceRoleKey ?? anonKey;
-  }
-
-  if (token) {
-    return createClient(url, key, {
-      global: {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-      db: {
-        timeout: 60000,
-      },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-  }
-
-  return createClient(url, key, {
-    db: {
-      timeout: 60000,
-    },
+  const options: any = {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
     },
-  });
+  };
+
+  // 如果提供了访问令牌，使用它进行认证
+  if (accessToken) {
+    options.global = {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    };
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, options);
 }
 
-export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient };
+/**
+ * 获取当前会话
+ */
+export async function getCurrentSession(accessToken?: string) {
+  const client = getSupabaseClient(accessToken);
+  const { data: { session }, error } = await client.auth.getSession();
+  if (error) {
+    console.error('[Supabase] 获取会话失败:', error);
+    return null;
+  }
+  return session;
+}
+
+/**
+ * 获取当前用户
+ */
+export async function getCurrentUser(accessToken?: string) {
+  const client = getSupabaseClient(accessToken);
+  const { data: { user }, error } = await client.auth.getUser();
+  if (error) {
+    console.error('[Supabase] 获取用户失败:', error);
+    return null;
+  }
+  return user;
+}
+
+// 默认导出的客户端（无认证）
+export const supabase = isSupabaseConfigured() ? createClient(supabaseUrl, supabaseAnonKey) : null;
