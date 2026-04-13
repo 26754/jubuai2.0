@@ -19,6 +19,8 @@ import {
   Sun, 
   Moon, 
   Monitor,
+  Sparkles,
+  Layers,
   LogIn,
   UserPlus
 } from "lucide-react";
@@ -82,11 +84,8 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
         <div className="text-center mb-16 animate-fade-in-up">
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="relative">
-              <img 
-                src="/logo.png" 
-                alt="JuBu AI Logo" 
-                className="h-24 w-auto animate-pulse-subtle" 
-              />
+              <Layers className="h-20 w-20 text-primary animate-pulse-subtle" />
+              <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-primary/60 animate-twinkle" />
             </div>
           </div>
           
