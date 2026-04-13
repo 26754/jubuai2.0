@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check, X, Rocket } from "lucide-react";
+import { Loader2, Clapperboard, User, Mail, Lock, ArrowRight, Check, X } from "lucide-react";
 
 interface AuthPageProps {
   onSuccess?: () => void;
@@ -27,7 +27,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
-  const { login, loginAsDemo, register, isLoading, error, clearError } = useAuthStore();
+  const { login, register, isLoading, error, clearError } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +45,6 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
     }
 
     // 登录或注册成功后调用 onSuccess
-    if (success && onSuccess) {
-      onSuccess();
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    clearError();
-    const success = await loginAsDemo();
     if (success && onSuccess) {
       onSuccess();
     }
@@ -296,29 +288,6 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
               )}
             </Button>
           </form>
-
-          {/* 快速体验按钮 - 仅登录模式显示 */}
-          {mode === 'login' && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12 text-base font-medium mt-4 border-primary/30 hover:bg-primary/10"
-              disabled={isLoading}
-              onClick={handleDemoLogin}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  进入体验...
-                </>
-              ) : (
-                <>
-                  <Rocket className="mr-2 h-4 w-4" />
-                  快速体验完整功能
-                </>
-              )}
-            </Button>
-          )}
 
           {/* 分隔线 */}
           <div className="relative my-8">
