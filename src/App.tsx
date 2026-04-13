@@ -9,14 +9,119 @@ import { useThemeStore } from "@/stores/theme-store";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { parseApiKeys } from "@/lib/api-key-manager";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage-migration";
 import type { AvailableUpdateInfo } from "@/types/update";
 import { useAuthStore } from "@/stores/auth-store";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { SplashScreen } from "@/components/SplashScreen";
+import { getSupabaseClient } from "@/storage/database/supabase-client";
 
 let hasTriggeredStartupUpdateCheck = false;
+
+// Auth Callback 组件
+function AuthCallbackHandler() {
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  useEffect(() => {
+    const handleCallback = async () => {
+      try {
+        // 解析 hash 参数
+        const hash = window.location.hash.substring(1); // 去掉 #
+        const params = new URLSearchParams(hash);
+        const code = params.get("code");
+        const error = params.get("error");
+        
+        console.log("[AuthCallback] Processing:", { hasCode: !!code, hasError: !!error });
+
+        if (error) {
+          setStatus("error");
+          setErrorMessage(decodeURIComponent(error));
+          return;
+        }
+
+        if (code) {
+          // Supabase 会自动处理 URL 中的 code
+          // 尝试获取会话
+          const supabase = getSupabaseClient();
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error("[AuthCallback] Session error:", sessionError);
+            setStatus("error");
+            setErrorMessage(sessionError.message);
+            return;
+          }
+
+          if (session) {
+            console.log("[AuthCallback] Auth successful:", session.user.email);
+            setStatus("success");
+            // 延迟跳转
+            setTimeout(() => {
+              window.location.hash = "";
+              window.location.reload();
+            }, 2000);
+          } else {
+            // 没有 session，可能需要等待 Supabase 处理
+            setStatus("success");
+            setTimeout(() => {
+              window.location.hash = "";
+              window.location.reload();
+            }, 3000);
+          }
+        } else {
+          // 没有 code 或 error，可能是正常访问
+          setStatus("success");
+          setTimeout(() => {
+            window.location.hash = "";
+          }, 1000);
+        }
+      } catch (err: any) {
+        console.error("[AuthCallback] Error:", err);
+        setStatus("error");
+        setErrorMessage(err.message || "验证失败");
+      }
+    };
+
+    handleCallback();
+  }, []);
+
+  return (
+    <div className="h-screen w-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4 p-8 max-w-md text-center">
+        {status === "loading" && (
+          <>
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-lg text-muted-foreground">正在处理认证...</p>
+          </>
+        )}
+        
+        {status === "success" && (
+          <>
+            <CheckCircle className="h-12 w-12 text-green-500" />
+            <p className="text-lg text-foreground font-medium">认证成功！</p>
+            <p className="text-sm text-muted-foreground">正在跳转...</p>
+          </>
+        )}
+        
+        {status === "error" && (
+          <>
+            <XCircle className="h-12 w-12 text-destructive" />
+            <p className="text-lg text-destructive font-medium">认证失败</p>
+            <p className="text-sm text-muted-foreground">{errorMessage}</p>
+            <button 
+              onClick={() => window.location.hash = ""}
+              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              返回首页
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const { theme } = useThemeStore();
@@ -134,6 +239,17 @@ function App() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">正在初始化...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 检测 auth callback 路由
+  const hash = window.location.hash;
+  if (hash.startsWith('#auth/callback')) {
+    return (
+      <div className="h-screen w-screen overflow-hidden">
+        <AuthCallbackHandler />
+        <Toaster richColors position="top-center" />
       </div>
     );
   }
