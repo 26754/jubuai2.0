@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // 模拟 hashPassword 函数（从 auth-store.ts 复制）
 const hashPassword = (password: string): string => {
@@ -24,12 +24,26 @@ type User = {
   passwordHash: string;
 };
 
+// Demo 用户配置（应该与 auth-store.ts 中的定义一致）
+const DEMO_USER = {
+  id: 'demo-user-001',
+  username: 'demo',
+  email: 'demo@jubu.ai',
+  passwordHash: '5c7bd16f', // hashPassword('demo123')
+};
+
 describe('Auth Login Test', () => {
   it('should generate correct password hash for test123', () => {
     const hash = hashPassword('test123');
     console.log('Password hash for "test123":', hash);
     expect(hash).toBeDefined();
     expect(hash.length).toBe(8);
+  });
+
+  it('should generate correct password hash for demo123', () => {
+    const hash = hashPassword('demo123');
+    console.log('Password hash for "demo123":', hash);
+    expect(hash).toBe('5c7bd16f');
   });
 
   it('should match test user credentials', () => {
@@ -124,5 +138,30 @@ describe('Auth Login Test', () => {
     expect(user).toBeDefined();
     expect(user?.username).toBe('newuser');
     expect(user?.email).toBe('newuser@example.com');
+  });
+
+  it('should find demo user with correct credentials', () => {
+    // 模拟包含 demo 用户的 users 数组
+    const users: User[] = [
+      {
+        id: 'test-user-001',
+        username: 'test',
+        email: 'test@example.com',
+        createdAt: Date.now(),
+        passwordHash: hashPassword('test123'),
+      },
+      DEMO_USER,
+    ];
+
+    // 模拟登录 demo 用户
+    const inputPasswordHash = hashPassword('demo123');
+    const user = users.find(
+      u => u.username === 'demo' && u.passwordHash === inputPasswordHash
+    );
+
+    console.log('Found demo user:', user);
+    expect(user).toBeDefined();
+    expect(user?.username).toBe('demo');
+    expect(user?.email).toBe('demo@jubu.ai');
   });
 });

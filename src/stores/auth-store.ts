@@ -52,7 +52,15 @@ const generateId = (): string => {
 
 // 测试账号的密码哈希
 const TEST_PASSWORD_HASH = '54c9a7a0'; // hashPassword('test123')
-const DEMO_PASSWORD_HASH = '7c4a8d09'; // hashPassword('demo123')
+const DEMO_PASSWORD_HASH = '5c7bd16f'; // hashPassword('demo123')
+
+// Demo 用户配置
+export const DEMO_USER = {
+  id: 'demo-user-001',
+  username: 'demo',
+  email: 'demo@jubu.ai',
+  passwordHash: DEMO_PASSWORD_HASH,
+};
 
 // Demo 项目数据
 export const createDemoProjectData = (projectId: string) => ({
