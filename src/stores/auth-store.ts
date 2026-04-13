@@ -278,7 +278,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           isLoading: false,
           error: error.message === 'Invalid login credentials'
-            ? '邮箱或密码错误'
+            ? '用户名或密码错误'
             : error.message,
         });
         return false;
@@ -342,7 +342,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // 处理常见的注册错误
         let errorMessage = error.message;
         if (error.message.includes('already registered')) {
-          errorMessage = '该邮箱已被注册';
+          errorMessage = '该用户名已被注册';
         } else if (error.message.includes('Password should be at least')) {
           errorMessage = '密码长度至少为6个字符';
         }
