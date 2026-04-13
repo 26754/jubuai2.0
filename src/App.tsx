@@ -138,17 +138,7 @@ function App() {
     );
   }
 
-  // 显示启动页（始终显示，让用户选择登录/注册或继续体验）
-  if (showSplash) {
-    return (
-      <div className="h-screen w-screen overflow-hidden">
-        <SplashScreen onEnter={() => setShowSplash(false)} />
-        <Toaster richColors position="top-center" />
-      </div>
-    );
-  }
-
-  // 已登录用户显示主界面
+  // 已登录用户直接显示主界面（跳过 SplashScreen）
   if (isAuthenticated) {
     return (
       <div className="h-screen w-screen overflow-hidden">
@@ -162,6 +152,16 @@ function App() {
             setStartupUpdate(null);
           }}
         />
+        <Toaster richColors position="top-center" />
+      </div>
+    );
+  }
+
+  // 显示启动页（仅未登录用户）
+  if (showSplash) {
+    return (
+      <div className="h-screen w-screen overflow-hidden">
+        <SplashScreen onEnter={() => setShowSplash(false)} />
         <Toaster richColors position="top-center" />
       </div>
     );
