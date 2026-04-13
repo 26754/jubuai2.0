@@ -15,6 +15,7 @@ import { switchProject } from "@/lib/project-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AuthButton } from "@/components/auth/AuthButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -288,6 +289,7 @@ export function Dashboard() {
         </div>
         
         <div className="flex items-center gap-2">
+          <AuthButton />
           {projects.length > 0 && (
             <Button
               variant={selectionMode ? "secondary" : "outline"}
