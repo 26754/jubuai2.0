@@ -11,13 +11,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { useDirectorStore, useActiveDirectorProject } from "@/stores/director-store";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useProjectStore } from "@/stores/project-store";
 import { getWorkerBridge, initializeWorkerBridge } from "@/lib/ai/worker-bridge";
-import { Wand2, ImagePlus, X, Settings, AlertCircle, Shuffle, ChevronDown, User, Users, Plus, Check, Monitor, Smartphone } from "lucide-react";
+import { Wand2, ImagePlus, X, Settings, AlertCircle, Shuffle, ChevronDown, User, Users, Plus, Check, Monitor, Smartphone, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -102,6 +103,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sceneCount, setSceneCount] = useState<number>(savedConfig?.sceneCount || 4);
   const [styleId, setStyleId] = useState<StyleId>(initialStyleId);
+  const [styleLocked, setStyleLocked] = useState(false);
   const [selectedCharacters, setSelectedCharacters] = useState<DraggedCharacter[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCharacterPopoverOpen, setIsCharacterPopoverOpen] = useState(false);
@@ -631,13 +633,44 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
 
         {/* Style selection */}
         <div className="space-y-1.5">
-          <Label className="text-sm font-medium">视觉风格</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">视觉风格</Label>
+            <button
+              type="button"
+              onClick={() => setStyleLocked(!styleLocked)}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                styleLocked 
+                  ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+              title={styleLocked ? "解锁风格（可在其他模块修改）" : "锁定风格（仅在此模块生效）"}
+            >
+              {styleLocked ? (
+                <>
+                  <Lock className="w-3 h-3" />
+                  <span>已锁定</span>
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-3 h-3" />
+                  <span>未锁定</span>
+                </>
+              )}
+            </button>
+          </div>
           <StylePicker
             value={styleId === "random" ? "" : styleId}
             onChange={(id) => setStyleId(id as StyleId)}
             disabled={isSubmitting}
+            locked={styleLocked}
             placeholder="选择风格（留空为随机）"
           />
+          {styleLocked && (
+            <p className="text-xs text-muted-foreground">
+              风格已锁定，当前模块将使用此风格生成
+            </p>
+          )}
         </div>
       </div>
 

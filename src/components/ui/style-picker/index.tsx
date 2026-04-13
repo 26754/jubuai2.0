@@ -15,7 +15,7 @@
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check } from "lucide-react";
+import { Check, Lock, Unlock } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -53,6 +53,10 @@ interface StylePickerProps {
   disabled?: boolean;
   /** 未选择时的占位文字 */
   placeholder?: string;
+  /** 是否锁定风格（锁定后无法更改） */
+  locked?: boolean;
+  /** 锁定状态变化回调 */
+  onLockToggle?: (locked: boolean) => void;
 }
 
 /**
@@ -66,6 +70,8 @@ export function StylePicker({
   className,
   disabled = false,
   placeholder = "选择风格",
+  locked = false,
+  onLockToggle,
 }: StylePickerProps) {
   const [hoveredStyle, setHoveredStyle] = useState<StylePreset | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -177,7 +183,7 @@ export function StylePicker({
   if (popover) {
     return (
       <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild disabled={disabled}>
+        <PopoverTrigger asChild disabled={disabled || locked}>
           {trigger || (
             <button
               className={cn(
@@ -187,7 +193,7 @@ export function StylePicker({
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "text-sm w-full justify-between"
               )}
-              disabled={disabled}
+              disabled={disabled || locked}
             >
               <div className="flex items-center gap-2">
                 {selectedStyle && (
@@ -204,14 +210,19 @@ export function StylePicker({
                   {selectedStyle?.name || placeholder}
                 </span>
               </div>
-              <svg
-                className="w-4 h-4 opacity-50"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <div className="flex items-center gap-1">
+                {locked && (
+                  <Lock className="w-4 h-4 text-primary" />
+                )}
+                <svg
+                  className="w-4 h-4 opacity-50"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </button>
           )}
         </PopoverTrigger>

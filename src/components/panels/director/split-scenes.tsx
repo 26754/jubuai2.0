@@ -38,6 +38,8 @@ import {
   Film,
   Square,
   Plus,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMediaStore } from "@/stores/media-store";
@@ -321,6 +323,9 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
   const [quadGridTarget, setQuadGridTarget] = useState<{ sceneId: number; type: "start" | "end" } | null>(null);
   const [quadGridResult, setQuadGridResult] = useState<QuadGridResult | null>(null);
   const [isQuadGridGenerating, setIsQuadGridGenerating] = useState(false);
+
+  // 风格锁定状态
+  const [styleLocked, setStyleLocked] = useState(false);
 
   // Get current project data
   const projectData = useActiveDirectorProject();
@@ -3518,7 +3523,22 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
                     value={currentStyleId || ''}
                     onChange={handleStyleChange}
                     disabled={isGenerating}
+                    locked={styleLocked}
                   />
+                  {/* 锁定按钮 */}
+                  <button
+                    type="button"
+                    onClick={() => setStyleLocked(!styleLocked)}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                      styleLocked 
+                        ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                    title={styleLocked ? "解锁风格" : "锁定风格"}
+                  >
+                    {styleLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                  </button>
                   {/* 跟随剧本风格按钮 */}
                   <Button
                     variant="outline"
@@ -3742,7 +3762,22 @@ export function SplitScenes({ onBack, onGenerateVideos }: SplitScenesProps) {
             value={currentStyleId || ''}
             onChange={handleStyleChange}
             disabled={isGenerating}
+            locked={styleLocked}
           />
+          {/* 锁定按钮 */}
+          <button
+            type="button"
+            onClick={() => setStyleLocked(!styleLocked)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+              styleLocked 
+                ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            )}
+            title={styleLocked ? "解锁风格" : "锁定风格"}
+          >
+            {styleLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+          </button>
           {/* 跟随剧本风格按钮 */}
           <Button
             variant="outline"
