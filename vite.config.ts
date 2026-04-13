@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
+import { getViteProxyConfig } from './src/lib/proxy-config';
 
 /**
  * Vite 插件：API CORS 代理
@@ -104,34 +105,8 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      // 火山引擎 ARK API 代理
-      '/__proxy/volcengine': {
-        target: 'https://ark.cn-beijing.volces.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/__proxy\/volcengine/, ''),
-      },
-      '/__proxy/volcengine-sh': {
-        target: 'https://ark.cn-shanghai.volces.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/__proxy\/volcengine-sh/, ''),
-      },
-      '/__proxy/volcengine-gz': {
-        target: 'https://ark.cn-guangzhou.volces.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/__proxy\/volcengine-gz/, ''),
-      },
-      // 阿里云百炼 API 代理
-      '/__proxy/bailian': {
-        target: 'https://dashscope.aliyuncs.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/__proxy\/bailian/, ''),
-      },
-      // MemeFast API 代理
-      '/__proxy/memefast': {
-        target: 'https://memefast.top',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/__proxy\/memefast/, ''),
-      },
+      // 使用集中化的代理配置
+      ...getViteProxyConfig(),
     },
   },
 })

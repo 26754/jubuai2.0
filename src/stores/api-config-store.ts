@@ -20,35 +20,7 @@ import {
   classifyModelByName,
 } from '@/lib/api-key-manager';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
-
-/**
- * API URL 代理转换函数
- * 将外部 API URL 转换为代理路径，避免 CORS 问题
- */
-function proxyUrl(url: string): string {
-  // 火山引擎 ARK API
-  if (url.includes('ark.cn-beijing.volces.com')) {
-    return url.replace('https://ark.cn-beijing.volces.com', '/__proxy/volcengine');
-  }
-  if (url.includes('ark.cn-shanghai.volces.com')) {
-    return url.replace('https://ark.cn-shanghai.volces.com', '/__proxy/volcengine-sh');
-  }
-  if (url.includes('ark.cn-guangzhou.volces.com')) {
-    return url.replace('https://ark.cn-guangzhou.volces.com', '/__proxy/volcengine-gz');
-  }
-  // 阿里云百炼 API
-  if (url.includes('dashscope.aliyuncs.com')) {
-    return url.replace('https://dashscope.aliyuncs.com', '/__proxy/bailian');
-  }
-  // MemeFast API (memefast.top) - 需要通过查询参数传递目标主机
-  if (url.includes('memefast.top')) {
-    const targetHost = url.match(/^(https?:\/\/[^\/]+)/)?.[1] || 'https://memefast.top';
-    const path = url.replace(/^https?:\/\/[^\/]+/, '');
-    return `/__proxy/memefast${path}?host=${encodeURIComponent(targetHost)}`;
-  }
-  // 其他外部 API 暂不处理
-  return url;
-}
+import { proxyUrl } from '@/lib/proxy-config';
 
 // Re-export IProvider for convenience
 export type { IProvider } from '@/lib/api-key-manager';

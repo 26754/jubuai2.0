@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAPIConfigStore } from '@/stores/api-config-store';
+import { proxyUrl } from '@/lib/proxy-config';
 
 interface DiagnosticResult {
   platform: string;
@@ -42,26 +43,13 @@ export default function APIDiagnosisPage() {
       modelsUrl = `${baseUrl}/models`;
     }
 
-    // 代理 URL
-    let proxyPath = '';
-    if (baseUrl.includes('ark.cn-beijing.volces.com')) {
-      proxyPath = modelsUrl.replace('https://ark.cn-beijing.volces.com', '/__proxy/volcengine');
-    } else if (baseUrl.includes('ark.cn-shanghai.volces.com')) {
-      proxyPath = modelsUrl.replace('https://ark.cn-shanghai.volces.com', '/__proxy/volcengine-sh');
-    } else if (baseUrl.includes('ark.cn-guangzhou.volces.com')) {
-      proxyPath = modelsUrl.replace('https://ark.cn-guangzhou.volces.com', '/__proxy/volcengine-gz');
-    } else if (baseUrl.includes('dashscope.aliyuncs.com')) {
-      proxyPath = modelsUrl.replace('https://dashscope.aliyuncs.com', '/__proxy/bailian');
-    } else if (baseUrl.includes('memefast.top')) {
-      proxyPath = modelsUrl.replace('https://memefast.top', '/__proxy/memefast');
-    } else {
-      proxyPath = modelsUrl; // 无代理
-    }
+    // 使用集中化的代理配置
+    const proxiedUrl = proxyUrl(modelsUrl);
 
     try {
-      console.log(`[诊断] 测试 ${provider.name}: ${proxyPath}`);
+      console.log(`[诊断] 测试 ${provider.name}: ${proxiedUrl}`);
 
-      const response = await fetch(proxyPath, {
+      const response = await fetch(proxiedUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
@@ -75,7 +63,7 @@ export default function APIDiagnosisPage() {
           platform: provider.name || provider.platform,
           status: 'success',
           message: `成功！获取到 ${modelCount} 个模型`,
-          details: `URL: ${proxyPath}\n状态码: ${response.status}`,
+          details: `URL: ${proxiedUrl}\n状态码: ${response.status}`,
         };
       } else {
         const errorText = await response.text();
@@ -83,7 +71,7 @@ export default function APIDiagnosisPage() {
           platform: provider.name || provider.platform,
           status: 'error',
           message: `HTTP ${response.status}`,
-          details: `URL: ${proxyPath}\n响应: ${errorText.substring(0, 200)}`,
+          details: `URL: ${proxiedUrl}\n响应: ${errorText.substring(0, 200)}`,
         };
       }
     } catch (error: any) {
