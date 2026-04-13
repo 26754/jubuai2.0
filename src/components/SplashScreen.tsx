@@ -99,7 +99,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/60">
             <Film className="h-4 w-4" />
-            <span>版本 0.2.3</span>
+            <span>版本 V1.0.0</span>
           </div>
         </div>
 
