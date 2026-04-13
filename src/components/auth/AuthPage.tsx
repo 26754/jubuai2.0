@@ -39,9 +39,9 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
 
     let success = false;
     if (mode === 'login') {
-      success = await login(username, password);
+      success = await login(email, password);
     } else {
-      success = await register(username, email, password);
+      success = await register(email, password, username || undefined);
     }
 
     // 登录或注册成功后调用 onSuccess
@@ -166,40 +166,40 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
 
           {/* 表单 */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* 用户名 */}
+            {/* 邮箱 - 登录和注册都需要 */}
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                用户名
+              <Label htmlFor="email" className="text-sm font-medium">
+                邮箱
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="username"
-                  type="text"
-                  placeholder="输入用户名"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="输入邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12"
                   required
-                  autoComplete="off"
+                  autoComplete="email"
                 />
               </div>
             </div>
 
-            {/* 邮箱 - 仅注册时显示 */}
+            {/* 用户名 - 仅注册时显示 */}
             {mode === 'register' && (
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  邮箱
+                <Label htmlFor="username" className="text-sm font-medium">
+                  用户名
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="输入邮箱地址"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    placeholder="选择一个用户名"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="pl-10 h-12"
                     required
                     autoComplete="off"
