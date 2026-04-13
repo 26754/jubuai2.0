@@ -3,11 +3,13 @@ import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { getViteProxyConfig } from './src/lib/proxy-config';
 
-// 强制加载 .env 文件
-const env = loadEnv('development', process.cwd(), '');
+// 确定当前模式（development, production, test）
+const mode = process.env.NODE_ENV || 'development';
+// 加载所有 .env 文件（包含 .env, .env.local, .env.[mode], .env.[mode].local）
+const env = loadEnv(mode, process.cwd(), '');
 const supabaseUrl = env.VITE_SUPABASE_URL || '';
 const supabaseKey = env.VITE_SUPABASE_ANON_KEY || '';
-console.log('[Vite] Loading env - SUPABASE_URL:', supabaseUrl ? 'set' : 'missing');
+console.log('[Vite] Loading env - Mode:', mode, '- SUPABASE_URL:', supabaseUrl ? 'set' : 'missing');
 
 /**
  * Vite 插件：API CORS 代理
