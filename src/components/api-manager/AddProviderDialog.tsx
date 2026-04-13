@@ -307,12 +307,14 @@ interface AddProviderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (provider: Omit<IProvider, "id">) => void;
+  existingPlatforms?: string[];
 }
 
 export function AddProviderDialog({
   open,
   onOpenChange,
   onSubmit,
+  existingPlatforms = [],
 }: AddProviderDialogProps) {
   const [platform, setPlatform] = useState("");
   const [name, setName] = useState("");
@@ -380,8 +382,14 @@ export function AddProviderDialog({
     });
 
     onOpenChange(false);
-    toast.success(`已添加 ${name}`);
+    toast.success(isMemefastAppend ? `已追加 Key 到 ${name}` : `已添加 ${name}`);
   };
+
+  // Filter out already existing platforms (except custom and memefast which allow repeat add)
+  const availablePlatforms = PLATFORM_PRESETS.filter(
+    (p) => p.platform === "custom" || p.platform === "memefast" || !existingPlatforms.includes(p.platform)
+  );
+  const isMemefastAppend = platform === "memefast" && existingPlatforms.includes("memefast");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

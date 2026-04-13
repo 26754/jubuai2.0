@@ -755,12 +755,12 @@ export function SettingsPanel() {
                         )}
                       >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 hover:bg-muted/30 rounded-t-xl transition-colors">
-                          <CollapsibleTrigger asChild>
-                            <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                        <CollapsibleTrigger className="w-full">
+                          <div className="flex items-center justify-between p-4 hover:bg-muted/30 rounded-t-xl transition-colors">
+                            <div className="flex items-center gap-3">
                               <div
                                 className={cn(
-                                  "p-2 rounded-lg shrink-0",
+                                  "p-2 rounded-lg",
                                   configured
                                     ? "bg-primary/10 text-primary"
                                     : "bg-muted text-muted-foreground"
@@ -770,7 +770,7 @@ export function SettingsPanel() {
                                   <Settings className="h-5 w-5" />
                                 )}
                               </div>
-                              <div className="text-left min-w-0">
+                              <div className="text-left">
                                 <h4 className="font-medium text-foreground flex items-center gap-2">
                                   {provider.name}
                                   {provider.platform === 'memefast' && (
@@ -788,36 +788,35 @@ export function SettingsPanel() {
                                   {provider.platform}
                                 </p>
                               </div>
-                            </button>
-                          </CollapsibleTrigger>
-
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span
-                                className="cursor-pointer hover:text-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleExpanded(provider.id);
-                                }}
-                              >
-                                模型 ({provider.model.length})
-                              </span>
-                              <span>|</span>
-                              <span
-                                className="cursor-pointer hover:text-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(provider);
-                                }}
-                              >
-                                Key ({keyCount})
-                              </span>
                             </div>
 
-                            <div
-                              className="flex items-center gap-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span
+                                  className="cursor-pointer hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpanded(provider.id);
+                                  }}
+                                >
+                                  模型 ({provider.model.length})
+                                </span>
+                                <span>|</span>
+                                <span
+                                  className="cursor-pointer hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(provider);
+                                  }}
+                                >
+                                  Key ({keyCount})
+                                </span>
+                              </div>
+
+                              <div
+                                className="flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -904,12 +903,13 @@ export function SettingsPanel() {
                               </div>
 
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
                               )}
                             </div>
                           </div>
+                        </CollapsibleTrigger>
 
                         {/* Expandable Content */}
                         <CollapsibleContent>
@@ -1608,6 +1608,7 @@ export function SettingsPanel() {
             });
           }
         }}
+        existingPlatforms={existingPlatforms}
       />
 
       <EditProviderDialog
