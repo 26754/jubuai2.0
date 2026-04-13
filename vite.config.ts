@@ -105,6 +105,15 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // OAuth 路由代理
+      '/oauth': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/auth/callback': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       // 使用集中化的代理配置
       ...getViteProxyConfig(),
     },

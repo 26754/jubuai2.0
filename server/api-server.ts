@@ -1,5 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -7,6 +12,45 @@ const HOST = process.env.API_HOST || '0.0.0.0';
 
 app.use(cors());
 app.use(express.json());
+
+// ==================== OAuth Routes ====================
+
+// OAuth 同意屏幕
+app.get('/oauth/consent', (req, res) => {
+  const consentPath = path.join(process.cwd(), 'public/oauth/consent.html');
+  console.log('[OAuth] Consent path:', consentPath);
+  res.sendFile(consentPath, (err) => {
+    if (err) {
+      console.error('[OAuth] Error serving consent page:', err);
+      res.status(404).send('Consent page not found');
+    }
+  });
+});
+
+// OAuth 回调处理
+app.get('/auth/callback', (req, res) => {
+  const { code, error, state } = req.query;
+  
+  if (error) {
+    // 重定向回前端并显示错误
+    const redirectUrl = new URL('/#login', req.headers.origin || 'https://jubuguanai.coze.site');
+    redirectUrl.searchParams.set('error', error as string);
+    return res.redirect(redirectUrl.toString());
+  }
+  
+  if (code) {
+    // 成功，重定向回前端
+    const redirectUrl = new URL('/#auth/callback', req.headers.origin || 'https://jubuguanai.coze.site');
+    redirectUrl.searchParams.set('code', code as string);
+    if (state) redirectUrl.searchParams.set('state', state as string);
+    return res.redirect(redirectUrl.toString());
+  }
+  
+  // 没有 code 或 error，返回错误
+  res.status(400).send('Missing authorization code or error');
+});
+
+// ==================== Existing Routes ====================
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -266,6 +310,8 @@ app.all(/\/__proxy\/memefast(\/.*)?$/, async (req, res) => {
 app.listen(Number(PORT), HOST, () => {
   console.log(`[API Server] Running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   console.log('[API Server] Available endpoints:');
+  console.log('  GET  /oauth/consent         - OAuth 授权同意屏幕');
+  console.log('  GET  /auth/callback         - OAuth 回调处理');
   console.log('  POST /api/ai/chat        - AI dialogue');
   console.log('  POST /api/ai/screenplay  - Screenplay generation');
   console.log('  POST /api/ai/image       - Image generation');
