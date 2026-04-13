@@ -16,10 +16,7 @@ import { Label } from "@/components/ui/label";
 import { 
   Settings, 
   Eye, 
-  EyeOff, 
-  Check, 
-  X, 
-  Loader2,
+  EyeOff,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -48,32 +45,8 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
     runninghub: false,
   });
 
-  const [testing, setTesting] = useState<ProviderId | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({
-    memefast: null,
-    bailian: null,
-    volcengine: null,
-    doubao: null,
-    runninghub: null,
-  });
-
   const toggleShowKey = (provider: ProviderId) => {
     setShowKeys(prev => ({ ...prev, [provider]: !prev[provider] }));
-  };
-
-  const testConnection = async (provider: ProviderId) => {
-    setTesting(provider);
-    setTestResults(prev => ({ ...prev, [provider]: null }));
-
-    try {
-      // Just verify the key is set - actual test requires running API
-      const key = apiKeys[provider] || "";
-      setTestResults(prev => ({ ...prev, [provider]: key.length > 0 }));
-    } catch {
-      setTestResults(prev => ({ ...prev, [provider]: false }));
-    } finally {
-      setTesting(null);
-    }
   };
 
   const providers: Array<{
@@ -185,22 +158,6 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
                   )}
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!isConfigured(provider.id) || testing === provider.id}
-                onClick={() => testConnection(provider.id)}
-              >
-                {testing === provider.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : testResults[provider.id] === true ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : testResults[provider.id] === false ? (
-                  <X className="h-4 w-4 text-destructive" />
-                ) : (
-                  "测试"
-                )}
-              </Button>
             </div>
             {/* Service badges */}
             <div className="flex gap-1">

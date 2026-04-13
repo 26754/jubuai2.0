@@ -130,8 +130,6 @@ export function SettingsPanel() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<IProvider | null>(null);
-  const [testingProvider, setTestingProvider] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, boolean | null>>({});
   const [syncingProvider, setSyncingProvider] = useState<string | null>(null);
   const [imageHostAddOpen, setImageHostAddOpen] = useState(false);
   const [imageHostEditOpen, setImageHostEditOpen] = useState(false);
@@ -272,92 +270,6 @@ export function SettingsPanel() {
       toast.error('连接测试失败，请检查网络');
     } finally {
       setTestingImageHostId(null);
-    }
-  };
-
-  // Test connection - directly call external APIs
-  const testConnection = async (provider: IProvider) => {
-    const keys = parseApiKeys(provider.apiKey);
-    if (keys.length === 0) {
-      toast.error("请先配置 API Key");
-      return;
-    }
-
-    setTestingProvider(provider.id);
-    setTestResults((prev) => ({ ...prev, [provider.id]: null }));
-
-    try {
-      let response: Response;
-      const apiKey = keys[0]; // Use first key for test
-      const normalizedBaseUrl = provider.baseUrl?.replace(/\/+$/, "");
-      const buildEndpoint = (root: string, path: string) => {
-        const normalized = root.replace(/\/+$/, "");
-        return /\/v\d+$/.test(normalized) ? `${normalized}/${path}` : `${normalized}/v1/${path}`;
-      };
-
-      if (provider.platform === "runninghub") {
-        if (!normalizedBaseUrl) {
-          toast.error("请先配置 Base URL");
-          setTestingProvider(null);
-          return;
-        }
-        response = await fetch(`${normalizedBaseUrl}/query`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            taskId: "test-connection-check",
-          }),
-        });
-        
-        // For RunningHub, 400/404 means auth is OK (task doesn't exist)
-        if (response.status === 400 || response.status === 404) {
-          setTestResults((prev) => ({ ...prev, [provider.id]: true }));
-          toast.success("连接测试成功");
-          setTestingProvider(null);
-          return;
-        }
-      } else if (normalizedBaseUrl && provider.model?.length) {
-        const endpoint = buildEndpoint(normalizedBaseUrl, "chat/completions");
-        const model = provider.model[0];
-        response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "user", content: "Hi" }],
-            max_tokens: 5,
-          }),
-        });
-      } else {
-        // For providers without chat endpoint info, just mark as configured
-        setTestResults((prev) => ({ ...prev, [provider.id]: true }));
-        toast.success(`${provider.name} 已配置`);
-        setTestingProvider(null);
-        return;
-      }
-
-      const success = response.ok;
-      setTestResults((prev) => ({ ...prev, [provider.id]: success }));
-
-      if (success) {
-        toast.success("连接测试成功");
-      } else {
-        const errorData = await response.text();
-        console.error("API test error:", response.status, errorData);
-        toast.error(`连接测试失败 (${response.status})`);
-      }
-    } catch (error) {
-      console.error("Connection test error:", error);
-      setTestResults((prev) => ({ ...prev, [provider.id]: false }));
-      toast.error("连接测试失败，请检查网络");
-    } finally {
-      setTestingProvider(null);
     }
   };
 
@@ -737,8 +649,6 @@ export function SettingsPanel() {
                   const isExpanded = expandedProviders[provider.id] ?? false;
                   const keyCount = getApiKeyCount(provider.apiKey);
                   const configured = keyCount > 0;
-                  const testResult = testResults[provider.id];
-                  const isTesting = testingProvider === provider.id;
 
                   return (
                     <Collapsible
@@ -838,25 +748,6 @@ export function SettingsPanel() {
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
                                     <RefreshCw className="h-4 w-4" />
-                                  )}
-                                </Button>
-
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  title="测试连接"
-                                  onClick={() => testConnection(provider)}
-                                  disabled={!configured || isTesting}
-                                >
-                                  {isTesting ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : testResult === true ? (
-                                    <Check className="h-4 w-4 text-green-500" />
-                                  ) : testResult === false ? (
-                                    <X className="h-4 w-4 text-red-500" />
-                                  ) : (
-                                    <Shield className="h-4 w-4" />
                                   )}
                                 </Button>
 
