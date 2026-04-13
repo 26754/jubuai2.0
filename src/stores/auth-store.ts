@@ -1,65 +1,47 @@
-// Copyright (c) 2025 hotflow2024
+// Copyright (c) 2025 JuBu AI
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
-// Commercial licensing available. See COMMERCIAL_LICENSE.md.
 "use client";
 
 /**
  * 认证状态管理
- * 使用本地存储管理用户账户和登录状态
+ * 使用 Supabase Auth 管理用户账户和登录状态
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
   id: string;
-  username: string;
   email: string;
+  username?: string;
   createdAt: number;
 }
 
 interface AuthState {
   isAuthenticated: boolean;
   currentUser: User | null;
-  users: User[];
+  supabaseUser: SupabaseUser | null;
   isLoading: boolean;
   error: string | null;
   isDemoUser: boolean;
+  isSupabaseConfigured: boolean;
 
   // Actions
-  login: (username: string, password: string) => Promise<boolean>;
-  loginAsDemo: () => Promise<boolean>;
-  register: (username: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  initialize: () => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, username?: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   clearError: () => void;
+  resetPassword: (email: string) => Promise<boolean>;
 }
-
-// 简单的密码哈希（实际生产环境应使用更安全的方式）
-const hashPassword = (password: string): string => {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0');
-};
-
-// 生成唯一 ID
-const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
-};
-
-// 测试账号的密码哈希
-const TEST_PASSWORD_HASH = '54c9a7a0'; // hashPassword('test123')
-const DEMO_PASSWORD_HASH = '5c7bd16f'; // hashPassword('demo123')
 
 // Demo 用户配置
 export const DEMO_USER = {
   id: 'demo-user-001',
   username: 'demo',
   email: 'demo@jubu.ai',
-  passwordHash: DEMO_PASSWORD_HASH,
+  password: 'demo123',
 };
 
 // Demo 项目数据
@@ -187,227 +169,293 @@ export const DEMO_PROJECT = {
   visualStyleId: 'sci-fi'
 };
 
-// 确保测试账号存在
-const ensureTestUser = (users: (User & { passwordHash?: string })[]): (User & { passwordHash: string })[] => {
-  const hasTestUser = users.some(u => u.username === 'test');
-  const hasDemoUser = users.some(u => u.username === 'demo');
-  
-  const result = users as (User & { passwordHash: string })[];
-  
-  if (!hasTestUser) {
-    result.push({
-      id: 'test-user-001',
-      username: 'test',
-      email: 'test@example.com',
-      createdAt: Date.now(),
-      passwordHash: TEST_PASSWORD_HASH,
-    });
+// 检查 Supabase 是否配置
+const checkSupabaseConfig = (): boolean => {
+  try {
+    const url = process.env.COZE_SUPABASE_URL;
+    const key = process.env.COZE_SUPABASE_ANON_KEY;
+    return !!(url && key);
+  } catch {
+    return false;
   }
-  
-  if (!hasDemoUser) {
-    result.push({
-      ...DEMO_USER,
-      createdAt: Date.now(),
-    });
-  }
-  
-  return result;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      isAuthenticated: false,
-      currentUser: null,
-      isDemoUser: false,
-      users: [
-        // 默认测试账号
-        {
-          id: 'test-user-001',
-          username: 'test',
-          email: 'test@example.com',
-          createdAt: Date.now(),
-          passwordHash: TEST_PASSWORD_HASH,
-        },
-        // Demo 体验账号
-        {
-          id: 'demo-user-001',
-          username: 'demo',
-          email: 'demo@jubu.ai',
-          createdAt: Date.now(),
-          passwordHash: DEMO_PASSWORD_HASH,
-        }
-      ] as (User & { passwordHash: string })[],
-      isLoading: false,
-      error: null,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  isAuthenticated: false,
+  currentUser: null,
+  supabaseUser: null,
+  isLoading: false,
+  error: null,
+  isDemoUser: false,
+  isSupabaseConfigured: checkSupabaseConfig(),
 
-      login: async (username: string, password: string): Promise<boolean> => {
-        set({ isLoading: true, error: null });
+  initialize: async () => {
+    const { isSupabaseConfigured } = get();
+    
+    if (!isSupabaseConfigured) {
+      console.log('[Auth] Supabase not configured, skipping initialization');
+      return;
+    }
 
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const supabase = getSupabaseClient();
+      
+      // 获取当前会话
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('[Auth] Failed to get session:', error);
+        return;
+      }
 
-        const { users } = get();
-        const passwordHash = hashPassword(password);
+      if (session?.user) {
+        const user = session.user;
+        set({
+          isAuthenticated: true,
+          supabaseUser: user,
+          currentUser: {
+            id: user.id,
+            email: user.email || '',
+            username: user.user_metadata?.username || user.user_metadata?.full_name || undefined,
+            createdAt: new Date(user.created_at).getTime(),
+          },
+        });
+        console.log('[Auth] Restored session for:', user.email);
+      }
 
-        // 查找用户
-        const user = users.find(
-          u => u.username === username && (u as any).passwordHash === passwordHash
-        );
-
-        if (user) {
-          // 移除密码哈希后存储用户
-          const { passwordHash: _, ...userWithoutPassword } = user as any;
+      // 监听 Auth 状态变化
+      supabase.auth.onAuthStateChange((event, session) => {
+        console.log('[Auth] Auth state changed:', event);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          const user = session.user;
           set({
             isAuthenticated: true,
-            currentUser: userWithoutPassword,
-            isLoading: false,
+            supabaseUser: user,
+            currentUser: {
+              id: user.id,
+              email: user.email || '',
+              username: user.user_metadata?.username || user.user_metadata?.full_name || undefined,
+              createdAt: new Date(user.created_at).getTime(),
+            },
+            isDemoUser: false,
             error: null,
           });
-          console.log('[Auth] User logged in:', username);
-          return true;
+        } else if (event === 'SIGNED_OUT') {
+          set({
+            isAuthenticated: false,
+            supabaseUser: null,
+            currentUser: null,
+            isDemoUser: false,
+          });
         }
+      });
+    } catch (err) {
+      console.error('[Auth] Initialize error:', err);
+    }
+  },
 
+  login: async (email: string, password: string): Promise<boolean> => {
+    const { isSupabaseConfigured } = get();
+    
+    if (!isSupabaseConfigured) {
+      set({ error: 'Supabase 未配置，请联系管理员' });
+      return false;
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('[Auth] Login failed:', error);
         set({
           isLoading: false,
-          error: '用户名或密码错误',
+          error: error.message === 'Invalid login credentials'
+            ? '邮箱或密码错误'
+            : error.message,
         });
         return false;
-      },
+      }
 
-      loginAsDemo: async (): Promise<boolean> => {
-        set({ isLoading: true, error: null });
-
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const demoUser = {
-          id: DEMO_USER.id,
-          username: DEMO_USER.username,
-          email: DEMO_USER.email,
-          createdAt: Date.now(),
-        };
-
+      if (data.user) {
         set({
           isAuthenticated: true,
-          currentUser: demoUser,
-          isDemoUser: true,
-          isLoading: false,
-          error: null,
-        });
-        
-        console.log('[Auth] Demo user logged in');
-        console.log('[Demo] Initializing demo project data...');
-        
-        return true;
-      },
-
-      register: async (username: string, email: string, password: string): Promise<boolean> => {
-        set({ isLoading: true, error: null });
-
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const { users } = get();
-
-        // 检查用户名是否已存在
-        if (users.some(u => u.username === username)) {
-          set({
-            isLoading: false,
-            error: '用户名已存在',
-          });
-          return false;
-        }
-
-        // 检查邮箱是否已存在
-        if (users.some(u => u.email === email)) {
-          set({
-            isLoading: false,
-            error: '邮箱已被注册',
-          });
-          return false;
-        }
-
-        // 验证密码长度
-        if (password.length < 6) {
-          set({
-            isLoading: false,
-            error: '密码至少需要6个字符',
-          });
-          return false;
-        }
-
-        // 创建新用户
-        const newUser: User & { passwordHash: string } = {
-          id: generateId(),
-          username,
-          email,
-          createdAt: Date.now(),
-          passwordHash: hashPassword(password),
-        };
-
-        set({
-          users: [...users, newUser],
-          isAuthenticated: true,
+          supabaseUser: data.user,
           currentUser: {
-            id: newUser.id,
-            username: newUser.username,
-            email: newUser.email,
-            createdAt: newUser.createdAt,
+            id: data.user.id,
+            email: data.user.email || '',
+            username: data.user.user_metadata?.username || data.user.user_metadata?.full_name || undefined,
+            createdAt: new Date(data.user.created_at).getTime(),
           },
           isLoading: false,
           error: null,
         });
-
-        console.log('[Auth] New user registered:', username);
+        console.log('[Auth] User logged in:', email);
         return true;
-      },
+      }
 
-      logout: () => {
-        set({
-          isAuthenticated: false,
-          currentUser: null,
-          isDemoUser: false,
-          error: null,
-        });
-        console.log('[Auth] User logged out');
-      },
+      return false;
+    } catch (err: any) {
+      console.error('[Auth] Login error:', err);
+      set({
+        isLoading: false,
+        error: err.message || '登录失败，请稍后重试',
+      });
+      return false;
+    }
+  },
 
-      clearError: () => {
-        set({ error: null });
-      },
-    }),
-    {
-      name: 'jubu-auth-storage',
-      partialize: (state) => ({
-        users: state.users,
-        isAuthenticated: state.isAuthenticated,
-        currentUser: state.currentUser,
-        isDemoUser: state.isDemoUser,
-      }),
-      // 自定义合并逻辑，确保测试账号始终存在且保留已注册用户
-      merge: (persistedState: any, currentState: any) => {
-        // 处理空或无效的 persistedState
-        if (!persistedState || typeof persistedState !== 'object') {
-          return currentState;
+  register: async (email: string, password: string, username?: string): Promise<boolean> => {
+    const { isSupabaseConfigured } = get();
+    
+    if (!isSupabaseConfigured) {
+      set({ error: 'Supabase 未配置，请联系管理员' });
+      return false;
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username || email.split('@')[0],
+            full_name: username || email.split('@')[0],
+          },
+        },
+      });
+
+      if (error) {
+        console.error('[Auth] Registration failed:', error);
+        
+        // 处理常见的注册错误
+        let errorMessage = error.message;
+        if (error.message.includes('already registered')) {
+          errorMessage = '该邮箱已被注册';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = '密码长度至少为6个字符';
         }
         
-        // 获取 persisted 中的用户列表
-        const persistedUsers = Array.isArray(persistedState.users) 
-          ? persistedState.users 
-          : [];
-        
-        // 确保测试账号存在，同时保留所有已注册用户
-        const mergedUsers = ensureTestUser(persistedUsers);
-        
-        return {
-          ...currentState,
-          isAuthenticated: persistedState.isAuthenticated ?? currentState.isAuthenticated,
-          currentUser: persistedState.currentUser ?? currentState.currentUser,
-          isDemoUser: persistedState.isDemoUser ?? currentState.isDemoUser,
-          users: mergedUsers,
-        };
-      },
+        set({
+          isLoading: false,
+          error: errorMessage,
+        });
+        return false;
+      }
+
+      if (data.user) {
+        set({
+          isAuthenticated: true,
+          supabaseUser: data.user,
+          currentUser: {
+            id: data.user.id,
+            email: data.user.email || '',
+            username: data.user.user_metadata?.username || username || email.split('@')[0],
+            createdAt: new Date(data.user.created_at).getTime(),
+          },
+          isLoading: false,
+          error: null,
+        });
+        console.log('[Auth] User registered:', email);
+        return true;
+      }
+
+      // 注册成功但需要邮箱验证
+      if (data.needsEmailVerification) {
+        set({
+          isLoading: false,
+          error: '注册成功，请查收验证邮件并点击链接完成验证',
+        });
+        return true;
+      }
+
+      return false;
+    } catch (err: any) {
+      console.error('[Auth] Registration error:', err);
+      set({
+        isLoading: false,
+        error: err.message || '注册失败，请稍后重试',
+      });
+      return false;
     }
-  )
-);
+  },
+
+  logout: async () => {
+    const { isSupabaseConfigured } = get();
+    
+    try {
+      if (isSupabaseConfigured) {
+        const supabase = getSupabaseClient();
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.error('[Auth] Logout error:', err);
+    }
+
+    set({
+      isAuthenticated: false,
+      currentUser: null,
+      supabaseUser: null,
+      isDemoUser: false,
+      error: null,
+    });
+    console.log('[Auth] User logged out');
+  },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  resetPassword: async (email: string): Promise<boolean> => {
+    const { isSupabaseConfigured } = get();
+    
+    if (!isSupabaseConfigured) {
+      set({ error: 'Supabase 未配置，请联系管理员' });
+      return false;
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const supabase = getSupabaseClient();
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      });
+
+      if (error) {
+        console.error('[Auth] Password reset failed:', error);
+        set({
+          isLoading: false,
+          error: error.message,
+        });
+        return false;
+      }
+
+      set({
+        isLoading: false,
+        error: null,
+      });
+      console.log('[Auth] Password reset email sent to:', email);
+      return true;
+    } catch (err: any) {
+      console.error('[Auth] Password reset error:', err);
+      set({
+        isLoading: false,
+        error: err.message || '密码重置失败，请稍后重试',
+      });
+      return false;
+    }
+  },
+}));

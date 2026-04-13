@@ -1,69 +1,128 @@
-// Copyright (c) 2025 JuBu AI
-// Licensed under AGPL-3.0-or-later. See LICENSE for details.
-/**
- * Supabase 客户端配置
- * 支持服务端和客户端两种模式
- */
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { execSync } from 'child_process';
 
-import { createClient } from '@supabase/supabase-js';
+let envLoaded = false;
 
-// 环境变量
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || '';
-
-// 检查配置
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[Supabase] 环境变量未配置，将使用本地存储模式');
+interface SupabaseCredentials {
+  url: string;
+  anonKey: string;
 }
 
-/**
- * 创建 Supabase 客户端
- * @param accessToken - 可选的用户访问令牌（用于客户端认证）
- */
-export const createSupabaseClient = (accessToken?: string) => {
-  const options: any = {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-    },
-  };
+function loadEnv(): void {
+  if (envLoaded || (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY)) {
+    return;
+  }
 
-  // 如果提供了访问令牌，使用它进行认证
-  if (accessToken) {
-    options.global = {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  try {
+    try {
+      require('dotenv').config();
+      if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
+        envLoaded = true;
+        return;
+      }
+    } catch {
+      // dotenv not available
+    }
+
+    const pythonCode = `
+import os
+import sys
+try:
+    from coze_workload_identity import Client
+    client = Client()
+    env_vars = client.get_project_env_vars()
+    client.close()
+    for env_var in env_vars:
+        print(f"{env_var.key}={env_var.value}")
+except Exception as e:
+    print(f"# Error: {e}", file=sys.stderr)
+`;
+
+    const output = execSync(`python3 -c '${pythonCode.replace(/'/g, "'\"'\"'")}'`, {
+      encoding: 'utf-8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const lines = output.trim().split('\n');
+    for (const line of lines) {
+      if (line.startsWith('#')) continue;
+      const eqIndex = line.indexOf('=');
+      if (eqIndex > 0) {
+        const key = line.substring(0, eqIndex);
+        let value = line.substring(eqIndex + 1);
+        if ((value.startsWith("'") && value.endsWith("'")) ||
+            (value.startsWith('"') && value.endsWith('"'))) {
+          value = value.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+
+    envLoaded = true;
+  } catch {
+    // Silently fail
+  }
+}
+
+function getSupabaseCredentials(): SupabaseCredentials {
+  loadEnv();
+
+  const url = process.env.COZE_SUPABASE_URL;
+  const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
+
+  if (!url) {
+    throw new Error('COZE_SUPABASE_URL is not set');
+  }
+  if (!anonKey) {
+    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+  }
+
+  return { url, anonKey };
+}
+
+function getSupabaseServiceRoleKey(): string | undefined {
+  loadEnv();
+  return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+}
+
+function getSupabaseClient(token?: string): SupabaseClient {
+  const { url, anonKey } = getSupabaseCredentials();
+
+  let key: string;
+  if (token) {
+    key = anonKey;
+  } else {
+    const serviceRoleKey = getSupabaseServiceRoleKey();
+    key = serviceRoleKey ?? anonKey;
+  }
+
+  if (token) {
+    return createClient(url, key, {
+      global: {
+        headers: { Authorization: `Bearer ${token}` },
       },
-    };
+      db: {
+        timeout: 60000,
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, options);
-};
+  return createClient(url, key, {
+    db: {
+      timeout: 60000,
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
-// 默认客户端（用于服务端操作）
-export const supabase = createSupabaseClient();
-
-/**
- * 获取当前会话
- */
-export const getCurrentSession = async () => {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) {
-    console.error('[Supabase] 获取会话失败:', error);
-    return null;
-  }
-  return session;
-};
-
-/**
- * 获取当前用户
- */
-export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error('[Supabase] 获取用户失败:', error);
-    return null;
-  }
-  return user;
-};
+export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient };
