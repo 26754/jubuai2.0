@@ -283,7 +283,7 @@ export function Dashboard() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground tracking-wide">JuBu AI</h1>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">JuBu AI Studio</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">数字创意工作室</p>
           </div>
         </div>
         
