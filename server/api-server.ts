@@ -57,6 +57,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
+// Debug: Check Supabase config
+app.get('/api/debug/supabase', (req, res) => {
+  const url = process.env.VITE_SUPABASE_URL;
+  const key = process.env.VITE_SUPABASE_ANON_KEY;
+  res.json({
+    url: url ? 'configured' : 'missing',
+    key: key ? 'configured' : 'missing',
+    urlValue: url || 'none'
+  });
+});
+
 // AI Chat endpoint
 app.post('/api/ai/chat', (req, res) => {
   res.json({ success: true, message: 'AI chat endpoint ready' });

@@ -1,7 +1,13 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, type Plugin, loadEnv } from 'vite'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { getViteProxyConfig } from './src/lib/proxy-config';
+
+// 强制加载 .env 文件
+const env = loadEnv('development', process.cwd(), '');
+const supabaseUrl = env.VITE_SUPABASE_URL || '';
+const supabaseKey = env.VITE_SUPABASE_ANON_KEY || '';
+console.log('[Vite] Loading env - SUPABASE_URL:', supabaseUrl ? 'set' : 'missing');
 
 /**
  * Vite 插件：API CORS 代理

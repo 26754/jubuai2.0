@@ -38,11 +38,20 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient {
     throw new Error('Supabase 未配置。请确保 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY 环境变量已设置。');
   }
 
+  // 获取当前域名用于重定向
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/auth/callback`;
+    }
+    return 'https://jubuguanai.coze.site/auth/callback';
+  };
+
   const options: any = {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
+      redirectTo: getRedirectUrl(),
     },
   };
 

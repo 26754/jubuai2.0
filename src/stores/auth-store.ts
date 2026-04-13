@@ -174,8 +174,10 @@ const checkSupabaseConfig = (): boolean => {
   try {
     const url = import.meta.env.VITE_SUPABASE_URL as string;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    console.log('[Auth] Checking config - URL:', url ? 'set' : 'missing', 'Key:', key ? 'set' : 'missing');
     return !!(url && key);
-  } catch {
+  } catch (e) {
+    console.error('[Auth] Config check error:', e);
     return false;
   }
 };
@@ -341,10 +343,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const supabase = getSupabaseClient();
       
+      // 获取重定向 URL
+      const redirectTo = typeof window !== 'undefined' 
+        ? `${window.location.origin}/auth/callback` 
+        : 'https://jubuguanai.coze.site/auth/callback';
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectTo,
           data: {
             username: username || email.split('@')[0],
             full_name: username || email.split('@')[0],
