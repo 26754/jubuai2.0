@@ -53,7 +53,16 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       isAuthenticated: false,
       currentUser: null,
-      users: [],
+      users: [
+        // 默认测试账号
+        {
+          id: 'test-user-001',
+          username: 'test',
+          email: 'test@example.com',
+          createdAt: Date.now(),
+          passwordHash: hashPassword('test123'),
+        }
+      ] as (User & { passwordHash: string })[],
       isLoading: false,
       error: null,
 
@@ -172,20 +181,6 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
       }),
-      onRehydrateStorage: () => (state) => {
-        // 添加默认测试账号（如果不存在）
-        if (state && state.users.length === 0) {
-          const testUser: User & { passwordHash: string } = {
-            id: 'test-user-001',
-            username: 'test',
-            email: 'test@example.com',
-            createdAt: Date.now(),
-            passwordHash: hashPassword('test123'),
-          };
-          state.users.push(testUser);
-          console.log('[Auth] Default test account created: test / test123');
-        }
-      },
     }
   )
 );
