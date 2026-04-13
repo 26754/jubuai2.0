@@ -49,9 +49,9 @@ const PLATFORM_PRESETS: Array<{
 }> = [
   {
     platform: "memefast",
-    name: "魔因API",
+    name: "JuBu API",
     baseUrl: "https://memefast.top",
-    description: "543+ 模型中转，支持 GPT/Claude/Gemini/DeepSeek/Veo/Sora 等",
+    description: "全功能 AI 中转，支持对话/图片/视频/图片理解",
     services: ["对话", "图片生成", "视频生成", "图片理解"],
     models: [
       // 对话模型
@@ -76,11 +76,39 @@ const PLATFORM_PRESETS: Array<{
     recommended: true,
   },
   {
-    platform: "doubao",
-    name: "火山引擎豆包",
+    platform: "bailian",
+    name: "阿里云百炼",
+    baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+    description: "阿里云大模型服务平台，支持通义千问/万相生图/视频生成",
+    services: ["对话", "图片生成", "视频生成", "图片理解"],
+    models: [
+      // 通义千问系列
+      "qwen-plus",
+      "qwen-plus-128k",
+      "qwen-max",
+      "qwen-max-longcontext",
+      "qwen-turbo",
+      "qwen-turbo-0624",
+      "qwen-plus-0624",
+      "qwen-plus-july-2024",
+      "qwen2.5-72b-instruct",
+      "qwen2.5-32b-instruct",
+      "qwen2.5-14b-instruct",
+      "qwq-32b",
+      // 万相生图
+      "wanx2.1-t2i-turbo",
+      "wanx2.1-t2i-plus",
+      // 视频生成
+      "wanx2.0-i2v-turbo",
+      "wanx2.0-i2v-plus",
+    ],
+  },
+  {
+    platform: "volcengine",
+    name: "火山引擎",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    description: "字节跳动豆包大模型，官方 API，支持 Seedance 2.0 文生视频",
-    services: ["对话", "图片理解", "视频生成", "图像生成"],
+    description: "豆包大模型，支持对话/图片生成/视频生成",
+    services: ["对话", "图片生成", "视频生成", "图片理解"],
     models: [
       // 对话模型 - 豆包 Pro/Lite
       "doubao-pro-32k",
@@ -97,6 +125,22 @@ const PLATFORM_PRESETS: Array<{
       // Seedream 图像生成
       "doubao-seedream-4-5",
       "doubao-seedream-3-0-t2i-250415",
+      // 思考模型
+      "doubao-thinking-pro-250715",
+    ],
+  },
+  {
+    platform: "doubao",
+    name: "豆包",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    description: "豆包 AI 对话助手，支持图片理解",
+    services: ["对话", "图片理解"],
+    models: [
+      // 对话模型 - 豆包 Pro/Lite
+      "doubao-pro-32k",
+      "doubao-pro-128k",
+      "doubao-lite-32k",
+      "doubao-lite-128k",
       // 思考模型
       "doubao-thinking-pro-250715",
     ],
