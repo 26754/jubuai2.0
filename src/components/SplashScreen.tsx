@@ -78,17 +78,13 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
               <img 
                 src="/logo.png" 
                 alt="JuBu AI Logo" 
-                className="h-24 w-auto animate-pulse-subtle" 
+                className="h-[50px] w-auto animate-pulse-subtle" 
               />
             </div>
           </div>
           
-          <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-            JuBu AI
-          </h1>
-          
-          <p className="text-xl text-muted-foreground mb-2">
-            AI 驱动的动漫/短剧分镜创作工具
+          <p className="text-2xl font-bold text-muted-foreground mb-2">
+            AI 驱动的动漫/短剧智能创作工具
           </p>
           
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/60">
