@@ -1608,7 +1608,6 @@ export function SettingsPanel() {
             });
           }
         }}
-        existingPlatforms={existingPlatforms}
       />
 
       <EditProviderDialog
