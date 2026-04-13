@@ -40,6 +40,12 @@ function proxyUrl(url: string): string {
   if (url.includes('dashscope.aliyuncs.com')) {
     return url.replace('https://dashscope.aliyuncs.com', '/__proxy/bailian');
   }
+  // MemeFast API (memefast.top) - 需要通过查询参数传递目标主机
+  if (url.includes('memefast.top')) {
+    const targetHost = url.match(/^(https?:\/\/[^\/]+)/)?.[1] || 'https://memefast.top';
+    const path = url.replace(/^https?:\/\/[^\/]+/, '');
+    return `/__proxy/memefast${path}?host=${encodeURIComponent(targetHost)}`;
+  }
   // 其他外部 API 暂不处理
   return url;
 }
