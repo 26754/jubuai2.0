@@ -8,7 +8,6 @@
 
 import { useState } from "react";
 import { useThemeStore } from "@/stores/theme-store";
-import { useDirectorStore } from "@/stores/director-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { AuthPage } from "./auth/AuthPage";
@@ -19,6 +18,8 @@ import {
   Sun, 
   Moon, 
   Monitor,
+  Sparkles,
+  Layers,
   LogIn,
   UserPlus
 } from "lucide-react";
@@ -29,7 +30,6 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const { theme, setTheme } = useThemeStore();
-  const { setActiveProjectId } = useDirectorStore();
   const { isAuthenticated } = useAuthStore();
   const [showAuthPage, setShowAuthPage] = useState(false);
 
@@ -39,13 +39,6 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
 
   const handleRegister = () => {
     setShowAuthPage(true);
-  };
-
-  const handleCreateProject = () => {
-    // 生成新的项目 ID
-    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    setActiveProjectId(projectId);
-    onEnter();
   };
 
   const handleOpenProject = () => {
@@ -123,15 +116,6 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           >
             <UserPlus className="mr-2 h-5 w-5" />
             注册
-          </Button>
-
-          <Button 
-            variant="ghost" 
-            size="lg" 
-            className="h-12 text-base font-normal"
-            onClick={handleCreateProject}
-          >
-            游客体验
           </Button>
         </div>
 
