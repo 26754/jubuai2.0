@@ -172,15 +172,10 @@ export const DEMO_PROJECT = {
 };
 
 // 检查 Supabase 是否配置
-// 动态检查 Supabase 配置
-function isSupabaseConfigured(): boolean {
+// 直接调用 supabase-client 的检查函数
+function checkSupabase(): boolean {
   return checkSupabaseConfigured();
 }
-
-// 检查 Supabase 配置（用于 store 初始化）
-const checkSupabaseConfig = (): boolean => {
-  return isSupabaseConfigured();
-};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
@@ -189,11 +184,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
   isDemoUser: false,
-  isSupabaseConfigured: isSupabaseConfigured(), // 动态检查
+  isSupabaseConfigured: checkSupabase(), // 检查 Supabase 配置
 
   initialize: async () => {
     // 每次初始化时动态检查配置
-    if (!isSupabaseConfigured()) {
+    console.log('[Auth] Initializing, checking Supabase config...');
+    const configured = checkSupabase();
+    console.log('[Auth] Supabase configured:', configured);
+    
+    if (!configured) {
       console.log('[Auth] Supabase not configured, skipping initialization');
       set({ isSupabaseConfigured: false });
       return;
@@ -201,7 +200,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     set({ isSupabaseConfigured: true });
     
-    if (!isSupabaseConfigured()) {
+    if (!checkSupabase()) {
       console.log('[Auth] Supabase not configured, skipping initialization');
       return;
     }
@@ -266,7 +265,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email: string, password: string): Promise<boolean> => {
     // 动态检查 Supabase 配置
-    if (!isSupabaseConfigured()) {
+    if (!checkSupabase()) {
       set({ error: 'Supabase 未配置，请联系管理员' });
       return false;
     }
@@ -326,7 +325,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async (email: string, password: string, username?: string): Promise<boolean> => {
     // 动态检查 Supabase 配置
-    if (!isSupabaseConfigured()) {
+    if (!checkSupabase()) {
       set({ error: 'Supabase 未配置，请联系管理员' });
       return false;
     }
