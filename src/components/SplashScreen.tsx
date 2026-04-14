@@ -20,7 +20,6 @@ import {
   Layers,
   LogIn,
   UserPlus,
-  FolderOpen,
   PenTool
 } from "lucide-react";
 
@@ -39,13 +38,6 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
 
   const handleRegister = () => {
     setShowAuthPage(true);
-  };
-
-  const handleOpenProject = () => {
-    // 触发打开项目对话框
-    const event = new CustomEvent('openProjectDialog');
-    window.dispatchEvent(event);
-    onEnter();
   };
 
   const handleAuthSuccess = () => {
@@ -143,27 +135,6 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
               >
                 <UserPlus className="mr-2 h-5 w-5" />
                 创建账号
-              </Button>
-
-              <div className="relative py-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border/50" />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="px-4 bg-background text-sm text-muted-foreground">
-                    或
-                  </span>
-                </div>
-              </div>
-
-              <Button 
-                variant="ghost" 
-                size="lg" 
-                className="w-full h-12 text-base font-normal text-muted-foreground hover:text-foreground"
-                onClick={handleOpenProject}
-              >
-                <FolderOpen className="mr-2 h-5 w-5" />
-                打开已有项目
               </Button>
             </div>
           </div>
