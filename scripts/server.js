@@ -195,11 +195,36 @@ app.all(/\/__proxy\/external(\/.*)?/, async (req, res) => {
 
 // ==================== 静态文件服务 ====================
 
-// 提供构建目录中的静态文件
+// CSP 配置：允许 Supabase 脚本执行
+const CSP_HEADER = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co",
+  "style-src 'self' 'unsafe-inline'",
+  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co wss://*.supabase.co",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "worker-src 'self' blob:",
+  "frame-src 'none'",
+].join('; ');
+
+// 全局中间件：为所有非代理响应设置 CSP 头
+app.use((req, res, next) => {
+  // 跳过 API 路由和代理路由
+  if (req.path.startsWith('/__proxy') || req.path.startsWith('/api')) {
+    return next();
+  }
+  
+  // 设置 CSP 头
+  res.setHeader('Content-Security-Policy', CSP_HEADER);
+  next();
+});
+
+// 静态文件服务
 app.use(express.static(distPath));
 
 // 所有其他路由返回 index.html（SPA 支持）
 app.use((req, res) => {
+  res.setHeader('Content-Security-Policy', CSP_HEADER);
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

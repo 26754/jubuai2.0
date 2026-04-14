@@ -162,3 +162,44 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 ### 端口配置
 - 生产环境端口: 5000 (由 `DEPLOY_RUN_PORT` 环境变量控制)
 - 开发环境端口: 5000 (Vite 默认)
+
+### CSP 配置
+
+位置: `scripts/server.js` 和 `dist/index.html`
+
+#### 问题描述
+- **问题**: CSP 阻止 Supabase 脚本执行（EvalError: call to Function() blocked by CSP）
+- **影响**: 用户无法通过 Supabase Auth 登录/注册
+
+#### 解决方案
+1. **HTTP 响应头方式**（主要）：
+   - 在 Express 服务器中添加 CSP 中间件
+   - 设置 `Content-Security-Policy` 响应头
+   - 允许 `unsafe-eval`、`unsafe-inline` 和 Supabase 域名
+
+2. **HTML meta 标签方式**（后备）：
+   - 在 `dist/index.html` 中添加 `<meta http-equiv="Content-Security-Policy">` 标签
+   - 确保即使响应头未设置，浏览器也会应用 CSP
+
+#### CSP 策略配置
+```
+default-src 'self';
+script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co;
+style-src 'self' 'unsafe-inline';
+connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co wss://*.supabase.co;
+img-src 'self' data: blob: https:;
+font-src 'self' data:;
+worker-src 'self' blob:;
+frame-src 'none';
+```
+
+#### 验证方法
+```bash
+curl -I http://localhost:5000 | grep Content-Security-Policy
+```
+应返回 CSP 响应头。
+
+#### 注意事项
+- **生产环境必须使用自定义服务器**：`node scripts/server.js`，不能使用简单的静态文件服务器
+- 确保 Vite dev 服务器已停止，否则 5000 端口会被占用
+- 修改 `dist/index.html` 后需要重新构建或手动更新文件
