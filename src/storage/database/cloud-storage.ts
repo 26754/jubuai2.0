@@ -9,6 +9,7 @@ import { getSupabaseClient, isSupabaseConfigured } from './supabase-client';
 
 // 导出子模块
 export * from './cloud-project-storage';
+export * from './cloud-settings-storage';
 
 /**
  * 检查云端存储是否可用

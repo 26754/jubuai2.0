@@ -413,6 +413,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     const { isSupabaseConfigured } = get();
     
+    // 停止自动同步
+    cloudSyncManager.reset();
+    
     try {
       if (isSupabaseConfigured) {
         const supabase = getSupabaseClient();
@@ -518,21 +521,31 @@ async function triggerAutoSync() {
         await cloudSyncManager.restoreFromCloud();
         console.log('[AutoSync] Restored from cloud successfully');
         
+        // 恢复后启动自动同步
+        cloudSyncManager.startAutoSync();
+        
       } else if (hasLocalData && cloudProjectCount === 0) {
         // 场景2: 本地有数据，云端没有 → 上传到云端
         console.log('[AutoSync] Uploading to cloud...');
-        await cloudSyncManager.syncAllToCloud();
+        await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
         console.log('[AutoSync] Uploaded to cloud successfully');
+        
+        // 上传后启动自动同步
+        cloudSyncManager.startAutoSync();
         
       } else if (hasLocalData && cloudProjectCount > 0) {
         // 场景3: 都有数据 → 保留本地（用户可能正在本地工作），同时更新云端
         console.log('[AutoSync] Syncing local changes to cloud...');
-        await cloudSyncManager.syncAllToCloud();
+        await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
         console.log('[AutoSync] Local changes synced to cloud');
         
+        // 同步后启动自动同步
+        cloudSyncManager.startAutoSync();
+        
       } else {
-        // 场景4: 都没有数据（只有默认项目）→ 无需同步
+        // 场景4: 都没有数据（只有默认项目）→ 启动自动同步等待用户创建数据
         console.log('[AutoSync] No data to sync (only default project)');
+        cloudSyncManager.startAutoSync();
       }
 
     } catch (error) {

@@ -271,3 +271,50 @@ curl -s -X POST -H 'Content-Type: application/json' \
    - 云端有数据、本地没有 → 从云端恢复
    - 本地有数据、云端没有 → 上传到云端
    - 都有数据 → 保留本地同时更新云端
+
+## 云端同步优化
+
+### 优化内容
+
+1. **实时同步机制**
+   - 数据变更时自动触发同步（延迟 2 秒批量处理）
+   - 登录成功后立即同步所有数据
+
+2. **定期自动同步**
+   - 每 30 秒检查并同步待同步的更改
+   - 可配置的同步间隔
+
+3. **设置数据同步**
+   - 新增 `user_settings` 表存储用户设置
+   - 同步主题、语言、API 配置等设置
+   - 新增 `cloud-settings-storage.ts` 模块
+
+4. **重试机制**
+   - 同步失败时自动重试（最多 3 次）
+   - 重试间隔 5 秒
+
+5. **同步状态 UI**
+   - 新增 `SyncStatusIndicator` 组件显示同步状态
+   - 支持手动触发同步
+   - 显示上次同步时间、待同步数量等信息
+
+### 新增文件
+- `src/storage/database/cloud-settings-storage.ts` - 云端设置存储模块
+- `src/components/SyncStatusIndicator.tsx` - 同步状态指示器组件
+- `src/hooks/use-cloud-sync.ts` - 同步状态 Hook
+
+### 数据库变更
+```sql
+-- 新增 user_settings 表
+CREATE TABLE user_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR(255) NOT NULL UNIQUE,
+  theme VARCHAR(50) DEFAULT 'dark',
+  language VARCHAR(20) DEFAULT 'zh-CN',
+  api_configs JSONB DEFAULT '{}',
+  editor_settings JSONB DEFAULT '{}',
+  sync_preferences JSONB DEFAULT '{"autoSync": true, "syncInterval": 30000}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
