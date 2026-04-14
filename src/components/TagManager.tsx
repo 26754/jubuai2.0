@@ -1,31 +1,33 @@
 // Copyright (c) 2025 JuBu AI
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
- * 智能标签系统
+ * 智能标签管理系统
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Tag,
   Plus,
   X,
   Search,
+  Filter,
   Edit3,
   Trash2,
-  Check,
-  Star,
-  Clock,
-  TrendingUp,
-  Filter,
-  ChevronDown,
-  ChevronRight,
-  MoreVertical,
-  Sparkles,
-  Hash,
-  AlertCircle,
   Copy,
-  FolderOpen,
+  Check,
+  Sparkles,
+  Clock,
+  Star,
+  TrendingUp,
+  Hash,
   Layers,
+  FolderOpen,
+  FileText,
+  Users,
+  Grid3X3,
+  MoreVertical,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +35,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,30 +58,34 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 // ==================== 类型定义 ====================
 
-export interface TagItem {
+export type TagCategory = 
+  | 'genre'        // 题材类型
+  | 'style'        // 风格
+  | 'mood'         // 情绪氛围
+  | 'character'    // 角色类型
+  | 'theme'        // 主题
+  | 'custom';      // 自定义
+
+export interface Tag {
   id: string;
   name: string;
+  category: TagCategory;
   color?: string;
-  category?: string;
-  count: number;
+  count: number;         // 使用次数
+  isSystem: boolean;      // 系统标签不可删除
+  isFavorite: boolean;
   createdAt: Date;
-  updatedAt: Date;
-  isSystem?: boolean;
-  isFavorite?: boolean;
+  synonyms?: string[];    // 同义词
 }
 
 export interface TagSuggestion {
@@ -82,878 +94,1029 @@ export interface TagSuggestion {
   reason: string;
 }
 
-export type TagSortBy = 'count' | 'name' | 'recent' | 'alphabetical';
-export type TagFilterBy = 'all' | 'favorites' | 'system' | 'custom';
+// ==================== 预设标签 ====================
 
-// ==================== 预设标签分类 ====================
-
-export const TAG_CATEGORIES = {
-  character: {
-    name: '角色',
-    icon: '👤',
-    color: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-    tags: ['主角', '配角', '反派', 'NPC', '群演', '儿童', '老人', '男性', '女性'],
-  },
-  scene: {
-    name: '场景',
-    icon: '🏠',
-    color: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-    tags: ['室内', '室外', '城市', '乡村', '夜景', '日景', '室内', '室外'],
-  },
-  emotion: {
-    name: '情绪',
-    icon: '😊',
-    color: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
-    tags: ['开心', '悲伤', '愤怒', '恐惧', '惊讶', '平静', '紧张', '温馨'],
-  },
-  style: {
-    name: '风格',
-    icon: '🎨',
-    color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    tags: ['写实', '动漫', '水彩', '油画', '3D', '古风', '现代', '赛博朋克'],
-  },
-  quality: {
-    name: '质量',
-    icon: '✨',
-    color: 'bg-green-500/10 text-green-500 border-green-500/20',
-    tags: ['精选', '草稿', '已完成', '待审核', '需修改'],
-  },
-  custom: {
-    name: '自定义',
-    icon: '🏷️',
-    color: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-    tags: [],
-  },
-};
-
-// ==================== 标签颜色预设 ====================
-
-export const TAG_COLORS = [
-  { name: '红色', value: 'bg-red-500', textColor: 'text-red-500' },
-  { name: '橙色', value: 'bg-orange-500', textColor: 'text-orange-500' },
-  { name: '黄色', value: 'bg-yellow-500', textColor: 'text-yellow-500' },
-  { name: '绿色', value: 'bg-green-500', textColor: 'text-green-500' },
-  { name: '青色', value: 'bg-cyan-500', textColor: 'text-cyan-500' },
-  { name: '蓝色', value: 'bg-blue-500', textColor: 'text-blue-500' },
-  { name: '紫色', value: 'bg-purple-500', textColor: 'text-purple-500' },
-  { name: '粉色', value: 'bg-pink-500', textColor: 'text-pink-500' },
-  { name: '灰色', value: 'bg-gray-500', textColor: 'text-gray-500' },
+const PRESET_TAGS: Tag[] = [
+  // 题材类型
+  { id: 'genre-action', name: '动作', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['战斗', '武打'] },
+  { id: 'genre-comedy', name: '喜剧', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['搞笑', '幽默'] },
+  { id: 'genre-romance', name: '爱情', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['恋爱', '甜蜜'] },
+  { id: 'genre-scifi', name: '科幻', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['未来', '科技'] },
+  { id: 'genre-fantasy', name: '奇幻', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['魔法', '异世界'] },
+  { id: 'genre-horror', name: '恐怖', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['惊悚', '悬疑'] },
+  { id: 'genre-drama', name: '剧情', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['正剧', '现实'] },
+  { id: 'genre-thriller', name: '悬疑', category: 'genre', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['推理', '破案'] },
+  
+  // 风格
+  { id: 'style-anime', name: '动漫风格', category: 'style', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['日漫', '二次元'] },
+  { id: 'style-realistic', name: '写实风格', category: 'style', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['真实', '3D'] },
+  { id: 'style-watercolor', name: '水彩风格', category: 'style', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['手绘', '插画'] },
+  { id: 'style-cyberpunk', name: '赛博朋克', category: 'style', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['未来科技', '霓虹'] },
+  { id: 'style-ghibli', name: '吉卜力风格', category: 'style', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['宫崎骏', '治愈'] },
+  
+  // 情绪氛围
+  { id: 'mood-happy', name: '欢快', category: 'mood', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['轻松', '愉快'] },
+  { id: 'mood-serious', name: '严肃', category: 'mood', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['沉重', '深刻'] },
+  { id: 'mood-mysterious', name: '神秘', category: 'mood', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['诡异', '悬疑'] },
+  { id: 'mood-warm', name: '温馨', category: 'mood', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['治愈', '温暖'] },
+  { id: 'mood-intense', name: '紧张', category: 'mood', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['刺激', '激烈'] },
+  
+  // 角色类型
+  { id: 'char-hero', name: '英雄主角', category: 'character', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['男主', '勇者'] },
+  { id: 'char-heroine', name: '女主角', category: 'character', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['女主', '女主'] },
+  { id: 'char-villain', name: '反派', category: 'character', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['敌人', '恶役'] },
+  { id: 'char-sidekick', name: '配角', category: 'character', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['伙伴', '友人'] },
+  { id: 'char-mentor', name: '导师', category: 'character', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['师父', '引导者'] },
+  
+  // 主题
+  { id: 'theme-friendship', name: '友情', category: 'theme', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['伙伴', '羁绊'] },
+  { id: 'theme-family', name: '家庭', category: 'theme', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['亲情', '血缘'] },
+  { id: 'theme-growth', name: '成长', category: 'theme', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['蜕变', '进化'] },
+  { id: 'theme-justice', name: '正义', category: 'theme', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['公平', '道德'] },
+  { id: 'theme-love', name: '爱情', category: 'theme', count: 0, isSystem: true, isFavorite: false, createdAt: new Date(), synonyms: ['恋爱', '情感'] },
 ];
+
+// ==================== 分类配置 ====================
+
+const CATEGORY_CONFIG: Record<TagCategory, { label: string; icon: React.ReactNode; color: string }> = {
+  genre: { label: '题材', icon: <FolderOpen className="w-4 h-4" />, color: 'text-blue-500' },
+  style: { label: '风格', icon: <Sparkles className="w-4 h-4" />, color: 'text-purple-500' },
+  mood: { label: '氛围', icon: <TrendingUp className="w-4 h-4" />, color: 'text-pink-500' },
+  character: { label: '角色', icon: <Users className="w-4 h-4" />, color: 'text-green-500' },
+  theme: { label: '主题', icon: <Star className="w-4 h-4" />, color: 'text-yellow-500' },
+  custom: { label: '自定义', icon: <Hash className="w-4 h-4" />, color: 'text-gray-500' },
+};
 
 // ==================== 标签存储 Hook ====================
 
 const TAGS_STORAGE_KEY = 'jubuai-tags';
 
 export function useTagStore() {
-  const [tags, setTags] = useState<TagItem[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(TAGS_STORAGE_KEY) || '[]')
-        .map((tag: any) => ({
-          ...tag,
-          createdAt: new Date(tag.createdAt),
-          updatedAt: new Date(tag.updatedAt),
-        }));
-    } catch {
-      return [];
-    }
-  });
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
   
-  const addTag = useCallback((name: string, category?: string, color?: string) => {
-    const newTag: TagItem = {
+  // 加载标签
+  const loadTags = useCallback(() => {
+    try {
+      // 加载预设标签
+      const systemTags = PRESET_TAGS.map(t => ({ ...t }));
+      
+      // 加载用户自定义标签
+      const stored = localStorage.getItem(TAGS_STORAGE_KEY);
+      const userTags: Tag[] = stored 
+        ? JSON.parse(stored).map((t: any) => ({
+            ...t,
+            createdAt: new Date(t.createdAt),
+          }))
+        : [];
+      
+      // 合并
+      const allTags = [...systemTags, ...userTags];
+      
+      // 加载收藏
+      const storedFavorites = localStorage.getItem(`${TAGS_STORAGE_KEY}-favorites`);
+      const favoriteIds: string[] = storedFavorites ? JSON.parse(storedFavorites) : [];
+      
+      setTags(allTags.map(t => ({
+        ...t,
+        isFavorite: favoriteIds.includes(t.id),
+      })));
+      setFavorites(new Set(favoriteIds));
+    } catch (error) {
+      console.error('[Tags] Failed to load:', error);
+    }
+  }, []);
+  
+  // 保存用户标签
+  const saveUserTags = useCallback((userTags: Tag[]) => {
+    try {
+      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(userTags));
+    } catch (error) {
+      console.error('[Tags] Failed to save:', error);
+    }
+  }, []);
+  
+  // 保存收藏
+  const saveFavorites = useCallback((favoriteIds: string[]) => {
+    try {
+      localStorage.setItem(`${TAGS_STORAGE_KEY}-favorites`, JSON.stringify(favoriteIds));
+    } catch (error) {
+      console.error('[Tags] Failed to save favorites:', error);
+    }
+  }, []);
+  
+  // 创建标签
+  const createTag = useCallback((name: string, category: TagCategory = 'custom') => {
+    const existingTag = tags.find(t => t.name === name || t.synonyms?.includes(name));
+    if (existingTag) return existingTag;
+    
+    const newTag: Tag = {
       id: crypto.randomUUID(),
       name,
       category,
-      color,
       count: 0,
+      isSystem: false,
+      isFavorite: false,
       createdAt: new Date(),
-      updatedAt: new Date(),
     };
     
-    setTags(prev => {
-      const next = [...prev, newTag];
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const userTags = tags.filter(t => !t.isSystem);
+    const newUserTags = [...userTags, newTag];
+    saveUserTags(newUserTags);
+    
+    setTags(prev => [...prev, newTag]);
     
     return newTag;
-  }, []);
+  }, [tags, saveUserTags]);
   
-  const updateTag = useCallback((id: string, updates: Partial<TagItem>) => {
-    setTags(prev => {
-      const next = prev.map(tag =>
-        tag.id === id
-          ? { ...tag, ...updates, updatedAt: new Date() }
-          : tag
-      );
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  // 更新标签
+  const updateTag = useCallback((id: string, updates: Partial<Tag>) => {
+    const tag = tags.find(t => t.id === id);
+    if (!tag || tag.isSystem) return; // 不能修改系统标签
+    
+    const userTags = tags.filter(t => !t.isSystem).map(t =>
+      t.id === id ? { ...t, ...updates } : t
+    );
+    saveUserTags(userTags);
+    
+    setTags(prev => prev.map(t =>
+      t.id === id ? { ...t, ...updates } : t
+    ));
+  }, [tags, saveUserTags]);
   
+  // 删除标签
   const deleteTag = useCallback((id: string) => {
-    setTags(prev => {
-      const next = prev.filter(tag => tag.id !== id);
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
+    const tag = tags.find(t => t.id === id);
+    if (!tag || tag.isSystem) return; // 不能删除系统标签
+    
+    const userTags = tags.filter(t => !t.isSystem && t.id !== id);
+    saveUserTags(userTags);
+    
+    setTags(prev => prev.filter(t => t.id !== id));
+  }, [tags, saveUserTags]);
+  
+  // 切换收藏
+  const toggleFavorite = useCallback((id: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      saveFavorites(Array.from(next));
+      
+      setTags(prevTags => prevTags.map(t =>
+        t.id === id ? { ...t, isFavorite: next.has(id) } : t
+      ));
+      
       return next;
     });
-  }, []);
+  }, [saveFavorites]);
   
+  // 增加使用次数
   const incrementCount = useCallback((id: string) => {
     setTags(prev => {
-      const next = prev.map(tag =>
-        tag.id === id
-          ? { ...tag, count: tag.count + 1, updatedAt: new Date() }
-          : tag
+      const updated = prev.map(t =>
+        t.id === id ? { ...t, count: t.count + 1 } : t
       );
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-  
-  const decrementCount = useCallback((id: string) => {
-    setTags(prev => {
-      const next = prev.map(tag =>
-        tag.id === id
-          ? { ...tag, count: Math.max(0, tag.count - 1), updatedAt: new Date() }
-          : tag
-      );
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-  
-  const toggleFavorite = useCallback((id: string) => {
-    setTags(prev => {
-      const next = prev.map(tag =>
-        tag.id === id
-          ? { ...tag, isFavorite: !tag.isFavorite, updatedAt: new Date() }
-          : tag
-      );
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-  
-  const mergeTags = useCallback((sourceIds: string[], targetId: string) => {
-    setTags(prev => {
-      const next = prev.map(tag => {
-        if (tag.id === targetId) {
-          const sourceTags = prev.filter(t => sourceIds.includes(t.id));
-          return {
-            ...tag,
-            count: tag.count + sourceTags.reduce((sum, t) => sum + t.count, 0),
-            updatedAt: new Date(),
-          };
-        }
-        return tag;
-      }).filter(tag => !sourceIds.includes(tag.id));
       
-      localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(next));
-      return next;
+      // 保存用户标签的计数变化
+      const userTags = updated.filter(t => !t.isSystem);
+      saveUserTags(userTags);
+      
+      return updated;
     });
-  }, []);
+  }, [saveUserTags]);
   
-  const getTagByName = useCallback((name: string) => {
-    return tags.find(tag => tag.name === name);
+  // 批量添加标签
+  const addTags = useCallback((tagNames: string[], category?: TagCategory) => {
+    const created: Tag[] = [];
+    
+    for (const name of tagNames) {
+      const existing = tags.find(t => 
+        t.name === name || t.synonyms?.includes(name)
+      );
+      
+      if (existing) {
+        incrementCount(existing.id);
+        created.push(existing);
+      } else {
+        const newTag = createTag(name, category || 'custom');
+        if (newTag) {
+          incrementCount(newTag.id);
+          created.push(newTag);
+        }
+      }
+    }
+    
+    return created;
+  }, [tags, createTag, incrementCount]);
+  
+  // 搜索标签
+  const searchTags = useCallback((query: string, category?: TagCategory) => {
+    let results = [...tags];
+    
+    if (category) {
+      results = results.filter(t => t.category === category);
+    }
+    
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      results = results.filter(t =>
+        t.name.toLowerCase().includes(lowerQuery) ||
+        t.synonyms?.some(s => s.toLowerCase().includes(lowerQuery))
+      );
+    }
+    
+    // 按使用次数和收藏排序
+    results.sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return b.isFavorite ? 1 : -1;
+      if (a.count !== b.count) return b.count - a.count;
+      return a.name.localeCompare(b.name);
+    });
+    
+    return results;
   }, [tags]);
   
-  const ensureTag = useCallback((name: string, category?: string) => {
-    const existing = getTagByName(name);
-    if (existing) {
-      return existing;
+  // 智能标签建议（基于内容分析）
+  const suggestTags = useCallback((content: string): TagSuggestion[] => {
+    const suggestions: TagSuggestion[] = [];
+    const lowerContent = content.toLowerCase();
+    
+    // 关键词匹配规则
+    const keywordRules: Record<string, { tag: string; score: number; reason: string }[]> = {
+      genre: [
+        { tag: '动作', score: 0.9, reason: '检测到战斗/动作场景' },
+        { tag: '喜剧', score: 0.9, reason: '检测到幽默元素' },
+        { tag: '爱情', score: 0.9, reason: '检测到情感互动' },
+        { tag: '科幻', score: 0.9, reason: '检测到科技/未来元素' },
+        { tag: '奇幻', score: 0.9, reason: '检测到魔法/超自然元素' },
+        { tag: '恐怖', score: 0.9, reason: '检测到恐怖/惊悚元素' },
+        { tag: '剧情', score: 0.8, reason: '检测到叙事内容' },
+        { tag: '悬疑', score: 0.9, reason: '检测到推理/谜题元素' },
+      ],
+      style: [
+        { tag: '动漫风格', score: 0.8, reason: '适合动漫表现形式' },
+        { tag: '赛博朋克', score: 0.9, reason: '检测到未来科技/霓虹元素' },
+        { tag: '吉卜力风格', score: 0.8, reason: '适合治愈系表现' },
+      ],
+      mood: [
+        { tag: '欢快', score: 0.8, reason: '整体氛围轻快' },
+        { tag: '温馨', score: 0.8, reason: '检测到温暖情感' },
+        { tag: '紧张', score: 0.9, reason: '检测到紧张情节' },
+        { tag: '神秘', score: 0.9, reason: '检测到悬疑/未知元素' },
+      ],
+    };
+    
+    // 分析内容并生成建议
+    const analyzed = new Set<string>();
+    
+    for (const [category, rules] of Object.entries(keywordRules)) {
+      for (const rule of rules) {
+        // 检查关键词
+        const keywords: Record<string, string[]> = {
+          '动作': ['战斗', '打架', '攻击', '防御', '武器', '拳', '踢', '砍', '射', '爆炸'],
+          '喜剧': ['笑', '搞笑', '幽默', '尴尬', '误会', '搞笑', '逗', '有趣'],
+          '爱情': ['喜欢', '爱', '吻', '心跳', '告白', '约会', '恋人', '甜蜜'],
+          '科幻': ['科技', '飞船', '机器人', '未来', '星球', '宇宙', 'AI', '网络', '数据'],
+          '奇幻': ['魔法', '咒语', '精灵', '龙', '巫术', '结界', '异世界', '召唤'],
+          '恐怖': ['恐怖', '血腥', '鬼', '死亡', '黑暗', '恐惧', '尖叫', '惊悚'],
+          '剧情': ['讲述', '故事', '经历', '人生', '命运', '抉择', '成长'],
+          '悬疑': ['谜题', '线索', '真相', '调查', '推理', '阴谋', '秘密'],
+          '动漫风格': ['动漫', '二次元', '日漫', '卡通'],
+          '赛博朋克': ['霓虹', '黑客', '虚拟', '生化', '义体', '网络空间'],
+          '吉卜力风格': ['自然', '治愈', '温馨', '成长'],
+          '欢快': ['开心', '快乐', '幸福', '欢笑', '兴奋'],
+          '温馨': ['温暖', '感人', '治愈', '关怀', '陪伴'],
+          '紧张': ['危机', '紧急', '追逐', '对峙', '临界'],
+          '神秘': ['未知', '奇怪', '异常', '谜', '隐藏'],
+        };
+        
+        const tagKeywords = keywords[rule.tag] || [];
+        for (const keyword of tagKeywords) {
+          if (lowerContent.includes(keyword) && !analyzed.has(rule.tag)) {
+            suggestions.push({
+              tag: rule.tag,
+              score: rule.score,
+              reason: rule.reason,
+            });
+            analyzed.add(rule.tag);
+            break;
+          }
+        }
+      }
     }
-    return addTag(name, category);
-  }, [addTag, getTagByName]);
+    
+    // 按分数排序
+    suggestions.sort((a, b) => b.score - a.score);
+    
+    return suggestions.slice(0, 5); // 最多返回 5 个建议
+  }, []);
+  
+  // 按分类获取标签
+  const getTagsByCategory = useCallback((category: TagCategory) => {
+    return tags.filter(t => t.category === category);
+  }, [tags]);
+  
+  // 获取收藏的标签
+  const getFavoriteTags = useCallback(() => {
+    return tags.filter(t => t.isFavorite);
+  }, [tags]);
+  
+  // 获取热门标签
+  const getHotTags = useCallback((limit: number = 10) => {
+    return [...tags]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }, [tags]);
+  
+  // 加载初始数据
+  useEffect(() => {
+    loadTags();
+  }, [loadTags]);
   
   return {
     tags,
-    addTag,
+    favorites,
+    isLoading,
+    createTag,
     updateTag,
     deleteTag,
-    incrementCount,
-    decrementCount,
     toggleFavorite,
-    mergeTags,
-    getTagByName,
-    ensureTag,
+    incrementCount,
+    addTags,
+    searchTags,
+    suggestTags,
+    getTagsByCategory,
+    getFavoriteTags,
+    getHotTags,
   };
 }
 
 // ==================== 标签输入组件 ====================
 
 interface TagInputProps {
-  value: string[];
-  onChange: (tags: string[]) => void;
-  suggestions?: string[];
-  maxTags?: number;
+  tags: Tag[];
+  selectedTagIds: string[];
+  onSelect: (tagId: string) => void;
+  onDeselect: (tagId: string) => void;
+  onCreate: (name: string) => void;
   placeholder?: string;
-  className?: string;
+  maxTags?: number;
+  showSuggestions?: boolean;
 }
 
 export function TagInput({
-  value,
-  onChange,
-  suggestions = [],
-  maxTags = 10,
+  tags,
+  selectedTagIds,
+  onSelect,
+  onDeselect,
+  onCreate,
   placeholder = '添加标签...',
-  className,
+  maxTags = 10,
+  showSuggestions = true,
 }: TagInputProps) {
-  const [input, setInput] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   
-  const filteredSuggestions = useMemo(() => {
-    if (!input.trim()) return suggestions.slice(0, 5);
-    return suggestions
-      .filter(s => 
-        s.toLowerCase().includes(input.toLowerCase()) && 
-        !value.includes(s)
-      )
-      .slice(0, 5);
-  }, [input, suggestions, value]);
+  // 过滤可选标签
+  const availableTags = useMemo(() => {
+    const selected = new Set(selectedTagIds);
+    return tags.filter(t => !selected.has(t.id));
+  }, [tags, selectedTagIds]);
   
-  const addTag = useCallback((tag: string) => {
-    const trimmedTag = tag.trim();
-    if (trimmedTag && !value.includes(trimmedTag) && value.length < maxTags) {
-      onChange([...value, trimmedTag]);
-    }
-    setInput('');
-    setShowSuggestions(false);
-  }, [value, maxTags, onChange]);
+  // 搜索匹配
+  const matchedTags = useMemo(() => {
+    if (!inputValue) return availableTags.slice(0, 8);
+    
+    const query = inputValue.toLowerCase();
+    return availableTags.filter(t =>
+      t.name.toLowerCase().includes(query) ||
+      t.synonyms?.some(s => s.toLowerCase().includes(query))
+    ).slice(0, 8);
+  }, [availableTags, inputValue]);
   
-  const removeTag = useCallback((tag: string) => {
-    onChange(value.filter(t => t !== tag));
-  }, [value, onChange]);
-  
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && input.trim()) {
-      e.preventDefault();
-      addTag(input);
-    } else if (e.key === 'Backspace' && !input && value.length > 0) {
-      removeTag(value[value.length - 1]);
-    } else if (e.key === ',') {
-      e.preventDefault();
-      if (input.trim()) addTag(input);
-    }
+  // 添加标签
+  const handleAddTag = (tag: Tag) => {
+    if (selectedTagIds.length >= maxTags) return;
+    onSelect(tag.id);
+    setInputValue('');
   };
   
-  return (
-    <div className={cn('relative', className)}>
-      <div 
-        className="flex flex-wrap gap-1 p-2 border rounded-md bg-background min-h-[42px] cursor-text"
-        onClick={() => inputRef.current?.focus()}
-      >
-        {value.map(tag => (
-          <Badge key={tag} variant="secondary" className="h-6 text-xs gap-1">
-            <Tag className="w-3 h-3" />
-            {tag}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                removeTag(tag);
-              }}
-              className="ml-1 hover:text-destructive"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </Badge>
-        ))}
-        
-        {value.length < maxTags && (
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            placeholder={value.length === 0 ? placeholder : ''}
-            className="flex-1 min-w-[80px] bg-transparent outline-none text-sm placeholder:text-muted-foreground"
-          />
-        )}
-      </div>
-      
-      {/* 建议列表 */}
-      {showSuggestions && filteredSuggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-10 mt-1 p-1 bg-background border rounded-md shadow-lg">
-          {filteredSuggestions.map(suggestion => (
-            <button
-              key={suggestion}
-              onClick={() => addTag(suggestion)}
-              className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted rounded flex items-center gap-2"
-            >
-              <Tag className="w-3 h-3 text-muted-foreground" />
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ==================== 标签选择器 ====================
-
-interface TagSelectorProps {
-  selectedTags: string[];
-  onChange: (tags: string[]) => void;
-  allTags: TagItem[];
-  maxSelection?: number;
-  className?: string;
-}
-
-export function TagSelector({
-  selectedTags,
-  onChange,
-  allTags,
-  maxSelection = 10,
-  className,
-}: TagSelectorProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAll, setShowAll] = useState(false);
-  
-  const filteredTags = useMemo(() => {
-    if (!searchQuery.trim()) return allTags;
-    return allTags.filter(tag => 
-      tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // 创建新标签
+  const handleCreateTag = () => {
+    if (!inputValue.trim()) return;
+    
+    // 检查是否已存在
+    const existing = tags.find(t => 
+      t.name.toLowerCase() === inputValue.toLowerCase()
     );
-  }, [allTags, searchQuery]);
-  
-  const toggleTag = (tagName: string) => {
-    if (selectedTags.includes(tagName)) {
-      onChange(selectedTags.filter(t => t !== tagName));
-    } else if (selectedTags.length < maxSelection) {
-      onChange([...selectedTags, tagName]);
+    
+    if (existing && !selectedTagIds.includes(existing.id)) {
+      handleAddTag(existing);
+    } else if (!existing) {
+      onCreate(inputValue.trim());
+      setInputValue('');
     }
   };
   
-  const groupedTags = useMemo(() => {
-    const groups: Record<string, TagItem[]> = {};
-    filteredTags.forEach(tag => {
-      const category = tag.category || 'custom';
-      if (!groups[category]) groups[category] = [];
-      groups[category].push(tag);
-    });
-    return groups;
-  }, [filteredTags]);
+  // 键盘事件
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matchedTags.length > 0) {
+        handleAddTag(matchedTags[0]);
+      } else {
+        handleCreateTag();
+      }
+    } else if (e.key === 'Backspace' && !inputValue && selectedTagIds.length > 0) {
+      onDeselect(selectedTagIds[selectedTagIds.length - 1]);
+    }
+  };
   
   return (
-    <div className={cn('space-y-3', className)}>
-      {/* 搜索框 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="搜索标签..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-      
-      {/* 标签网格 */}
-      <ScrollArea className="max-h-60">
-        <div className="space-y-4">
-          {Object.entries(groupedTags).map(([category, tags]) => (
-            <div key={category}>
-              <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-                <span>{TAG_CATEGORIES[category as keyof typeof TAG_CATEGORIES]?.icon}</span>
-                <span>{TAG_CATEGORIES[category as keyof typeof TAG_CATEGORIES]?.name || '自定义'}</span>
-                <span>({tags.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.slice(0, showAll ? undefined : 10).map(tag => (
-                  <Badge
-                    key={tag.id}
-                    variant={selectedTags.includes(tag.name) ? 'default' : 'outline'}
-                    className={cn(
-                      'cursor-pointer transition-colors',
-                      selectedTags.includes(tag.name) && TAG_CATEGORIES[tag.category as keyof typeof TAG_CATEGORIES]?.color
-                    )}
-                    onClick={() => toggleTag(tag.name)}
-                  >
-                    {selectedTags.includes(tag.name) && <Check className="w-3 h-3 mr-1" />}
-                    {tag.name}
-                    {tag.count > 0 && (
-                      <span className="ml-1 text-xs opacity-70">({tag.count})</span>
-                    )}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          ))}
-          
-          {filteredTags.length > 10 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAll(!showAll)}
-              className="w-full"
-            >
-              {showAll ? '收起' : `显示全部 ${filteredTags.length} 个标签`}
-            </Button>
-          )}
-        </div>
-      </ScrollArea>
-      
-      {/* 已选择 */}
-      {selectedTags.length > 0 && (
-        <div className="pt-3 border-t">
-          <div className="text-xs text-muted-foreground mb-2">
-            已选择 ({selectedTags.length}/{maxSelection})
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {selectedTags.map(tag => (
-              <Badge key={tag} variant="secondary" className="h-6 text-xs">
-                {tag}
+    <div className="space-y-2">
+      {/* 已选标签 */}
+      {selectedTagIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedTagIds.map(id => {
+            const tag = tags.find(t => t.id === id);
+            if (!tag) return null;
+            
+            const categoryConfig = CATEGORY_CONFIG[tag.category];
+            
+            return (
+              <Badge
+                key={id}
+                variant="secondary"
+                className="pl-2 pr-1 py-0.5 gap-1 text-xs"
+              >
+                <span className={categoryConfig.color}>{categoryConfig.icon}</span>
+                {tag.name}
                 <button
-                  onClick={() => toggleTag(tag)}
-                  className="ml-1 hover:text-destructive"
+                  onClick={() => onDeselect(id)}
+                  className="ml-1 hover:text-destructive rounded-full p-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </Badge>
-            ))}
+            );
+          })}
+        </div>
+      )}
+      
+      {/* 输入框 */}
+      <div className="relative">
+        <Input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={selectedTagIds.length >= maxTags}
+          className="w-full"
+        />
+        
+        {/* 下拉建议 */}
+        {isFocused && showSuggestions && matchedTags.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 py-1 bg-popover border rounded-md shadow-lg">
+            {matchedTags.map(tag => {
+              const categoryConfig = CATEGORY_CONFIG[tag.category];
+              
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => handleAddTag(tag)}
+                  className="w-full px-3 py-1.5 text-left hover:bg-muted flex items-center gap-2"
+                >
+                  <span className={categoryConfig.color}>
+                    {categoryConfig.icon}
+                  </span>
+                  <span className="flex-1">{tag.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {categoryConfig.label}
+                  </span>
+                </button>
+              );
+            })}
+            
+            {inputValue && !matchedTags.some(t => 
+              t.name.toLowerCase() === inputValue.toLowerCase()
+            ) && (
+              <>
+                <div className="border-t my-1" />
+                <button
+                  onClick={handleCreateTag}
+                  className="w-full px-3 py-1.5 text-left hover:bg-muted flex items-center gap-2 text-primary"
+                >
+                  <Plus className="w-4 h-4" />
+                  创建「{inputValue}」
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* 标签数量提示 */}
+      <p className="text-xs text-muted-foreground">
+        {selectedTagIds.length}/{maxTags} 个标签
+      </p>
+    </div>
+  );
+}
+
+// ==================== 标签选择器面板 ====================
+
+interface TagSelectorPanelProps {
+  tags: Tag[];
+  selectedTagIds: string[];
+  onSelect: (tagId: string) => void;
+  onDeselect: (tagId: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function TagSelectorPanel({
+  tags,
+  selectedTagIds,
+  onSelect,
+  onDeselect,
+  onConfirm,
+  onCancel,
+}: TagSelectorPanelProps) {
+  const [activeCategory, setActiveCategory] = useState<TagCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // 过滤标签
+  const filteredTags = useMemo(() => {
+    let result = [...tags];
+    
+    if (activeCategory !== 'all') {
+      result = result.filter(t => t.category === activeCategory);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(t =>
+        t.name.toLowerCase().includes(query) ||
+        t.synonyms?.some(s => s.toLowerCase().includes(query))
+      );
+    }
+    
+    // 按分类和热度排序
+    result.sort((a, b) => {
+      if (a.category !== b.category) {
+        const order: TagCategory[] = ['genre', 'style', 'mood', 'character', 'theme', 'custom'];
+        return order.indexOf(a.category) - order.indexOf(b.category);
+      }
+      return b.count - a.count;
+    });
+    
+    return result;
+  }, [tags, activeCategory, searchQuery]);
+  
+  const selectedSet = new Set(selectedTagIds);
+  
+  return (
+    <div className="space-y-4">
+      {/* 搜索 */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="搜索标签..."
+          className="pl-9"
+        />
+      </div>
+      
+      {/* 分类切换 */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={activeCategory === 'all' ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => setActiveCategory('all')}
+        >
+          全部
+        </Button>
+        {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+          <Button
+            key={key}
+            variant={activeCategory === key ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setActiveCategory(key as TagCategory)}
+            className={cn(activeCategory === key && config.color)}
+          >
+            {config.icon}
+            <span className="ml-1">{config.label}</span>
+          </Button>
+        ))}
+      </div>
+      
+      {/* 标签列表 */}
+      <ScrollArea className="h-64">
+        <div className="grid grid-cols-2 gap-2">
+          {filteredTags.map(tag => {
+            const isSelected = selectedSet.has(tag.id);
+            const categoryConfig = CATEGORY_CONFIG[tag.category];
+            
+            return (
+              <button
+                key={tag.id}
+                onClick={() => isSelected ? onDeselect(tag.id) : onSelect(tag.id)}
+                className={cn(
+                  'p-2 rounded-lg border text-left transition-colors',
+                  isSelected
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:bg-muted/50'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={categoryConfig.color}>
+                    {categoryConfig.icon}
+                  </span>
+                  <span className="flex-1 text-sm truncate">{tag.name}</span>
+                  {isSelected && (
+                    <Check className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+                {tag.count > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    使用 {tag.count} 次
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </ScrollArea>
+      
+      {/* 已选标签预览 */}
+      {selectedTagIds.length > 0 && (
+        <div className="pt-2 border-t">
+          <p className="text-sm text-muted-foreground mb-2">
+            已选择 {selectedTagIds.length} 个标签
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {selectedTagIds.map(id => {
+              const tag = tags.find(t => t.id === id);
+              if (!tag) return null;
+              
+              return (
+                <Badge
+                  key={id}
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  {tag.name}
+                  <button
+                    onClick={() => onDeselect(id)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              );
+            })}
           </div>
         </div>
+      )}
+      
+      {/* 操作按钮 */}
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={onCancel}>
+          取消
+        </Button>
+        <Button onClick={onConfirm}>
+          确认 ({selectedTagIds.length})
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ==================== 标签管理器面板 ====================
+
+interface TagManagerPanelProps {
+  tags: Tag[];
+  onUpdate: (id: string, updates: Partial<Tag>) => void;
+  onDelete: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+}
+
+export function TagManagerPanel({
+  tags,
+  onUpdate,
+  onDelete,
+  onToggleFavorite,
+}: TagManagerPanelProps) {
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [filterCategory, setFilterCategory] = useState<TagCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // 过滤和排序
+  const filteredTags = useMemo(() => {
+    let result = [...tags];
+    
+    if (filterCategory !== 'all') {
+      result = result.filter(t => t.category === filterCategory);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(t =>
+        t.name.toLowerCase().includes(query) ||
+        t.synonyms?.some(s => s.toLowerCase().includes(query))
+      );
+    }
+    
+    // 收藏优先，然后按使用次数
+    result.sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return b.isFavorite ? 1 : -1;
+      if (a.count !== b.count) return b.count - a.count;
+      return a.name.localeCompare(b.name);
+    });
+    
+    return result;
+  }, [tags, filterCategory, searchQuery]);
+  
+  return (
+    <div className="space-y-4">
+      {/* 头部 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Tag className="w-5 h-5" />
+          <h3 className="font-medium">标签管理</h3>
+          <Badge variant="secondary">{tags.length}</Badge>
+        </div>
+      </div>
+      
+      {/* 搜索和筛选 */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索标签..."
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as any)}>
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部</SelectItem>
+            {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+              <SelectItem key={key} value={key}>
+                <span className="flex items-center gap-2">
+                  {config.icon}
+                  {config.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {/* 标签列表 */}
+      <ScrollArea className="h-80">
+        <div className="space-y-2">
+          {filteredTags.map(tag => {
+            const categoryConfig = CATEGORY_CONFIG[tag.category];
+            
+            return (
+              <div
+                key={tag.id}
+                className="p-3 rounded-lg border flex items-center gap-3"
+              >
+                {/* 分类图标 */}
+                <span className={cn('p-2 rounded-lg', tag.isSystem ? 'bg-muted' : 'bg-primary/10')}>
+                  {categoryConfig.icon}
+                </span>
+                
+                {/* 标签信息 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{tag.name}</span>
+                    {tag.isSystem && (
+                      <Badge variant="outline" className="text-xs">系统</Badge>
+                    )}
+                    {tag.isFavorite && (
+                      <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                    <span>{categoryConfig.label}</span>
+                    <span>使用 {tag.count} 次</span>
+                  </div>
+                </div>
+                
+                {/* 操作 */}
+                <div className="flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onToggleFavorite(tag.id)}
+                        >
+                          {tag.isFavorite ? (
+                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                          ) : (
+                            <Star className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {tag.isFavorite ? '取消收藏' : '收藏'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  {!tag.isSystem && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditingTag(tag)}>
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          编辑
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDelete(tag.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
+      
+      {/* 编辑对话框 */}
+      {editingTag && (
+        <EditTagDialog
+          tag={editingTag}
+          open={!!editingTag}
+          onOpenChange={(open) => !open && setEditingTag(null)}
+          onSave={(updates) => {
+            onUpdate(editingTag.id, updates);
+            setEditingTag(null);
+          }}
+        />
       )}
     </div>
   );
 }
 
-// ==================== 标签管理器对话框 ====================
+// ==================== 编辑标签对话框 ====================
 
-interface TagManagerDialogProps {
+interface EditTagDialogProps {
+  tag: Tag;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tags: TagItem[];
-  onAddTag: (name: string, category?: string, color?: string) => void;
-  onUpdateTag: (id: string, updates: Partial<TagItem>) => void;
-  onDeleteTag: (id: string) => void;
-  onMergeTags: (sourceIds: string[], targetId: string) => void;
+  onSave: (updates: Partial<Tag>) => void;
 }
 
-export function TagManagerDialog({
+export function EditTagDialog({
+  tag,
   open,
   onOpenChange,
-  tags,
-  onAddTag,
-  onUpdateTag,
-  onDeleteTag,
-  onMergeTags,
-}: TagManagerDialogProps) {
-  const [newTagName, setNewTagName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('custom');
-  const [editingTag, setEditingTag] = useState<TagItem | null>(null);
-  const [editName, setEditName] = useState('');
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  onSave,
+}: EditTagDialogProps) {
+  const [name, setName] = useState(tag.name);
+  const [category, setCategory] = useState(tag.category);
+  const [synonyms, setSynonyms] = useState(tag.synonyms?.join(', ') || '');
+  const [synonymInput, setSynonymInput] = useState('');
   
-  const handleAddTag = () => {
-    if (newTagName.trim()) {
-      onAddTag(newTagName.trim(), selectedCategory);
-      setNewTagName('');
+  const handleAddSynonym = () => {
+    if (!synonymInput.trim()) return;
+    const current = synonyms ? synonyms.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (!current.includes(synonymInput.trim())) {
+      setSynonyms([...current, synonymInput.trim()].join(', '));
     }
+    setSynonymInput('');
   };
   
-  const handleEditTag = (tag: TagItem) => {
-    setEditingTag(tag);
-    setEditName(tag.name);
+  const handleRemoveSynonym = (synonym: string) => {
+    const current = synonyms.split(',').map(s => s.trim()).filter(Boolean);
+    setSynonyms(current.filter(s => s !== synonym).join(', '));
   };
   
-  const handleSaveEdit = () => {
-    if (editingTag && editName.trim()) {
-      onUpdateTag(editingTag.id, { name: editName.trim() });
-      setEditingTag(null);
-      setEditName('');
-    }
-  };
-  
-  const toggleTagSelection = (tagId: string) => {
-    setSelectedTags(prev => {
-      const next = new Set(prev);
-      if (next.has(tagId)) {
-        next.delete(tagId);
-      } else {
-        next.add(tagId);
-      }
-      return next;
+  const handleSave = () => {
+    onSave({
+      name: name.trim(),
+      category,
+      synonyms: synonyms ? synonyms.split(',').map(s => s.trim()).filter(Boolean) : [],
     });
   };
   
-  const handleMerge = () => {
-    if (selectedTags.size >= 2) {
-      const ids = Array.from(selectedTags);
-      onMergeTags(ids.slice(0, -1), ids[ids.length - 1]);
-      setSelectedTags(new Set());
-    }
-  };
-  
-  const sortedTags = useMemo(() => {
-    return [...tags].sort((a, b) => b.count - a.count);
-  }, [tags]);
-  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>标签管理</DialogTitle>
+          <DialogTitle>编辑标签</DialogTitle>
           <DialogDescription>
-            创建、编辑和合并标签
+            修改标签名称、分类和同义词
           </DialogDescription>
         </DialogHeader>
         
-        {/* 新建标签 */}
-        <div className="flex gap-2 pb-4 border-b">
-          <Input
-            placeholder="新标签名称..."
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-            className="flex-1"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                {TAG_CATEGORIES[selectedCategory as keyof typeof TAG_CATEGORIES]?.icon || '🏷️'}
-                {TAG_CATEGORIES[selectedCategory as keyof typeof TAG_CATEGORIES]?.name || '自定义'}
-                <ChevronDown className="w-4 h-4 ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {Object.entries(TAG_CATEGORIES).map(([key, cat]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => setSelectedCategory(key)}
-                >
-                  <span className="mr-2">{cat.icon}</span>
-                  {cat.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={handleAddTag} disabled={!newTagName.trim()}>
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {/* 批量操作 */}
-        {selectedTags.size >= 2 && (
-          <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-            <span className="text-sm">已选择 {selectedTags.size} 个标签</span>
-            <Button size="sm" variant="outline" onClick={handleMerge}>
-              <Layers className="w-4 h-4 mr-1" />
-              合并
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelectedTags(new Set())}>
-              取消
-            </Button>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>标签名称</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="输入标签名称"
+            />
           </div>
-        )}
-        
-        {/* 标签列表 */}
-        <ScrollArea className="flex-1 py-4">
-          <div className="space-y-1">
-            {sortedTags.map(tag => (
-              <div
-                key={tag.id}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50',
-                  selectedTags.has(tag.id) && 'bg-muted',
-                  editingTag?.id === tag.id && 'bg-muted'
-                )}
-              >
-                {/* 选择框 */}
-                <Checkbox
-                  checked={selectedTags.has(tag.id)}
-                  onCheckedChange={() => toggleTagSelection(tag.id)}
-                />
-                
-                {/* 标签内容 */}
-                {editingTag?.id === tag.id ? (
-                  <div className="flex-1 flex gap-2">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                      className="h-8"
-                      autoFocus
-                    />
-                    <Button size="sm" onClick={handleSaveEdit}>
-                      <Check className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingTag(null)}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 flex items-center gap-2">
-                      <Badge variant="outline" className="h-6">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag.name}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        ({tag.count})
-                      </span>
-                      {tag.isFavorite && <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />}
-                    </div>
-                    
-                    {/* 操作 */}
-                    <div className="flex items-center gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => onUpdateTag(tag.id, { isFavorite: !tag.isFavorite })}
-                            >
-                              <Star className={cn('w-4 h-4', tag.isFavorite && 'fill-yellow-500 text-yellow-500')} />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{tag.isFavorite ? '取消收藏' : '收藏'}</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleEditTag(tag)}
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>编辑</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => onDeleteTag(tag.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>删除</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-            
-            {sortedTags.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Tag className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>暂无标签</p>
-                <p className="text-sm">创建你的第一个标签</p>
+          
+          <div className="space-y-2">
+            <Label>分类</Label>
+            <Select value={category} onValueChange={(v) => setCategory(v as TagCategory)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>
+                    <span className="flex items-center gap-2">
+                      {config.icon}
+                      {config.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>同义词</Label>
+            <div className="flex gap-2">
+              <Input
+                value={synonymInput}
+                onChange={(e) => setSynonymInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSynonym())}
+                placeholder="输入同义词后回车"
+              />
+              <Button variant="outline" onClick={handleAddSynonym}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {synonyms && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {synonyms.split(',').map(s => s.trim()).filter(Boolean).map(synonym => (
+                  <Badge key={synonym} variant="secondary" className="text-xs">
+                    {synonym}
+                    <button
+                      onClick={() => handleRemoveSynonym(synonym)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
+          <Button onClick={handleSave} disabled={!name.trim()}>
+            保存
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ==================== 智能标签建议 ====================
-
-interface SmartTagSuggestionsProps {
-  content: string;
-  existingTags: string[];
-  onSuggest: (suggestions: string[]) => void;
-  className?: string;
-}
-
-export function SmartTagSuggestions({
-  content,
-  existingTags,
-  onSuggest,
-  className,
-}: SmartTagSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
-  
-  const analyzeContent = useCallback(() => {
-    if (!content.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    
-    setLoading(true);
-    
-    // 简单的关键词提取（实际项目中可以调用 AI API）
-    const keywords: TagSuggestion[] = [];
-    const lowerContent = content.toLowerCase();
-    
-    // 情绪关键词
-    const emotionKeywords = ['开心', '悲伤', '愤怒', '恐惧', '浪漫', '紧张', '温馨', '恐怖'];
-    emotionKeywords.forEach(keyword => {
-      if (lowerContent.includes(keyword)) {
-        keywords.push({
-          tag: keyword,
-          score: 0.9,
-          reason: '检测到情绪关键词',
-        });
-      }
-    });
-    
-    // 场景关键词
-    const sceneKeywords = ['室内', '室外', '城市', '乡村', '海边', '森林', '室内', '室外'];
-    sceneKeywords.forEach(keyword => {
-      if (lowerContent.includes(keyword)) {
-        keywords.push({
-          tag: keyword,
-          score: 0.85,
-          reason: '检测到场景关键词',
-        });
-      }
-    });
-    
-    // 时间关键词
-    const timeKeywords: Record<string, string> = {
-      '早晨': '清晨', '上午': '日景', '中午': '日景', '下午': '日景',
-      '傍晚': '黄昏', '晚上': '夜景', '深夜': '夜景', '凌晨': '夜景',
-    };
-    Object.entries(timeKeywords).forEach(([keyword, tag]) => {
-      if (lowerContent.includes(keyword) && !keywords.some(k => k.tag === tag)) {
-        keywords.push({
-          tag,
-          score: 0.8,
-          reason: '检测到时间段',
-        });
-      }
-    });
-    
-    // 过滤已存在的标签
-    const filtered = keywords.filter(s => !existingTags.includes(s.tag));
-    setSuggestions(filtered.slice(0, 5));
-    setLoading(false);
-  }, [content, existingTags]);
-  
-  useEffect(() => {
-    const debounce = setTimeout(analyzeContent, 500);
-    return () => clearTimeout(debounce);
-  }, [analyzeContent]);
-  
+// Label 组件
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <div className={cn('space-y-2', className)}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground flex items-center gap-1">
-          <Sparkles className="w-4 h-4" />
-          智能建议
-        </span>
-        {suggestions.length > 0 && (
-          <Button size="sm" variant="ghost" onClick={() => onSuggest(suggestions.map(s => s.tag))}>
-            添加全部
-          </Button>
-        )}
-      </div>
-      
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="w-4 h-4 animate-pulse" />
-          分析中...
-        </div>
-      ) : suggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {suggestions.map((suggestion, i) => (
-            <TooltipProvider key={suggestion.tag}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer hover:bg-primary/10"
-                    onClick={() => onSuggest([suggestion.tag])}
-                  >
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    {suggestion.tag}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{suggestion.reason}</p>
-                  <p className="text-xs text-muted-foreground">置信度: {Math.round(suggestion.score * 100)}%</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">输入内容以获取标签建议</p>
-      )}
-    </div>
-  );
-}
-
-// ==================== 标签云 ====================
-
-interface TagCloudProps {
-  tags: TagItem[];
-  selectedTags?: string[];
-  onTagClick?: (tag: TagItem) => void;
-  maxDisplay?: number;
-  className?: string;
-}
-
-export function TagCloud({
-  tags,
-  selectedTags = [],
-  onTagClick,
-  maxDisplay = 20,
-  className,
-}: TagCloudProps) {
-  const [expanded, setExpanded] = useState(false);
-  
-  const displayTags = expanded ? tags : tags.slice(0, maxDisplay);
-  const maxCount = Math.max(...tags.map(t => t.count), 1);
-  
-  return (
-    <div className={cn('space-y-3', className)}>
-      <div className="flex flex-wrap gap-2">
-        {displayTags.map(tag => {
-          const scale = 0.8 + (tag.count / maxCount) * 0.4;
-          return (
-            <Badge
-              key={tag.id}
-              variant={selectedTags.includes(tag.name) ? 'default' : 'outline'}
-              className={cn(
-                'cursor-pointer transition-all hover:scale-105',
-                selectedTags.includes(tag.name) && TAG_CATEGORIES[tag.category as keyof typeof TAG_CATEGORIES]?.color
-              )}
-              style={{ fontSize: `${scale}rem` }}
-              onClick={() => onTagClick?.(tag)}
-            >
-              {tag.name}
-              {tag.count > 0 && (
-                <span className="ml-1 text-xs opacity-70">({tag.count})</span>
-              )}
-            </Badge>
-          );
-        })}
-      </div>
-      
-      {tags.length > maxDisplay && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setExpanded(!expanded)}
-          className="w-full"
-        >
-          {expanded ? '收起' : `显示全部 ${tags.length} 个标签`}
-          {expanded ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
-        </Button>
-      )}
-    </div>
+    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+      {children}
+    </label>
   );
 }

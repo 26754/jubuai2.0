@@ -17,7 +17,7 @@ import { AuthPage } from "@/components/auth/AuthPage";
 import { SplashScreen } from "@/components/SplashScreen";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { GlobalSearch } from "@/components/GlobalSearch";
+import { GlobalSearchDialog } from "@/components/GlobalSearch";
 import { KeyboardShortcutsPanel, KeyboardShortcutIndicator } from "@/components/KeyboardShortcutsPanel";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { shortcutExecutor, registerShortcutActions, PRESET_SHORTCUTS } from "@/lib/keyboard-shortcuts";
@@ -401,7 +401,7 @@ function App() {
           }}
         />
         {/* 全局搜索面板 */}
-        <GlobalSearch
+        <GlobalSearchDialog
           open={searchOpen}
           onOpenChange={setSearchOpen}
         />
