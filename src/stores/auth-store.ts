@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabaseClient, isSupabaseConfigured as checkSupabaseConfigured } from '@/storage/database/supabase-client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { cloudSyncManager } from '@/storage/database/cloud-sync-manager';
 import { getCloudProjects, isCloudStorageAvailable } from '@/storage/database/cloud-storage';
@@ -174,13 +174,7 @@ export const DEMO_PROJECT = {
 // 检查 Supabase 是否配置
 // 动态检查 Supabase 配置
 function isSupabaseConfigured(): boolean {
-  try {
-    const url = import.meta.env.VITE_SUPABASE_URL as string;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-    return !!(url && key);
-  } catch {
-    return false;
-  }
+  return checkSupabaseConfigured();
 }
 
 // 检查 Supabase 配置（用于 store 初始化）

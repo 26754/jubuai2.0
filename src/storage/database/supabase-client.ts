@@ -8,11 +8,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // 环境变量（Vite 前缀 VITE_）
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string || '';
+// 在生产构建中，这些变量会被内联到代码中
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
 
-// 调试日志
-console.log('[Supabase] Environment check - URL:', supabaseUrl ? 'set' : 'MISSING', 'Key:', supabaseAnonKey ? 'set' : 'MISSING');
+// 调试日志：输出实际获取到的值
+console.log('[Supabase] Environment variables check:');
+console.log('  VITE_SUPABASE_URL:', supabaseUrl ? 'SET (length=' + supabaseUrl.length + ')' : 'MISSING');
+console.log('  VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET (length=' + supabaseAnonKey.length + ')' : 'MISSING');
+console.log('  import.meta.env:', import.meta.env);
 
 // 单例客户端实例
 let supabaseClient: SupabaseClient | null = null;
