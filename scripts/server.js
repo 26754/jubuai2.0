@@ -193,6 +193,57 @@ app.all(/\/__proxy\/external(\/.*)?/, async (req, res) => {
   }
 });
 
+// ==================== 通用 API 代理（支持所有第三方 API） ====================
+
+// 这个路由用于代理所有第三方 API 请求，解决 CORS 问题
+// 前端通过 /__api_proxy?url=<encoded_url> 调用
+app.all('/__api_proxy', async (req, res) => {
+  const targetUrl = req.query.url;
+  
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return res.status(400).json({ error: 'Missing url parameter (use ?url=<encoded_url>)' });
+  }
+  
+  // 解码目标 URL
+  const decodedUrl = decodeURIComponent(targetUrl);
+  
+  // 安全检查：只允许 http/https
+  if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+    return res.status(400).json({ error: 'Only http/https URLs are allowed' });
+  }
+  
+  try {
+    console.log(`[proxy/api] Forwarding: ${req.method} ${decodedUrl}`);
+    
+    // 提取原始 headers（通过 x-proxy-headers 传递）
+    let originalHeaders = {};
+    const proxyHeadersRaw = req.headers['x-proxy-headers'];
+    if (proxyHeadersRaw && typeof proxyHeadersRaw === 'string') {
+      try {
+        originalHeaders = JSON.parse(proxyHeadersRaw);
+      } catch (e) {
+        console.warn('[proxy/api] Failed to parse x-proxy-headers');
+      }
+    }
+    
+    const response = await fetch(decodedUrl, {
+      method: req.method,
+      headers: {
+        'Content-Type': originalHeaders['Content-Type'] || 'application/json',
+        'Authorization': originalHeaders['Authorization'] || req.headers.authorization || '',
+        ...originalHeaders,
+      },
+      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
+    });
+
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (error) {
+    console.error('[proxy/api] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== 静态文件服务 ====================
 
 // CSP 配置：允许 Supabase 所有必要域名
@@ -208,8 +259,8 @@ const CSP_HEADER = [
 
 // 全局中间件：为所有非代理响应设置 CSP 头
 app.use((req, res, next) => {
-  // 跳过 API 路由和代理路由
-  if (req.path.startsWith('/__proxy') || req.path.startsWith('/api')) {
+  // 跳过 API 路由和代理路由（包括 /__api_proxy）
+  if (req.path.startsWith('/__proxy') || req.path.startsWith('/__api_proxy') || req.path.startsWith('/api')) {
     return next();
   }
   
@@ -235,10 +286,11 @@ server.listen(Number(PORT), HOST, () => {
   console.log(`[Server] Production server running on http://${HOST}:${PORT}`);
   console.log('[Server] Serving static files from:', distPath);
   console.log('[Server] Available proxy routes:');
-  console.log('  /__proxy/memefast/*       - MemeFast API');
-  console.log('  /__proxy/volcengine/*     - 火山引擎 ARK 北京');
-  console.log('  /__proxy/volcengine-sh/*  - 火山引擎 ARK 上海');
-  console.log('  /__proxy/volcengine-gz/*  - 火山引擎 ARK 广州');
-  console.log('  /__proxy/bailian/*        - 阿里云百炼');
-  console.log('  /__proxy/external/*       - 通用外部 API');
+  console.log('  /__api_proxy/*         - 通用 API 代理（所有第三方 API）');
+  console.log('  /__proxy/memefast/*     - MemeFast API');
+  console.log('  /__proxy/volcengine/*  - 火山引擎 ARK 北京');
+  console.log('  /__proxy/volcengine-sh/* - 火山引擎 ARK 上海');
+  console.log('  /__proxy/volcengine-gz/* - 火山引擎 ARK 广州');
+  console.log('  /__proxy/bailian/*     - 阿里云百炼');
+  console.log('  /__proxy/external/*    - 通用外部 API（需指定 host）');
 });

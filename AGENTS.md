@@ -203,3 +203,45 @@ curl -I http://localhost:5000 | grep Content-Security-Policy
 - **生产环境必须使用自定义服务器**：`node scripts/server.js`，不能使用简单的静态文件服务器
 - 确保 Vite dev 服务器已停止，否则 5000 端口会被占用
 - 修改 `dist/index.html` 后需要重新构建或手动更新文件
+
+## API 代理配置
+
+### 问题描述
+- **问题**: 剧本解析 API 调用失败（CORS 错误或网络请求失败）
+- **根因**: 生产环境中 `corsFetch` 直接使用 `fetch()` 访问第三方 API，触发 CORS 错误
+
+### 解决方案
+1. **服务端添加通用 API 代理** (`scripts/server.js`):
+   - 添加 `/__api_proxy` 路由，将所有第三方 API 请求通过服务端转发
+   - 前端通过 `/__api_proxy?url=<encoded_url>` 调用代理
+
+2. **前端使用代理** (`src/lib/cors-fetch.ts`):
+   - 在浏览器环境（包括开发和生产）都使用代理
+   - 将原始 headers 通过 `x-proxy-headers` 头传递给代理
+
+### 代理路由清单
+```
+/__api_proxy/*         - 通用 API 代理（所有第三方 API）
+/__proxy/memefast/*    - MemeFast API
+/__proxy/volcengine/*  - 火山引擎 ARK 北京
+/__proxy/volcengine-sh/* - 火山引擎 ARK 上海
+/__proxy/volcengine-gz/* - 火山引擎 ARK 广州
+/__proxy/bailian/*     - 阿里云百炼
+/__proxy/external/*    - 通用外部 API（需指定 host）
+```
+
+### CSP 代理豁免
+代理路由 (`/__proxy/*`, `/__api_proxy/*`, `/api/*`) 跳过 CSP 头设置，避免代理响应被拦截。
+
+### 验证方法
+```bash
+# 测试代理是否正常工作
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"test":"hello"}' \
+  'http://localhost:5000/__api_proxy?url=https%3A%2F%2Fhttpbin.org%2Fpost'
+```
+
+### 注意事项
+- 代理路由必须在 CSP 中间件之前注册
+- 只允许代理 http/https 协议的 URL
+- 原始 headers 通过 JSON 序列化的 `x-proxy-headers` 头传递
