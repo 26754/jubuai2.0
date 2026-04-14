@@ -78,7 +78,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
               <img 
                 src="/logo.png" 
                 alt="JuBu AI Logo" 
-                className="h-[80px] w-auto animate-pulse-subtle" 
+                className="h-[160px] w-auto animate-pulse-subtle" 
               />
             </div>
           </div>
