@@ -21,6 +21,8 @@ interface ProjectStore {
   projects: Project[];
   activeProjectId: string | null;
   activeProject: Project | null;
+  // 视觉风格锁定状态（锁定后跟随剧本自动调整）
+  visualStyleLocked: boolean;
   createProject: (name?: string) => Project;
   createDemoProject: () => Project;
   renameProject: (id: string, name: string) => void;
@@ -29,6 +31,8 @@ interface ProjectStore {
   ensureDefaultProject: () => void;
   // 设置项目视觉风格
   setProjectVisualStyle: (id: string, styleId: string) => void;
+  // 视觉风格锁定/解锁
+  setVisualStyleLocked: (locked: boolean) => void;
 }
 
 // Default project for desktop app
@@ -46,6 +50,8 @@ export const useProjectStore = create<ProjectStore>()(
       projects: [DEFAULT_PROJECT],
       activeProjectId: DEFAULT_PROJECT.id,
       activeProject: DEFAULT_PROJECT,
+      // 默认不锁定视觉风格
+      visualStyleLocked: false,
 
       ensureDefaultProject: () => {
         const { projects, activeProjectId } = get();
@@ -148,6 +154,11 @@ export const useProjectStore = create<ProjectStore>()(
               ? { ...state.activeProject, visualStyleId: styleId, updatedAt: Date.now() }
               : state.activeProject,
         }));
+      },
+
+      setVisualStyleLocked: (locked) => {
+        set({ visualStyleLocked: locked });
+        console.log('[ProjectStore] Visual style locked:', locked);
       },
     }),
     {

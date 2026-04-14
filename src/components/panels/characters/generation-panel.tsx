@@ -888,28 +888,59 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs">视觉风格</Label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  // 从项目设置中读取剧本的视觉风格
-                  const projectStyle = useProjectStore.getState().activeProject?.visualStyleId;
-                  if (projectStyle) {
-                    setStyleId(projectStyle);
-                    toast.success(`已跟随剧本风格`);
-                  } else {
-                    toast.info('剧本模块尚未设置视觉风格');
-                  }
-                }}
-                className="h-6 px-2 text-xs"
-              >
-                跟随剧本
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // 从项目设置中读取剧本的视觉风格
+                    const projectStyle = useProjectStore.getState().activeProject?.visualStyleId;
+                    if (projectStyle) {
+                      setStyleId(projectStyle);
+                      toast.success(`已跟随剧本风格`);
+                    } else {
+                      toast.info('剧本模块尚未设置视觉风格');
+                    }
+                  }}
+                  className="h-6 px-2 text-xs"
+                >
+                  跟随剧本
+                </Button>
+                <Button
+                  variant={useProjectStore.getState().visualStyleLocked ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => {
+                    const currentlyLocked = useProjectStore.getState().visualStyleLocked;
+                    useProjectStore.getState().setVisualStyleLocked(!currentlyLocked);
+                    if (!currentlyLocked) {
+                      // 锁定时，自动跟随剧本风格
+                      const projectStyle = useProjectStore.getState().activeProject?.visualStyleId;
+                      if (projectStyle) {
+                        setStyleId(projectStyle);
+                      }
+                      toast.success("视觉风格已锁定，跟随剧本自动调整");
+                    } else {
+                      toast.info("视觉风格已解锁，可自由选择");
+                    }
+                  }}
+                  className="h-6 px-2 text-xs"
+                  title={useProjectStore.getState().visualStyleLocked ? "解锁视觉风格" : "锁定视觉风格跟随剧本"}
+                >
+                  {useProjectStore.getState().visualStyleLocked ? "🔒" : "🔓"}
+                </Button>
+              </div>
             </div>
             <StylePicker
               value={styleId}
-              onChange={(id) => setStyleId(id)}
-              disabled={isGenerating}
+              onChange={(id) => {
+                // 如果锁定，不允许手动更改
+                if (useProjectStore.getState().visualStyleLocked) {
+                  toast.warning("视觉风格已锁定，请先解锁");
+                  return;
+                }
+                setStyleId(id);
+              }}
+              disabled={isGenerating || useProjectStore.getState().visualStyleLocked}
             />
           </div>
 
