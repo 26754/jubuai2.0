@@ -137,10 +137,17 @@ export async function getCloudScriptData(projectId: string): Promise<ScriptData 
 export async function createCloudProject(project: Project, scriptData?: ScriptData): Promise<Project> {
   const supabase = getSupabaseClient();
   
+  // 获取当前登录用户的 ID
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('用户未登录，无法创建云端项目');
+  }
+  
   const { data, error } = await supabase
     .from('projects')
     .insert({
       id: project.id,
+      user_id: user.id,  // 添加用户 ID
       name: project.name,
       visual_style_id: project.visualStyleId || null,
       script_data: scriptData || null,
@@ -157,7 +164,7 @@ export async function createCloudProject(project: Project, scriptData?: ScriptDa
     throw new Error(`创建项目失败: ${error.message}`);
   }
   
-  console.log('[CloudStorage] Project created:', project.id);
+  console.log('[CloudStorage] Project created:', project.id, 'for user:', user.id);
   return mapCloudProjectToProject(data as CloudProject);
 }
 
@@ -252,8 +259,15 @@ export async function createCloudShots(
 ): Promise<CloudShot[]> {
   const supabase = getSupabaseClient();
   
+  // 获取当前登录用户的 ID
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('用户未登录，无法创建云端分镜');
+  }
+  
   const insertData = shots.map(shot => ({
     id: shot.id,
+    user_id: user.id,  // 添加用户 ID
     project_id: projectId,
     episode_id: shot.episode_id,
     scene_id: shot.scene_id,
@@ -276,7 +290,7 @@ export async function createCloudShots(
     throw new Error(`创建分镜失败: ${error.message}`);
   }
   
-  console.log('[CloudStorage] Shots created:', shots.length);
+  console.log('[CloudStorage] Shots created:', shots.length, 'for user:', user.id);
   return data as CloudShot[];
 }
 
