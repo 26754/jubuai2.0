@@ -58,7 +58,7 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false, // 邮箱登录不需要，OAuth 才需要
       redirectTo: getRedirectUrl(),
     },
   };
