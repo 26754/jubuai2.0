@@ -214,7 +214,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     set({ isSupabaseConfigured: true });
     
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       console.log('[Auth] Supabase not configured, skipping initialization');
       return;
     }
