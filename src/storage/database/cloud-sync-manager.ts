@@ -197,7 +197,10 @@ class CloudSyncManager {
   }
   
   /**
-   * 同步项目数据
+   * 同步项目数据到云端（改进版）
+   * - 同步所有本地项目到云端
+   * - 使用项目 ID 进行匹配
+   * - 改进日志记录
    */
   private async syncProjectsToCloud(forceUpload: boolean = false): Promise<void> {
     const projectStore = useProjectStore.getState();
@@ -211,24 +214,56 @@ class CloudSyncManager {
       console.warn('[CloudSync] Failed to get cloud projects:', e);
     }
     
-    // 同步每个项目
+    const cloudProjectIds = new Set(cloudProjects.map(p => p.id));
+    
+    console.log('[CloudSync] Starting sync to cloud, local projects:', projectStore.projects.length, 'cloud projects:', cloudProjects.length);
+    
+    // 同步每个本地项目到云端
+    let syncedCount = 0;
+    let skippedCount = 0;
+    
     for (const project of projectStore.projects) {
       // 跳过默认项目（如果云端没有数据且不是强制上传）
       if (project.id === 'default-project' && !forceUpload && cloudProjects.length === 0) {
+        console.log('[CloudSync] Skipping default project (no cloud data):', project.id);
+        skippedCount++;
+        continue;
+      }
+      
+      // 跳过空项目（没有名称的默认项目）
+      if (project.id === 'default-project' && project.name === 'JuBu AI项目' && !project.updatedAt) {
+        console.log('[CloudSync] Skipping empty default project:', project.id);
+        skippedCount++;
         continue;
       }
       
       const projectData = scriptStore.projects[project.id];
       const scriptData = projectData?.scriptData || null;
       
+      // 检查是否需要同步（比较更新时间）
+      const cloudProject = cloudProjects.find(p => p.id === project.id);
+      if (cloudProject && !forceUpload) {
+        const cloudUpdatedAt = cloudProject.updated_at ? new Date(cloudProject.updated_at).getTime() : 0;
+        const localUpdatedAt = project.updatedAt;
+        
+        if (localUpdatedAt <= cloudUpdatedAt) {
+          console.log('[CloudSync] Skipping project (cloud is newer):', project.id, project.name);
+          skippedCount++;
+          continue;
+        }
+      }
+      
       try {
         await syncProjectToCloud(project, scriptData || undefined);
-        console.log('[CloudSync] Project synced:', project.id);
+        console.log('[CloudSync] Project synced:', project.id, project.name);
+        syncedCount++;
       } catch (error: any) {
         console.error('[CloudSync] Failed to sync project:', project.id, error.message);
         // 继续同步其他项目
       }
     }
+    
+    console.log('[CloudSync] Sync completed, synced:', syncedCount, 'skipped:', skippedCount);
   }
   
   /**
@@ -317,37 +352,76 @@ class CloudSyncManager {
   }
   
   /**
-   * 从云端恢复项目数据
+   * 从云端恢复项目数据（改进版：智能合并策略）
+   * - 保留本地新建的项目
+   * - 更新云端已有的项目（使用更新时间戳判断）
+   * - 合并而非覆盖，避免本地数据丢失
    */
   private async restoreProjectsFromCloud(): Promise<void> {
     const cloudProjects = await getCloudProjects();
     const projectStore = useProjectStore.getState();
     const scriptStore = useScriptStore.getState();
     
-    // 清空现有项目（保留默认项目结构）
-    const existingProjects = [...projectStore.projects];
-    for (const p of existingProjects) {
-      if (p.id !== 'default-project') {
-        projectStore.deleteProject(p.id);
-      }
-    }
+    console.log('[CloudSync] Starting restore from cloud, local projects:', projectStore.projects.length, 'cloud projects:', cloudProjects.length);
     
-    // 恢复每个云端项目
+    // 获取本地项目的 ID 列表（用于判断哪些是本地独有的）
+    const localProjectIds = new Set(projectStore.projects.map(p => p.id));
+    
+    // 恢复/更新每个云端项目
     for (const cloudProject of cloudProjects) {
       try {
-        projectStore.createProject(cloudProject.name);
-        const newProject = projectStore.projects.find(p => p.name === cloudProject.name);
+        // 检查云端项目是否已存在于本地
+        const existingLocalProject = projectStore.projects.find(p => p.id === cloudProject.id);
         
-        if (newProject) {
-          // 更新项目信息
-          if (cloudProject.visualStyleId) {
-            projectStore.setProjectVisualStyle(newProject.id, cloudProject.visualStyleId);
+        if (existingLocalProject) {
+          // 项目已存在，更新本地数据（使用云端数据覆盖本地）
+          // 比较更新时间：云端更新时间 > 本地更新时间 时才更新
+          const cloudUpdatedAt = cloudProject.updatedAt ? new Date(cloudProject.updatedAt).getTime() : 0;
+          const localUpdatedAt = existingLocalProject.updatedAt;
+          
+          if (cloudUpdatedAt > localUpdatedAt) {
+            // 云端更新，更新本地
+            console.log('[CloudSync] Updating local project from cloud:', cloudProject.id, cloudProject.name);
+            
+            if (cloudProject.name !== existingLocalProject.name) {
+              projectStore.renameProject(cloudProject.id, cloudProject.name);
+            }
+            if (cloudProject.visualStyleId) {
+              projectStore.setProjectVisualStyle(cloudProject.id, cloudProject.visualStyleId);
+            }
+            
+            // 恢复剧本数据
+            const scriptData = await getCloudScriptData(cloudProject.id);
+            if (scriptData) {
+              scriptStore.setScriptData(cloudProject.id, scriptData);
+            }
+          } else {
+            console.log('[CloudSync] Keeping local project (newer or same):', cloudProject.id, cloudProject.name);
+          }
+        } else {
+          // 项目不存在，创建新项目
+          console.log('[CloudSync] Creating new project from cloud:', cloudProject.id, cloudProject.name);
+          projectStore.createProject(cloudProject.name);
+          const newProject = projectStore.projects.find(p => p.name === cloudProject.name);
+          
+          if (newProject && newProject.id !== cloudProject.id) {
+            // 新项目使用了不同的 ID（因为 createProject 生成新 ID），需要手动更新
+            // 由于我们无法直接修改项目 ID，这种情况下需要用云端 ID 覆盖
+            // 暂时跳过，等后续支持项目 ID 修改
+            console.warn('[CloudSync] Project ID mismatch, skipping:', cloudProject.id, '->', newProject.id);
           }
           
-          // 恢复剧本数据
-          const scriptData = await getCloudScriptData(cloudProject.id);
-          if (scriptData) {
-            scriptStore.setScriptData(newProject.id, scriptData);
+          if (newProject) {
+            // 更新项目信息
+            if (cloudProject.visualStyleId) {
+              projectStore.setProjectVisualStyle(newProject.id, cloudProject.visualStyleId);
+            }
+            
+            // 恢复剧本数据
+            const scriptData = await getCloudScriptData(cloudProject.id);
+            if (scriptData) {
+              scriptStore.setScriptData(newProject.id, scriptData);
+            }
           }
         }
       } catch (error: any) {

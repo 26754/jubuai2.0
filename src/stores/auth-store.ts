@@ -483,8 +483,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 /**
- * 自动云端同步
+ * 自动云端同步（改进版）
  * 登录成功后自动触发，处理本地与云端数据同步
+ * 采用智能合并策略：
+ * - 云端有数据，本地没有 → 从云端恢复
+ * - 本地有数据，云端没有 → 上传到云端
+ * - 都有数据 → 比较更新时间，保留较新的数据
  */
 async function triggerAutoSync() {
   // 延迟执行，确保 UI 已经渲染完成
@@ -502,22 +506,23 @@ async function triggerAutoSync() {
       const localProjects = useProjectStore.getState().projects;
       
       // 过滤掉默认项目（只有默认项目时不认为是有本地数据）
-      const hasLocalData = localProjects.some(p => p.id !== 'default-project');
+      const hasLocalData = localProjects.some(p => p.id !== 'default-project' && p.name !== 'JuBu AI项目');
       
       // 获取云端项目数量
+      let cloudProjects: any[] = [];
       let cloudProjectCount = 0;
       try {
-        const cloudProjects = await getCloudProjects();
+        cloudProjects = await getCloudProjects();
         cloudProjectCount = cloudProjects.length;
       } catch (e) {
         console.warn('[AutoSync] Failed to get cloud projects:', e);
       }
 
-      console.log(`[AutoSync] Local projects: ${localProjects.length}, Cloud projects: ${cloudProjectCount}`);
+      console.log(`[AutoSync] Local projects: ${localProjects.length} (has data: ${hasLocalData}), Cloud projects: ${cloudProjectCount}`);
 
       if (cloudProjectCount > 0 && !hasLocalData) {
         // 场景1: 云端有数据，本地没有 → 从云端恢复
-        console.log('[AutoSync] Restoring from cloud...');
+        console.log('[AutoSync] Case 1: Restoring from cloud (cloud has data, local is empty)...');
         await cloudSyncManager.restoreFromCloud();
         console.log('[AutoSync] Restored from cloud successfully');
         
@@ -526,7 +531,7 @@ async function triggerAutoSync() {
         
       } else if (hasLocalData && cloudProjectCount === 0) {
         // 场景2: 本地有数据，云端没有 → 上传到云端
-        console.log('[AutoSync] Uploading to cloud...');
+        console.log('[AutoSync] Case 2: Uploading to cloud (local has data, cloud is empty)...');
         await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
         console.log('[AutoSync] Uploaded to cloud successfully');
         
@@ -534,17 +539,45 @@ async function triggerAutoSync() {
         cloudSyncManager.startAutoSync();
         
       } else if (hasLocalData && cloudProjectCount > 0) {
-        // 场景3: 都有数据 → 保留本地（用户可能正在本地工作），同时更新云端
+        // 场景3: 都有数据 → 智能合并（保留较新的数据）
+        console.log('[AutoSync] Case 3: Both have data, smart merge (keeping newer data)...');
+        
+        // 构建云端项目的更新时间映射
+        const cloudProjectMap = new Map(cloudProjects.map(p => [p.id, p]));
+        
+        // 找出需要从云端恢复的项目（云端更新较新）
+        const needsRestore: string[] = [];
+        for (const localProject of localProjects) {
+          if (localProject.id === 'default-project' && localProject.name === 'JuBu AI项目') continue;
+          
+          const cloudProject = cloudProjectMap.get(localProject.id);
+          if (cloudProject) {
+            const cloudUpdatedAt = cloudProject.updated_at ? new Date(cloudProject.updated_at).getTime() : 0;
+            const localUpdatedAt = localProject.updatedAt;
+            
+            if (cloudUpdatedAt > localUpdatedAt) {
+              needsRestore.push(localProject.id);
+            }
+          }
+        }
+        
+        // 如果有需要从云端恢复的项目，则执行恢复
+        if (needsRestore.length > 0) {
+          console.log('[AutoSync] Some projects need restore from cloud:', needsRestore.length);
+          await cloudSyncManager.restoreFromCloud();
+        }
+        
+        // 同步本地更新到云端
         console.log('[AutoSync] Syncing local changes to cloud...');
         await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
-        console.log('[AutoSync] Local changes synced to cloud');
+        console.log('[AutoSync] Sync completed');
         
         // 同步后启动自动同步
         cloudSyncManager.startAutoSync();
         
       } else {
-        // 场景4: 都没有数据（只有默认项目）→ 启动自动同步等待用户创建数据
-        console.log('[AutoSync] No data to sync (only default project)');
+        // 场景4: 都没有有意义的数据（只有默认项目）→ 启动自动同步等待用户创建数据
+        console.log('[AutoSync] Case 4: No meaningful data to sync (only default project)');
         cloudSyncManager.startAutoSync();
       }
 
