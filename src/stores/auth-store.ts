@@ -31,6 +31,7 @@ interface AuthState {
 
   // Actions
   initialize: () => Promise<void>;
+  checkSession: () => Promise<boolean>;  // 检查并刷新 session
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -233,7 +234,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // 监听 Auth 状态变化
       supabase.auth.onAuthStateChange((event, session) => {
-        console.log('[Auth] Auth state changed:', event);
+        console.log('[Auth] Auth state changed:', event, session ? 'with session' : 'no session');
         
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user;
@@ -249,6 +250,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isDemoUser: false,
             error: null,
           });
+          
+          // 登录成功后自动触发云端同步
+          triggerAutoSync();
+          
         } else if (event === 'SIGNED_OUT') {
           set({
             isAuthenticated: false,
@@ -256,10 +261,86 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             currentUser: null,
             isDemoUser: false,
           });
+          console.log('[Auth] User signed out');
+          
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Token 刷新成功
+          console.log('[Auth] Token refreshed successfully');
+          set({
+            supabaseUser: session.user,
+          });
+          
+        } else if (event === 'USER_UPDATED' && session?.user) {
+          // 用户信息更新
+          console.log('[Auth] User updated');
+          set({
+            supabaseUser: session.user,
+            currentUser: {
+              id: session.user.id,
+              email: session.user.email || '',
+              username: session.user.user_metadata?.username || session.user.user_metadata?.full_name || undefined,
+              createdAt: new Date(session.user.created_at).getTime(),
+            },
+          });
         }
       });
     } catch (err) {
       console.error('[Auth] Initialize error:', err);
+    }
+  },
+
+  /**
+   * 检查当前 session 是否有效
+   */
+  checkSession: async (): Promise<boolean> => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('[Auth] Session check failed:', error);
+        return false;
+      }
+      
+      if (!session) {
+        console.log('[Auth] No active session');
+        set({
+          isAuthenticated: false,
+          supabaseUser: null,
+          currentUser: null,
+        });
+        return false;
+      }
+      
+      // 检查 token 过期时间
+      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+      const now = Date.now();
+      const timeUntilExpiry = expiresAt - now;
+      
+      if (timeUntilExpiry < 0) {
+        console.log('[Auth] Session expired');
+        set({
+          isAuthenticated: false,
+          supabaseUser: null,
+          currentUser: null,
+        });
+        return false;
+      }
+      
+      // Token 在 5 分钟内即将过期，尝试刷新
+      if (timeUntilExpiry < 5 * 60 * 1000) {
+        console.log('[Auth] Session expiring soon, refreshing...');
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error('[Auth] Token refresh failed:', refreshError);
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('[Auth] Session check error:', err);
+      return false;
     }
   },
 

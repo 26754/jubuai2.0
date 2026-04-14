@@ -76,6 +76,7 @@ import {
   RefreshCw,
   Upload,
   ExternalLink,
+  Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -83,6 +84,8 @@ import { uploadToImageHost } from "@/lib/image-host";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import type { AvailableUpdateInfo } from "@/types/update";
 import packageJson from "../../../package.json";
+import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
+import { useAuthStore } from "@/stores/auth-store";
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -125,6 +128,7 @@ export function SettingsPanel() {
   const { assignProjectToUnscoped: assignCharactersToProject } = useCharacterLibraryStore();
   const { assignProjectToUnscoped: assignScenesToProject } = useSceneStore();
   const { assignProjectToUnscoped: assignMediaToProject } = useMediaStore();
+  const { isAuthenticated } = useAuthStore();
 
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -491,6 +495,79 @@ export function SettingsPanel() {
     } else {
       toast.error(`操作失败: ${result.error || "未知错误"}`);
     }
+  };
+
+  // Web 端跨设备同步功能
+  const handleWebExportSync = async () => {
+    try {
+      console.log('[SettingsPanel] Starting web export for cross-device sync...');
+      await downloadDataAsFile();
+      toast.success("备份文件已下载，请在其他设备上导入");
+    } catch (error: any) {
+      console.error('[SettingsPanel] Web export failed:', error);
+      toast.error(`导出失败: ${error.message}`);
+    }
+  };
+
+  const handleWebImportSync = async () => {
+    // 创建隐藏的文件 input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      try {
+        console.log('[SettingsPanel] Starting web import from backup file:', file.name);
+        
+        // 读取文件
+        const result = await importDataFromFile(file);
+        if (!result.success || !result.data) {
+          toast.error(result.error || "读取文件失败");
+          return;
+        }
+        
+        // 显示导入预览
+        const projectCount = result.data.projects?.list?.length || 0;
+        const exportedAt = result.data.exportedAt ? new Date(result.data.exportedAt).toLocaleString('zh-CN') : '未知';
+        
+        // 确认导入
+        const confirmed = confirm(
+          `即将导入备份文件：\n\n` +
+          `• 包含 ${projectCount} 个项目\n` +
+          `• 导出时间: ${exportedAt}\n\n` +
+          `请选择导入方式：\n` +
+          `• 确定 - 合并到现有项目（跳过重复）\n` +
+          `• 取消 - 放弃导入`
+        );
+        
+        if (!confirmed) return;
+        
+        // 应用导入数据
+        const importResult = applyImportedData(result.data, {
+          mergeStrategy: 'merge',
+          skipExisting: true,
+        });
+        
+        if (importResult.success) {
+          toast.success(
+            `导入成功！已导入 ${importResult.projectsImported} 个项目，${importResult.projectsSkipped} 个项目已存在而跳过`
+          );
+          
+          // 延迟刷新以确保 UI 更新
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          toast.error(`导入失败: ${importResult.error}`);
+        }
+      } catch (error: any) {
+        console.error('[SettingsPanel] Web import failed:', error);
+        toast.error(`导入失败: ${error.message}`);
+      }
+    };
+    input.click();
   };
 
   const handleClearCache = async () => {
@@ -1375,6 +1452,44 @@ export function SettingsPanel() {
                   </Button>
                   <p className="text-xs text-muted-foreground">
                     💡 选择包含 projects/ 和 media/ 子目录的数据目录，操作后重启应用。
+                  </p>
+                </div>
+              </div>
+
+              {/* Web Cross-Device Sync */}
+              <div className="p-6 border border-border rounded-xl bg-card space-y-4">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Cloud className="h-4 w-4" />
+                  跨设备同步（浏览器版）
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  在不同设备或浏览器间同步数据，适合离线环境或作为云端同步的补充
+                </p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={handleWebExportSync}
+                      className="flex-1"
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1" />
+                      导出备份文件
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleWebImportSync}
+                      className="flex-1"
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1" />
+                      导入备份文件
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    💡 导出的备份文件可在新设备上导入，实现完整数据迁移。
+                    {isAuthenticated && " 登录后数据会自动云端同步。" }
                   </p>
                 </div>
               </div>
