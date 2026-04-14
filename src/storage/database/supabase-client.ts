@@ -11,6 +11,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string || '';
 
+// 单例客户端实例
+let supabaseClient: SupabaseClient | null = null;
+
 /**
  * 检查 Supabase 是否配置
  */
@@ -30,12 +33,17 @@ export function getSupabaseConfig() {
 }
 
 /**
- * 创建 Supabase 客户端（浏览器环境）
+ * 获取 Supabase 客户端（单例模式）
  * @param accessToken - 可选的用户访问令牌（用于认证请求）
  */
 export function getSupabaseClient(accessToken?: string): SupabaseClient {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Supabase 未配置。请确保 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY 环境变量已设置。');
+  }
+
+  // 如果已存在单例客户端且不需要新的 accessToken，直接返回
+  if (supabaseClient && !accessToken) {
+    return supabaseClient;
   }
 
   // 获取当前域名用于重定向
@@ -64,7 +72,15 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient {
     };
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, options);
+  // 创建新客户端
+  const client = createClient(supabaseUrl, supabaseAnonKey, options);
+  
+  // 如果不需要 accessToken，保存为单例
+  if (!accessToken) {
+    supabaseClient = client;
+  }
+  
+  return client;
 }
 
 /**
@@ -92,6 +108,3 @@ export async function getCurrentUser(accessToken?: string) {
   }
   return user;
 }
-
-// 默认导出的客户端（无认证）
-export const supabase = isSupabaseConfigured() ? createClient(supabaseUrl, supabaseAnonKey) : null;
