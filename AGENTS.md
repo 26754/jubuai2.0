@@ -1,4 +1,10 @@
-# 项目上下文
+# JuBu AI - 项目上下文
+
+## 项目概述
+
+- **项目名称**: JuBu AI - AI 驱动的动漫/短剧分镜创作工具
+- **部署域名**: https://jubuguanai.coze.site
+- **Supabase 项目**: https://voorsnefrbmqgbtfdoel.supabase.co
 
 ## 技术栈
 
@@ -6,41 +12,48 @@
 - **UI**: Tailwind CSS 4, Radix UI
 - **状态管理**: Zustand
 - **测试**: Vitest, jsdom
-- **存储**: Supabase, IndexedDB
+- **存储**: Supabase (云端), IndexedDB (本地)
 
 ## 目录结构
 
 ```
 ├── src/
-│   ├── components/           # React 组件
-│   │   ├── api-manager/      # API 管理组件
-│   │   │   ├── ProviderCard.tsx      # 品牌卡片组件
-│   │   │   ├── ModelList.tsx         # 模型列表组件
-│   │   │   ├── UnifiedApiTestDialog.tsx  # 统一 API 测试对话框
-│   │   │   ├── FeatureBindingPanel.tsx   # 功能绑定面板
-│   │   │   └── index.ts              # 导出所有组件
-│   │   └── ui/               # UI 基础组件
-│   ├── lib/                  # 工具库
-│   │   ├── error-handler.tsx  # 统一错误处理
-│   │   ├── proxy-config.ts    # 代理配置
-│   │   ├── api-key-manager.ts # API Key 管理
-│   │   └── brand-mapping.ts   # 品牌映射
-│   ├── stores/                # Zustand Store
-│   │   ├── api-config-store.ts  # API 配置状态
-│   │   └── director-store.ts    # 导演状态
-│   └── pages/                 # 页面组件
-├── tests/                     # 测试文件
-│   ├── lib/                   # 工具库测试
-│   │   ├── error-handler.test.ts
-│   │   └── proxy-config.test.ts
-│   └── components/           # 组件测试
-│       └── ModelList.test.ts
-├── server/                    # Express 服务端
-├── package.json
-├── vite.config.ts
-├── vitest.config.ts           # Vitest 测试配置
-└── tsconfig.json
-```
+│   ├── components/
+│   │   ├── api-manager/         # API 管理组件
+│   │   │   ├── ProviderCard.tsx
+│   │   │   ├── ModelList.tsx
+│   │   │   ├── UnifiedApiTestDialog.tsx
+│   │   │   ├── FeatureBindingPanel.tsx
+│   │   │   └── index.ts
+│   │   ├── auth/                # 认证组件
+│   │   │   └── AuthPage.tsx    # 登录/注册页面
+│   │   ├── panels/              # 面板组件
+│   │   │   └── SettingsPanel.tsx  # 设置面板（包含数据导出）
+│   │   └── ui/                  # UI 基础组件
+│   ├── lib/
+│   │   ├── data-export.ts       # 数据导出/导入工具
+│   │   ├── error-handler.tsx
+│   │   ├── proxy-config.ts
+│   │   ├── api-key-manager.ts
+│   │   └── brand-mapping.ts
+│   ├── stores/
+│   │   ├── auth-store.ts        # 认证状态管理
+│   │   ├── project-store.ts     # 项目状态管理
+│   │   ├── script-store.ts      # 剧本状态管理
+│   │   ├── character-library-store.ts
+│   │   ├── scene-store.ts
+│   │   ├── director-store.ts
+│   │   └── api-config-store.ts
+│   └── storage/
+│       └── database/
+│           ├── supabase-client.ts     # Supabase 客户端
+│           ├── cloud-storage.ts       # 云端存储
+│           └── cloud-sync-manager.ts   # 云端同步管理
+├── server/                      # Express API 服务
+├── dist/                        # 生产构建输出
+├── .env                         # 环境变量
+└── scripts/
+    └── build.sh                 # 构建脚本
 
 ## 包管理规范
 
@@ -64,3 +77,50 @@
 - 遵循组件拆分原则：ProviderCard、ModelList 等可复用组件应独立封装
 - 错误处理统一使用 `src/lib/error-handler.tsx` 模块
 - API 代理配置统一使用 `src/lib/proxy-config.ts` 模块
+
+## Supabase 数据库
+
+### 表结构
+
+#### projects 表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | varchar | 项目ID |
+| user_id | varchar | 用户ID |
+| name | varchar | 项目名称 |
+| script_data | jsonb | 剧本数据 |
+| created_at | timestamptz | 创建时间 |
+| updated_at | timestamptz | 更新时间 |
+
+#### shots 表
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | varchar | 分镜ID |
+| user_id | varchar | 用户ID |
+| project_id | varchar | 项目ID |
+| episode_id | varchar | 集ID |
+| scene_id | varchar | 场景ID |
+| index_data | jsonb | 索引数据 |
+| content | jsonb | 内容数据 |
+| camera | jsonb | 镜头数据 |
+| status | varchar | 状态 |
+
+### RLS 策略
+- users can insert their own projects - 仅插入自己的项目
+- users can view their own projects - 仅查看自己的项目
+- users can update their own projects - 仅更新自己的项目
+- users can delete their own projects - 仅删除自己的项目
+- shots 表同样策略
+
+## 数据导出功能
+
+位置: `src/lib/data-export.ts`
+
+### 功能
+- `exportAllData()` - 导出所有本地数据
+- `downloadDataAsFile()` - 下载为 JSON 文件
+- `importDataFromFile()` - 从文件导入数据
+- `applyImportedData()` - 应用导入的数据
+
+### 界面入口
+- 设置面板 → 数据备份与恢复 → 导出本地数据/导入备份文件

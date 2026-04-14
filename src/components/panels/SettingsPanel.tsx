@@ -886,6 +886,91 @@ export function SettingsPanel() {
             </div>
           </div>
 
+              {/* Data Backup */}
+              <div className="p-6 border border-border rounded-xl bg-card space-y-5">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  数据备份与恢复
+                </h4>
+
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    导出本地数据为备份文件，方便在新设备恢复或迁移到云端账户。
+                  </p>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const { downloadDataAsFile } = await import('@/lib/data-export');
+                          await downloadDataAsFile();
+                          toast.success('数据导出成功');
+                        } catch (error) {
+                          console.error('导出失败:', error);
+                          toast.error('数据导出失败');
+                        }
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      导出本地数据
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    从备份文件导入数据。
+                  </p>
+                  
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept=".json"
+                      id="import-file"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        try {
+                          const { importDataFromFile, applyImportedData } = await import('@/lib/data-export');
+                          const result = await importDataFromFile(file);
+                          
+                          if (!result.success || !result.data) {
+                            toast.error(result.error || '导入失败');
+                            return;
+                          }
+                          
+                          const applyResult = applyImportedData(result.data);
+                          if (applyResult.success) {
+                            toast.success(`成功导入 ${applyResult.projectsImported} 个项目`);
+                          } else {
+                            toast.error(applyResult.error || '导入失败');
+                          }
+                        } catch (error) {
+                          console.error('导入失败:', error);
+                          toast.error('数据导入失败');
+                        }
+                        
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        document.getElementById('import-file')?.click();
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      导入备份文件
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
