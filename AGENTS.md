@@ -53,7 +53,8 @@
 ├── dist/                        # 生产构建输出
 ├── .env                         # 环境变量
 └── scripts/
-    └── build.sh                 # 构建脚本
+    ├── build.sh                 # 构建脚本
+    └── server.js                # 生产服务器（静态文件 + API 代理）
 
 ## 包管理规范
 
@@ -124,3 +125,40 @@
 
 ### 界面入口
 - 设置面板 → 数据备份与恢复 → 导出本地数据/导入备份文件
+
+## 环境变量配置
+
+位置: `.env`
+
+### 必需的环境变量
+```bash
+# 站点域名
+VITE_SITE_URL=https://jubuguanai.coze.site
+
+# Supabase 配置
+VITE_SUPABASE_URL=https://voorsnefrbmqgbtfdoel.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+## 生产部署
+
+### 构建流程
+1. 运行 `pnpm build` 或 `bash scripts/build.sh`
+2. 生产服务器自动启动 (`node scripts/server.js`)
+
+### 生产服务器功能
+位置: `scripts/server.js`
+
+生产服务器同时提供：
+- 静态文件服务（dist 目录）
+- API 代理路由：
+  - `/__proxy/memefast/*` - MemeFast API
+  - `/__proxy/volcengine/*` - 火山引擎 ARK 北京
+  - `/__proxy/volcengine-sh/*` - 火山引擎 ARK 上海
+  - `/__proxy/volcengine-gz/*` - 火山引擎 ARK 广州
+  - `/__proxy/bailian/*` - 阿里云百炼
+  - `/__proxy/external/*` - 通用外部 API
+
+### 端口配置
+- 生产环境端口: 5000 (由 `DEPLOY_RUN_PORT` 环境变量控制)
+- 开发环境端口: 5000 (Vite 默认)

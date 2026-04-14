@@ -343,9 +343,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const supabase = getSupabaseClient();
       
       // 获取重定向 URL
-      const redirectTo = typeof window !== 'undefined' 
-        ? `${window.location.origin}/auth/callback` 
-        : 'https://jubuguanai.coze.site/auth/callback';
+      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const redirectTo = `${siteUrl}/auth/callback`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
