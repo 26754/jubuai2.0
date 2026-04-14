@@ -195,12 +195,12 @@ app.all(/\/__proxy\/external(\/.*)?/, async (req, res) => {
 
 // ==================== 静态文件服务 ====================
 
-// CSP 配置：允许 Supabase 脚本执行
+// CSP 配置：允许 Supabase 所有必要域名
 const CSP_HEADER = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com",
   "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co wss://*.supabase.co",
+  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "worker-src 'self' blob:",

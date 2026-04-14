@@ -184,9 +184,9 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 #### CSP 策略配置
 ```
 default-src 'self';
-script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co;
+script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com;
 style-src 'self' 'unsafe-inline';
-connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co wss://*.supabase.co;
+connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com;
 img-src 'self' data: blob: https:;
 font-src 'self' data:;
 worker-src 'self' blob:;
