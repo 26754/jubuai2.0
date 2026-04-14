@@ -197,13 +197,12 @@ app.all(/\/__proxy\/external(\/.*)?/, async (req, res) => {
 
 // CSP 配置：允许 Supabase 所有必要域名
 const CSP_HEADER = [
-  "default-src 'self'",
+  "default-src 'self' https://jubuguanai.coze.site https://jubuguanai.coze.site:5000 http://localhost:* https://localhost:*",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com",
-  "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://voorsnefrbmqgbtfdoel.supabase.co wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:*",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "worker-src 'self' blob:",
   "frame-src 'none'",
 ].join('; ');
 
