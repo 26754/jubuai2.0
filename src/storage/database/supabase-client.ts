@@ -11,6 +11,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string || '';
 
+// 调试日志
+console.log('[Supabase] Environment check - URL:', supabaseUrl ? 'set' : 'MISSING', 'Key:', supabaseAnonKey ? 'set' : 'MISSING');
+
 // 单例客户端实例
 let supabaseClient: SupabaseClient | null = null;
 
@@ -18,7 +21,9 @@ let supabaseClient: SupabaseClient | null = null;
  * 检查 Supabase 是否配置
  */
 export function isSupabaseConfigured(): boolean {
-  return !!(supabaseUrl && supabaseAnonKey);
+  const configured = !!(supabaseUrl && supabaseAnonKey);
+  console.log('[Supabase] isSupabaseConfigured:', configured);
+  return configured;
 }
 
 /**
