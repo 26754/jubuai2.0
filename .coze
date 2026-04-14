@@ -7,4 +7,4 @@ run = ["pnpm", "run", "dev"]
 
 [deploy]
 build = ["bash", "./scripts/build.sh"]
-run = ["npx", "serve", "dist", "-l", "5000"]
+run = ["node", "scripts/server.js"]

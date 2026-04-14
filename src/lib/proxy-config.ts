@@ -89,6 +89,10 @@ export function proxyUrl(url: string): string {
     if (url.includes(rule.pattern)) {
       // 提取路径部分
       const path = url.replace(/^https?:\/\/[^\/]+/, '');
+      // 对于 memefast，需要添加 ?host= 查询参数
+      if (rule.pattern === 'memefast.top') {
+        return `${rule.proxyPath}${path}?host=https://memefast.top`;
+      }
       return `${rule.proxyPath}${path}`;
     }
   }
