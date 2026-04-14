@@ -4,6 +4,8 @@
  * Supabase 客户端 - 浏览器版本
  */
 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
 // 直接硬编码 Supabase 配置（确保生产环境可用）
 const SUPABASE_URL = 'https://voorsnefrbmqgbtfdoel.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvb3JzbmVmcmJtcWdidGZkb2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwODQ0ODQsImV4cCI6MjA5MTY2MDQ4NH0.OLcgSyMxF1JiJtVmPwxox32bWiltPvFErR6ik91qiG8';
