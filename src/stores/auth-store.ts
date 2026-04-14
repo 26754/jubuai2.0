@@ -172,20 +172,8 @@ export const DEMO_PROJECT = {
 };
 
 // 检查 Supabase 是否配置
-const checkSupabaseConfig = (): boolean => {
-  try {
-    const url = import.meta.env.VITE_SUPABASE_URL as string;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-    console.log('[Auth] Checking config - URL:', url ? 'set' : 'missing', 'Key:', key ? 'set' : 'missing');
-    return !!(url && key);
-  } catch (e) {
-    console.error('[Auth] Config check error:', e);
-    return false;
-  }
-};
-
-// 动态检查配置（用于运行时检查）
-const isSupabaseConfigured = (): boolean => {
+// 动态检查 Supabase 配置
+function isSupabaseConfigured(): boolean {
   try {
     const url = import.meta.env.VITE_SUPABASE_URL as string;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -193,6 +181,11 @@ const isSupabaseConfigured = (): boolean => {
   } catch {
     return false;
   }
+}
+
+// 检查 Supabase 配置（用于 store 初始化）
+const checkSupabaseConfig = (): boolean => {
+  return isSupabaseConfigured();
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -202,7 +195,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
   isDemoUser: false,
-  isSupabaseConfigured: checkSupabaseConfig(),
+  isSupabaseConfigured: isSupabaseConfigured(), // 动态检查
 
   initialize: async () => {
     // 每次初始化时动态检查配置
