@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { StylePicker } from "@/components/ui/style-picker";
 import { 
   VISUAL_STYLE_PRESETS, 
@@ -159,6 +160,22 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
   const [savedChildSceneIds, setSavedChildSceneIds] = useState<string[]>([]); // 刚保存的子场景 ID
 
   const isGenerating = generationStatus === 'generating';
+
+  // 获取项目的视觉风格和锁定状态
+  const projectVisualStyleId = useProjectStore(state => state.activeProject?.visualStyleId);
+  const isStyleLocked = useProjectStore(state => state.visualStyleLocked);
+  const [justSyncedFromProject, setJustSyncedFromProject] = useState(false);
+
+  // 监听项目视觉风格变化，锁定时自动同步
+  useEffect(() => {
+    if (isStyleLocked && projectVisualStyleId && projectVisualStyleId !== styleId) {
+      console.log('[SceneGen] Visual style synced from project:', projectVisualStyleId);
+      setStyleId(projectVisualStyleId);
+      setJustSyncedFromProject(true);
+      // 3秒后清除同步提示
+      setTimeout(() => setJustSyncedFromProject(false), 3000);
+    }
+  }, [projectVisualStyleId, isStyleLocked]);
 
   // Keep local UI state in sync with persisted preferences (project switch / rehydrate)
   useEffect(() => {
@@ -3234,10 +3251,15 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
                       toast.info("视觉风格已解锁，可自由选择");
                     }
                   }}
-                  className="h-6 px-2 text-xs"
+                  className={cn(
+                    "h-6 px-2 text-xs transition-all",
+                    useProjectStore.getState().visualStyleLocked && justSyncedFromProject && "animate-pulse"
+                  )}
                   title={useProjectStore.getState().visualStyleLocked ? "解锁视觉风格" : "锁定视觉风格跟随剧本"}
                 >
-                  {useProjectStore.getState().visualStyleLocked ? "🔒" : "🔓"}
+                  {useProjectStore.getState().visualStyleLocked ? (
+                    justSyncedFromProject ? "同步" : "🔒"
+                  ) : "🔓"}
                 </Button>
               </div>
             </div>

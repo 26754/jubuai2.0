@@ -145,6 +145,22 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
   
   // 检查是否有 AI 校准数据
   const hasCalibrationData = !!(identityAnchors || charNegativePrompt || visualPromptEn || visualPromptZh);
+  
+  // 获取项目的视觉风格和锁定状态
+  const projectVisualStyleId = useProjectStore(state => state.activeProject?.visualStyleId);
+  const isStyleLocked = useProjectStore(state => state.visualStyleLocked);
+  const [justSyncedFromProject, setJustSyncedFromProject] = useState(false);
+
+  // 监听项目视觉风格变化，锁定时自动同步
+  useEffect(() => {
+    if (isStyleLocked && projectVisualStyleId && projectVisualStyleId !== styleId) {
+      console.log('[CharacterGen] Visual style synced from project:', projectVisualStyleId);
+      setStyleId(projectVisualStyleId);
+      setJustSyncedFromProject(true);
+      // 3秒后清除同步提示
+      setTimeout(() => setJustSyncedFromProject(false), 3000);
+    }
+  }, [projectVisualStyleId, isStyleLocked]);
 
   // 注意：左边栏始终用于新建角色，不响应中间角色库的选择
   // 右边栏用于查看/编辑已有角色的详情
@@ -923,10 +939,15 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
                       toast.info("视觉风格已解锁，可自由选择");
                     }
                   }}
-                  className="h-6 px-2 text-xs"
+                  className={cn(
+                    "h-6 px-2 text-xs transition-all",
+                    useProjectStore.getState().visualStyleLocked && justSyncedFromProject && "animate-pulse"
+                  )}
                   title={useProjectStore.getState().visualStyleLocked ? "解锁视觉风格" : "锁定视觉风格跟随剧本"}
                 >
-                  {useProjectStore.getState().visualStyleLocked ? "🔒" : "🔓"}
+                  {useProjectStore.getState().visualStyleLocked ? (
+                    justSyncedFromProject ? "同步" : "🔒"
+                  ) : "🔓"}
                 </Button>
               </div>
             </div>

@@ -318,3 +318,20 @@ CREATE TABLE user_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+## 视觉风格锁定功能
+
+### 功能说明
+当用户在剧本模块中设置视觉风格后，可以锁定角色生成和分镜生成面板的视觉风格跟随剧本自动调整。
+
+### 使用方式
+1. 在剧本模块设置视觉风格
+2. 在角色生成或分镜生成面板中点击「锁定」按钮 (🔒)
+3. 锁定后，视觉风格选择器将被禁用，自动跟随剧本风格
+4. 当剧本模块的视觉风格改变时，锁定的面板会自动同步更新
+
+### 技术实现
+- 状态存储在 `project-store.ts` 的 `visualStyleLocked` 字段
+- 角色生成面板 (`characters/generation-panel.tsx`) 监听项目视觉风格变化
+- 分镜生成面板 (`scenes/generation-panel.tsx`) 监听项目视觉风格变化
+- 当项目视觉风格变化且锁定状态为 true 时，自动同步本地 `styleId` 状态
