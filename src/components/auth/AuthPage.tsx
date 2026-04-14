@@ -8,13 +8,41 @@
  * 使用邮箱+密码登录
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/auth-store";
-import { Loader2, Clapperboard, Mail, Lock, ArrowRight, Check, X, Key } from "lucide-react";
+import { toast } from "sonner";
+import { 
+  Clapperboard, 
+  Mail, 
+  Lock, 
+  ArrowRight, 
+  Check, 
+  X, 
+  Eye, 
+  EyeOff,
+  Key,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 
 interface AuthPageProps {
   onSuccess?: () => void;
@@ -23,13 +51,59 @@ interface AuthPageProps {
 
 type AuthMode = 'login' | 'register';
 
+// 密码强度计算
+function calculatePasswordStrength(password: string): {
+  score: number;
+  label: string;
+  color: string;
+} {
+  let score = 0;
+  
+  if (password.length >= 6) score++;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^a-zA-Z0-9]/.test(password)) score++;
+  
+  if (score <= 2) return { score, label: '弱', color: 'bg-red-500' };
+  if (score <= 4) return { score, label: '中等', color: 'bg-yellow-500' };
+  return { score, label: '强', color: 'bg-green-500' };
+}
+
 export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [isEmailValid, setIsEmailValid] = useState(false);
   
-  const { login, register, isLoading, error, clearError } = useAuthStore();
+  const { login, register, resetPassword, isLoading, error, clearError } = useAuthStore();
+  
+  // 邮箱验证
+  useEffect(() => {
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      setIsEmailValid(emailRegex.test(email));
+    } else {
+      setIsEmailValid(false);
+    }
+  }, [email]);
+  
+  // 密码强度
+  const passwordStrength = mode === 'register' ? calculatePasswordStrength(password) : null;
+  
+  // 密码匹配检查
+  const passwordMatch = !confirmPassword || password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +130,35 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
     clearError();
     setPassword("");
     setConfirmPassword("");
+    setEmailTouched(false);
   };
 
-  const passwordMatch = mode === 'login' || password === confirmPassword || !confirmPassword;
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) return;
+    
+    setResetLoading(true);
+    try {
+      const success = await resetPassword(resetEmail);
+      if (success) {
+        setResetSuccess(true);
+        toast.success("重置邮件已发送，请查收邮箱");
+      }
+    } catch (err) {
+      toast.error("发送失败，请稍后重试");
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
-  // 登录/注册模式
+  const handleResetDialogClose = (open: boolean) => {
+    setForgotPasswordOpen(open);
+    if (!open) {
+      setResetEmail("");
+      setResetSuccess(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex">
       {/* 左侧装饰区域 */}
@@ -181,31 +279,90 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                   placeholder="输入邮箱地址"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-12"
+                  onBlur={() => setEmailTouched(true)}
+                  className={cn(
+                    "pl-10 h-12",
+                    emailTouched && email && !isEmailValid && "border-destructive focus:border-destructive"
+                  )}
                   required
                   autoComplete="email"
                 />
+                {email && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {isEmailValid ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                )}
               </div>
+              {emailTouched && email && !isEmailValid && (
+                <p className="text-xs text-destructive">请输入有效的邮箱地址</p>
+              )}
             </div>
 
             {/* 密码 */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                密码
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  密码
+                </Label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetEmail(email);
+                      setForgotPasswordOpen(true);
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    忘记密码？
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
-                  placeholder={mode === 'login' ? '输入密码' : '至少6个字符'}
+                  type={showPassword ? "text" : "password"}
+                  placeholder={mode === 'login' ? '输入密码' : '至少6个字符，包含大小写字母和数字'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-12"
+                  className="pl-10 pr-10 h-12"
                   required
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
+              
+              {/* 密码强度指示器 - 仅注册时显示 */}
+              {mode === 'register' && password && (
+                <div className="space-y-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map((level) => (
+                      <div
+                        key={level}
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-colors",
+                          passwordStrength && passwordStrength.score >= level * 2
+                            ? passwordStrength.color
+                            : "bg-muted"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    密码强度：{passwordStrength?.label}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 确认密码 - 仅注册时显示 */}
@@ -218,34 +375,59 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="再次输入密码"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={cn(
-                      "pl-10 h-12",
+                      "pl-10 pr-10 h-12",
                       !passwordMatch && "border-destructive focus:border-destructive"
                     )}
                     required
                     autoComplete="new-password"
                   />
-                  {confirmPassword && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {passwordMatch ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {confirmPassword && (
+                      passwordMatch ? (
                         <Check className="h-4 w-4 text-green-500" />
                       ) : (
                         <span className="text-xs text-destructive">不匹配</span>
-                      )}
-                    </div>
-                  )}
+                      )
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="text-muted-foreground hover:text-foreground ml-1"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {/* 记住我 - 仅登录时显示 */}
+            {mode === 'login' && (
+              <div className="flex items-center">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="ml-2 text-sm text-muted-foreground cursor-pointer"
+                >
+                  记住我（30天内自动登录）
+                </label>
               </div>
             )}
 
             {/* 错误提示 */}
             {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                {error}
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -253,7 +435,11 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
             <Button
               type="submit"
               className="w-full h-12 text-base font-medium"
-              disabled={isLoading || (mode === 'register' && !passwordMatch)}
+              disabled={
+                isLoading || 
+                (mode === 'register' && !passwordMatch) ||
+                (mode === 'register' && !isEmailValid)
+              }
             >
               {isLoading ? (
                 <>
@@ -290,8 +476,70 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
               {mode === 'login' ? '立即注册' : '立即登录'}
             </button>
           </p>
+          
+          {/* 注册提示 */}
+          {mode === 'register' && (
+            <p className="text-xs text-muted-foreground text-center mt-4">
+              注册即表示同意我们的服务条款和隐私政策
+            </p>
+          )}
         </div>
       </div>
+
+      {/* 忘记密码对话框 */}
+      <Dialog open={forgotPasswordOpen} onOpenChange={handleResetDialogClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              重置密码
+            </DialogTitle>
+            <DialogDescription>
+              {resetSuccess 
+                ? "重置邮件已发送成功"
+                : "输入您的邮箱地址，我们将发送重置密码链接"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {resetSuccess ? (
+            <div className="flex flex-col items-center py-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="text-center text-sm text-muted-foreground">
+                请登录邮箱 <strong>{resetEmail}</strong> 点击链接重置密码
+              </p>
+              <p className="text-center text-xs text-muted-foreground mt-2">
+                如果没有收到邮件，请检查垃圾邮件文件夹
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="输入注册邮箱"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setForgotPasswordOpen(false)}>
+                  取消
+                </Button>
+                <Button type="submit" disabled={resetLoading || !resetEmail}>
+                  {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  发送重置链接
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
