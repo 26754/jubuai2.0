@@ -77,6 +77,8 @@ import {
   Upload,
   ExternalLink,
   Cloud,
+  Share2,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,6 +88,8 @@ import type { AvailableUpdateInfo } from "@/types/update";
 import packageJson from "../../../package.json";
 import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { useAuthStore } from "@/stores/auth-store";
+import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
+import { TemplateMarketplace } from "@/components/TemplateMarketplace";
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -677,6 +681,20 @@ export function SettingsPanel() {
             >
               <HardDrive className="h-4 w-4 mr-2" />
               存储
+            </TabsTrigger>
+            <TabsTrigger 
+              value="sharing" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              分享
+            </TabsTrigger>
+            <TabsTrigger 
+              value="templates" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Store className="h-4 w-4 mr-2" />
+              模板
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1629,6 +1647,16 @@ export function SettingsPanel() {
             </div>
           </ScrollArea>
         </TabsContent>
+
+        {/* Sharing Tab */}
+        <TabsContent value="sharing" className="flex-1 overflow-hidden mt-0">
+          <SharingTabContent />
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="flex-1 overflow-hidden mt-0">
+          <TemplatesTabContent />
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
@@ -1780,5 +1808,88 @@ export function SettingsPanel() {
         }}
       />
     </div>
+  );
+}
+
+// ==================== 分享 Tab 内容组件 ====================
+function SharingTabContent() {
+  const { activeProjectId, projects } = useProjectStore();
+  const activeProject = projects.find(p => p.id === activeProjectId);
+  
+  const {
+    shares,
+    activeShares,
+    createShare,
+    revokeShare,
+    restoreShare,
+    deleteShare,
+  } = useShareLinks(activeProjectId || 'default');
+  
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  
+  const handleCopyLink = (url: string) => {
+    toast.success('链接已复制到剪贴板');
+  };
+  
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-8 max-w-3xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              项目分享
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              创建分享链接，让他人可以查看或协作你的项目
+            </p>
+          </div>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            创建分享链接
+          </Button>
+        </div>
+        
+        {/* Active Shares */}
+        <ShareManagerPanel
+          shares={shares}
+          onRevoke={revokeShare}
+          onRestore={restoreShare}
+          onDelete={deleteShare}
+          onCopy={handleCopyLink}
+        />
+        
+        {/* Create Dialog */}
+        <CreateShareDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          projectName={activeProject?.name || '未命名项目'}
+          onCreate={createShare}
+          presets={SHARE_PRESETS}
+        />
+      </div>
+    </ScrollArea>
+  );
+}
+
+// ==================== 模板 Tab 内容组件 ====================
+function TemplatesTabContent() {
+  const { setProjectFromTemplate } = useProjectStore();
+  
+  const handleUseTemplate = (template: any) => {
+    // 应用模板到当前项目
+    setProjectFromTemplate(template);
+    toast.success(`已应用模板: ${template.name}`);
+  };
+  
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-8 max-w-6xl mx-auto">
+        <TemplateMarketplace
+          onSelectTemplate={handleUseTemplate}
+        />
+      </div>
+    </ScrollArea>
   );
 }

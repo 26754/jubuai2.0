@@ -33,6 +33,8 @@ interface ProjectStore {
   setProjectVisualStyle: (id: string, styleId: string) => void;
   // 视觉风格锁定/解锁
   setVisualStyleLocked: (locked: boolean) => void;
+  // 从模板创建/应用模板
+  setProjectFromTemplate: (template: any) => void;
 }
 
 // Default project for desktop app
@@ -159,6 +161,39 @@ export const useProjectStore = create<ProjectStore>()(
       setVisualStyleLocked: (locked) => {
         set({ visualStyleLocked: locked });
         console.log('[ProjectStore] Visual style locked:', locked);
+      },
+
+      setProjectFromTemplate: (template) => {
+        const { activeProjectId, projects } = get();
+        
+        if (!activeProjectId) return;
+        
+        // 从模板内容中提取设置
+        const content = template.content || {};
+        
+        // 更新项目属性
+        set((state) => ({
+          projects: state.projects.map((p) => {
+            if (p.id !== activeProjectId) return p;
+            
+            return {
+              ...p,
+              name: content.project?.name || p.name,
+              visualStyleId: content.style?.visualStyle || p.visualStyleId,
+              updatedAt: Date.now(),
+            };
+          }),
+          activeProject: state.activeProject?.id === activeProjectId
+            ? {
+                ...state.activeProject,
+                name: content.project?.name || state.activeProject.name,
+                visualStyleId: content.style?.visualStyle || state.activeProject.visualStyleId,
+                updatedAt: Date.now(),
+              }
+            : state.activeProject,
+        }));
+        
+        console.log('[ProjectStore] Applied template:', template.name);
       },
     }),
     {

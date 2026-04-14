@@ -335,3 +335,118 @@ CREATE TABLE user_settings (
 - 角色生成面板 (`characters/generation-panel.tsx`) 监听项目视觉风格变化
 - 分镜生成面板 (`scenes/generation-panel.tsx`) 监听项目视觉风格变化
 - 当项目视觉风格变化且锁定状态为 true 时，自动同步本地 `styleId` 状态
+
+## Phase 3: 高级功能
+
+### 概述
+Phase 3 包含三大高级功能：AI 助手面板、项目分享系统、模板市场。这些功能位于设置面板的新增 Tab 中。
+
+### AI 助手面板 (`AIAssistant.tsx`)
+
+#### 功能特性
+- **多模式支持**：剧本分析、角色建议、场景规划、分镜优化
+- **预设助手**：专业编剧、创意头脑风暴、格式优化等预设角色
+- **上下文感知**：自动获取当前项目、剧本、角色、场景上下文
+- **智能建议**：基于上下文提供个性化建议
+- **历史记录**：保存对话历史，支持继续对话
+
+#### 技术实现
+- 使用 `llm` Skill 进行 AI 对话
+- 流式响应支持（打字机效果）
+- 上下文管理（自动获取相关项目数据）
+- 预设提示词系统
+
+#### 使用方式
+1. 在设置面板中点击「AI 助手」Tab
+2. 选择助手模式（剧本/角色/场景/分镜）
+3. 选择或自定义预设助手
+4. 输入问题或指令
+5. AI 将基于当前上下文提供建议
+
+### 项目分享系统 (`ShareManager.tsx`)
+
+#### 功能特性
+- **分享链接创建**：一键生成分享链接
+- **权限控制**：只读/可编辑权限
+- **链接有效期**：可设置过期时间（1小时/24小时/7天/永久）
+- **访问限制**：可选访问次数限制
+- **密码保护**：可选设置访问密码
+- **预设模板**：快速预览/审核协作/协作编辑/公开发布
+- **链接管理**：查看/撤销/恢复/删除分享链接
+- **访问统计**：查看访问次数、过期时间等
+
+#### 技术实现
+- 本地存储分享链接数据
+- Token 生成机制
+- 过期时间自动判断
+- 访问次数统计
+
+#### 预设分享模板
+```typescript
+const SHARE_PRESETS = [
+  { id: 'quick-view', name: '快速预览', permission: 'view', expiresIn: 24 * 60 * 60 * 1000 },
+  { id: 'review', name: '审核协作', permission: 'view', expiresIn: 7 * 24 * 60 * 60 * 1000 },
+  { id: 'collaboration', name: '协作编辑', permission: 'edit', expiresIn: null },
+  { id: 'public', name: '公开发布', permission: 'view', expiresIn: null },
+];
+```
+
+#### 使用方式
+1. 在设置面板中点击「分享」Tab
+2. 点击「创建分享链接」
+3. 选择预设模板或自定义设置
+4. 复制生成的链接进行分享
+
+### 模板市场 (`TemplateMarketplace.tsx`)
+
+#### 功能特性
+- **内置模板**：动漫系列、短剧、商业广告、教育内容、角色模板、场景模板、风格预设
+- **模板分类**：动漫/短剧/商业/教育/社交/自定义
+- **模板类型**：项目/剧本/角色/场景/工作流/风格
+- **模板搜索**：支持按名称、描述、标签搜索
+- **模板排序**：热门/最新/评分最高/下载最多
+- **收藏功能**：收藏喜欢的模板
+- **模板导入/导出**：支持 `.jubutemplate` 格式文件
+- **我的模板**：创建和管理自定义模板
+- **模板使用**：一键应用模板到当前项目
+
+#### 内置模板
+```typescript
+const BUILT_IN_TEMPLATES = [
+  { id: 'anime-series', name: '动漫系列模板', type: 'project', category: 'anime' },
+  { id: 'short-drama', name: '短剧模板', type: 'project', category: 'drama' },
+  { id: 'commercial-ad', name: '商业广告模板', type: 'project', category: 'commercial' },
+  { id: 'educational-content', name: '教育内容模板', type: 'project', category: 'education' },
+  { id: 'cyberpunk-style', name: '赛博朋克风格', type: 'style', category: 'anime' },
+  { id: 'watercolor-anime', name: '水彩动漫风格', type: 'style', category: 'anime' },
+  { id: 'character-archetype-hero', name: '英雄主角模板', type: 'character', category: 'anime' },
+  { id: 'scene-fantasy-city', name: '幻想城市场景', type: 'scene', category: 'anime' },
+];
+```
+
+#### 使用方式
+1. 在设置面板中点击「模板」Tab
+2. 浏览内置模板或搜索
+3. 点击「使用」应用模板到当前项目
+4. 也可点击「收藏」保存喜欢的模板
+5. 支持导入/导出自定义模板
+
+### 新增组件清单
+
+| 组件 | 路径 | 说明 |
+|------|------|------|
+| AIAssistant | `src/components/AIAssistant.tsx` | AI 助手面板主组件 |
+| ShareManager | `src/components/ShareManager.tsx` | 项目分享系统（包含多个子组件） |
+| TemplateMarketplace | `src/components/TemplateMarketplace.tsx` | 模板市场主组件 |
+
+### 共享 Hooks
+
+| Hook | 说明 |
+|------|------|
+| `useShareLinks` | 分享链接管理 Hook，支持创建、更新、删除、撤销分享链接 |
+| `useTemplateStore` | 模板存储 Hook，支持创建、更新、删除、收藏、搜索模板 |
+
+### 存储键值
+- `jubuai-share-links-{projectId}`: 项目分享链接数据
+- `jubuai-templates`: 用户自定义模板数据
+- `jubuai-template-favorites`: 收藏的模板 ID 列表
