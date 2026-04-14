@@ -2,21 +2,20 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
  * Supabase 客户端 - 浏览器版本
- * 使用 Vite 环境变量
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+// 直接硬编码 Supabase 配置（确保生产环境可用）
+const SUPABASE_URL = 'https://voorsnefrbmqgbtfdoel.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvb3JzbmVmcmJtcWdidGZkb2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwODQ0ODQsImV4cCI6MjA5MTY2MDQ4NH0.OLcgSyMxF1JiJtVmPwxox32bWiltPvFErR6ik91qiG8';
 
-// 环境变量（Vite 前缀 VITE_）
-// 在生产构建中，这些变量会被内联到代码中
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
+// 环境变量备用（开发环境）
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || SUPABASE_URL;
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || SUPABASE_ANON_KEY;
 
-// 调试日志：输出实际获取到的值
-console.log('[Supabase] Environment variables check:');
-console.log('  VITE_SUPABASE_URL:', supabaseUrl ? 'SET (length=' + supabaseUrl.length + ')' : 'MISSING');
-console.log('  VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET (length=' + supabaseAnonKey.length + ')' : 'MISSING');
-console.log('  import.meta.env:', import.meta.env);
+// 调试日志
+console.log('[Supabase] Configuration loaded');
+console.log('  URL:', supabaseUrl ? 'SET' : 'MISSING');
+console.log('  Key:', supabaseAnonKey ? 'SET' : 'MISSING');
 
 // 单例客户端实例
 let supabaseClient: SupabaseClient | null = null;
