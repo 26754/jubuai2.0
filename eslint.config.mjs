@@ -10,5 +10,6 @@ export default defineConfig([
     'dist-server/**',
     'node_modules/**',
     'scripts/**',
+    'public/sw.js', // Service Worker 文件
   ]),
 ]);

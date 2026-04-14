@@ -235,11 +235,16 @@
   box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
 }
 
-/* Glass effect */
+/* Glass effect - 添加 Firefox 兼容后备 */
 .glass {
   background: hsl(var(--panel) / 0.8);
+  /* Firefox 兼容：旧版需要浏览器配置开启 */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  /* Firefox 后备：使用纯色半透明背景 */
+  @supports not (backdrop-filter: blur(1px)) {
+    background: hsl(var(--panel) / 0.95);
+  }
 }
 
 

@@ -13,13 +13,8 @@ import { useProjectStore } from "@/stores/project-store";
 import { useScriptStore } from "@/stores/script-store";
 import { useMediaPanelStore, stages } from "@/stores/media-panel-store";
 import { useAuthStore } from "@/stores/auth-store";
-import { Cloud, CloudOff, Loader2, Check, ChevronRight, User, LogOut } from "lucide-react";
+import { CloudOff, Loader2, Check, ChevronRight, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,

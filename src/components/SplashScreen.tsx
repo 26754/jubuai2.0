@@ -13,15 +13,14 @@ import { Button } from "@/components/ui/button";
 import { AuthPage } from "./auth/AuthPage";
 import { 
   Film, 
-  Plus, 
-  FolderOpen, 
   Sun, 
   Moon, 
   Monitor,
   Sparkles,
   Layers,
   LogIn,
-  UserPlus
+  UserPlus,
+  FolderOpen
 } from "lucide-react";
 
 interface SplashScreenProps {
@@ -30,7 +29,7 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const { theme, setTheme } = useThemeStore();
-  const { isAuthenticated } = useAuthStore();
+  useAuthStore(); // 确保初始化 Auth Store
   const [showAuthPage, setShowAuthPage] = useState(false);
 
   const handleLogin = () => {
@@ -112,6 +111,16 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
           >
             <UserPlus className="mr-2 h-5 w-5" />
             注册
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="lg" 
+            className="h-12 text-base font-normal"
+            onClick={handleOpenProject}
+          >
+            <FolderOpen className="mr-2 h-5 w-5" />
+            打开已有项目
           </Button>
         </div>
 
