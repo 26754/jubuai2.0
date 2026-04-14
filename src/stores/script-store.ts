@@ -1116,29 +1116,41 @@ export const useScriptStore = create<ScriptStore>()(
       storage: createJSONStorage(() => createProjectScopedStorage('script')),
       partialize: (state) => {
         const pid = state.activeProjectId;
-        if (!pid || !state.projects[pid]) return { activeProjectId: pid };
+        if (!pid) return { activeProjectId: pid };
+        
+        // 保存所有项目数据，而不是仅保存当前活跃项目
+        // 避免切换项目时其他项目的数据丢失（如视觉风格设置）
+        const allProjects: Record<string, ScriptProjectData> = {};
+        for (const [projectId, projectData] of Object.entries(state.projects)) {
+          allProjects[projectId] = projectData;
+        }
+        
         return {
           activeProjectId: pid,
-          projectData: state.projects[pid],
+          projects: allProjects,
         };
       },
       merge: (persisted: any, current: any) => {
         if (!persisted) return current;
         
-        // Legacy format: has `projects` as Record (from old monolithic file)
+        // Format: has `projects` as Record (all projects data)
         if (persisted.projects && typeof persisted.projects === 'object') {
           const normalizedProjects: Record<string, ScriptProjectData> = {};
           for (const [projectId, projectData] of Object.entries(persisted.projects)) {
             normalizedProjects[projectId] = normalizeScriptProjectData(projectId, projectData);
           }
+          // 合并持久化的项目数据和当前项目数据，确保所有项目都恢复
           return {
             ...current,
             ...persisted,
-            projects: normalizedProjects,
+            projects: {
+              ...current.projects, // 先保留当前内存中的项目
+              ...normalizedProjects, // 再用持久化数据覆盖（保持视觉风格等用户设置）
+            },
           };
         }
         
-        // New per-project format: has `projectData` for single project
+        // Legacy single-project format: has `projectData` for single project
         const { activeProjectId: pid, projectData } = persisted;
         if (!pid || !projectData) return current;
         
