@@ -7,16 +7,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // 直接硬编码 Supabase 配置（确保生产环境可用）
+// 重要：这些值在构建时被直接嵌入到代码中，不依赖环境变量
 const SUPABASE_URL = 'https://voorsnefrbmqgbtfdoel.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvb3JzbmVmcmJtcWdidGZkb2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwODQ0ODQsImV4cCI6MjA5MTY2MDQ4NH0.OLcgSyMxF1JiJtVmPwxox32bWiltPvFErR6ik91qiG8';
 
-// 环境变量备用（开发环境）
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || SUPABASE_URL;
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || SUPABASE_ANON_KEY;
+// 始终使用硬编码值，确保生产环境可用
+const supabaseUrl = SUPABASE_URL;
+const supabaseAnonKey = SUPABASE_ANON_KEY;
 
 // 调试日志
-console.log('[Supabase] Configuration loaded');
-console.log('  URL:', supabaseUrl ? 'SET' : 'MISSING');
+console.log('[Supabase] Configuration loaded (hardcoded)');
+console.log('  URL:', supabaseUrl);
 console.log('  Key:', supabaseAnonKey ? 'SET' : 'MISSING');
 
 // 单例客户端实例
