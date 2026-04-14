@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateDialog } from "@/components/UpdateDialog";
@@ -16,6 +16,11 @@ import { useAuthStore } from "@/stores/auth-store";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { SplashScreen } from "@/components/SplashScreen";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { KeyboardShortcutsPanel, KeyboardShortcutIndicator } from "@/components/KeyboardShortcutsPanel";
+import { useMediaPanelStore } from "@/stores/media-panel-store";
+import { shortcutExecutor, registerShortcutActions, PRESET_SHORTCUTS } from "@/lib/keyboard-shortcuts";
 
 let hasTriggeredStartupUpdateCheck = false;
 
@@ -130,14 +135,136 @@ function App() {
   const [startupUpdate, setStartupUpdate] = useState<AvailableUpdateInfo | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   
   // 认证状态
   const { isAuthenticated, initialize } = useAuthStore();
+
+  // 媒体面板状态
+  const { setActiveTab } = useMediaPanelStore();
 
   // 初始化认证状态
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // 注册全局快捷键
+  useEffect(() => {
+    const actions = [
+      // 全局搜索
+      {
+        id: 'global-search',
+        name: '全局搜索',
+        description: '打开全局搜索面板',
+        category: 'system' as const,
+        keys: [PRESET_SHORTCUTS.SYSTEM_SEARCH[0]],
+        action: () => setSearchOpen(true),
+      },
+      // 快捷键帮助
+      {
+        id: 'show-shortcuts',
+        name: '显示快捷键',
+        description: '显示快捷键帮助面板',
+        category: 'system' as const,
+        keys: ['?'],
+        action: () => setShortcutsOpen(true),
+      },
+      // 面板导航
+      {
+        id: 'nav-dashboard',
+        name: '导航：总览',
+        description: '切换到总览面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_DASHBOARD[0]],
+        action: () => setActiveTab('dashboard' as any),
+      },
+      {
+        id: 'nav-overview',
+        name: '导航：概览',
+        description: '切换到概览面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_OVERVIEW[0]],
+        action: () => setActiveTab('overview' as any),
+      },
+      {
+        id: 'nav-script',
+        name: '导航：剧本',
+        description: '切换到剧本面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_SCRIPT[0]],
+        action: () => setActiveTab('script' as any),
+      },
+      {
+        id: 'nav-characters',
+        name: '导航：角色库',
+        description: '切换到角色库面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_CHARACTERS[0]],
+        action: () => setActiveTab('characters' as any),
+      },
+      {
+        id: 'nav-scenes',
+        name: '导航：场景库',
+        description: '切换到场景库面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_SCENES[0]],
+        action: () => setActiveTab('scenes' as any),
+      },
+      {
+        id: 'nav-director',
+        name: '导航：导演',
+        description: '切换到导演面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_DIRECTOR[0]],
+        action: () => setActiveTab('director' as any),
+      },
+      {
+        id: 'nav-assets',
+        name: '导航：素材库',
+        description: '切换到素材库面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_ASSETS[0]],
+        action: () => setActiveTab('assets' as any),
+      },
+      {
+        id: 'nav-export',
+        name: '导航：导出',
+        description: '切换到导出面板',
+        category: 'navigation' as const,
+        keys: [PRESET_SHORTCUTS.NAV_EXPORT[0]],
+        action: () => setActiveTab('export' as any),
+      },
+      // ESC 关闭弹窗
+      {
+        id: 'close-dialogs',
+        name: '关闭弹窗',
+        description: '关闭当前弹窗',
+        category: 'system' as const,
+        keys: ['esc'],
+        action: () => {
+          if (searchOpen) setSearchOpen(false);
+          else if (shortcutsOpen) setShortcutsOpen(false);
+        },
+      },
+    ];
+
+    registerShortcutActions(() => actions);
+
+    // 注册快捷键
+    actions.forEach(action => {
+      shortcutExecutor.register(action);
+    });
+
+    return () => {
+      actions.forEach(action => {
+        shortcutExecutor.unregister(action.keys);
+      });
+    };
+  }, [setActiveTab, searchOpen, shortcutsOpen]);
+
+  // 使用快捷键 Hook
+  useKeyboardShortcuts();
 
   // 启动时运行存储迁移 + 数据恢复
   useEffect(() => {
@@ -273,6 +400,18 @@ function App() {
             setStartupUpdate(null);
           }}
         />
+        {/* 全局搜索面板 */}
+        <GlobalSearch
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+        />
+        {/* 快捷键帮助面板 */}
+        <KeyboardShortcutsPanel
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+        />
+        {/* 快捷键指示器 */}
+        <KeyboardShortcutIndicator />
         <Toaster richColors position="top-center" />
       </div>
     );
