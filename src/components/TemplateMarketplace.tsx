@@ -396,14 +396,14 @@ export const BUILT_IN_TEMPLATES: Template[] = [
 
 // ==================== 分类配置 ====================
 
-const CATEGORY_CONFIG: Record<TemplateCategory, { label: string; icon: React.ReactNode; color: string }> = {
-  all: { label: '全部', icon: <Grid3X3 className="w-4 h-4" />, color: 'text-gray-500' },
-  anime: { label: '动漫', icon: <Sparkles className="w-4 h-4" />, color: 'text-pink-500' },
-  drama: { label: '短剧', icon: <FileText className="w-4 h-4" />, color: 'text-purple-500' },
-  commercial: { label: '商业', icon: <Store className="w-4 h-4" />, color: 'text-blue-500' },
-  education: { label: '教育', icon: <Bookmark className="w-4 h-4" />, color: 'text-green-500' },
-  social: { label: '社交', icon: <Users className="w-4 h-4" />, color: 'text-orange-500' },
-  custom: { label: '自定义', icon: <Palette className="w-4 h-4" />, color: 'text-cyan-500' },
+const CATEGORY_CONFIG: Record<TemplateCategory, { label: string; icon: React.ReactNode; colorClass: string; bgClass: string }> = {
+  all: { label: '全部', icon: <Grid3X3 className="w-4 h-4" />, colorClass: 'text-muted-foreground', bgClass: 'bg-muted' },
+  anime: { label: '动漫', icon: <Sparkles className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-anime))]', bgClass: 'bg-[hsl(var(--category-anime))/10]' },
+  drama: { label: '短剧', icon: <FileText className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-drama))]', bgClass: 'bg-[hsl(var(--category-drama))/10]' },
+  commercial: { label: '商业', icon: <Store className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-commercial))]', bgClass: 'bg-[hsl(var(--category-commercial))/10]' },
+  education: { label: '教育', icon: <Bookmark className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-education))]', bgClass: 'bg-[hsl(var(--category-education))/10]' },
+  social: { label: '社交', icon: <Users className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-social))]', bgClass: 'bg-[hsl(var(--category-social))/10]' },
+  custom: { label: '自定义', icon: <Palette className="w-4 h-4" />, colorClass: 'text-[hsl(var(--category-custom))]', bgClass: 'bg-[hsl(var(--category-custom))/10]' },
 };
 
 const TYPE_CONFIG: Record<TemplateType, { label: string; icon: React.ReactNode }> = {
@@ -697,18 +697,19 @@ export function TemplateCard({
 }: TemplateCardProps) {
   const isBuiltIn = template.isBuiltIn;
   const categoryConfig = CATEGORY_CONFIG[template.category];
+  const typeConfig = TYPE_CONFIG[template.type];
   
   if (viewMode === 'list') {
     return (
-      <Card className="hover:bg-muted/50 transition-colors">
+      <Card className="hover:bg-muted/50 transition-colors border-border/50">
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             {/* 图标 */}
             <div className={cn(
               'p-3 rounded-lg',
-              isBuiltIn ? 'bg-primary/10' : 'bg-muted'
+              categoryConfig.bgClass
             )}>
-              {TYPE_CONFIG[template.type].icon}
+              <span className={categoryConfig.colorClass}>{typeConfig.icon}</span>
             </div>
             
             {/* 信息 */}
@@ -719,8 +720,8 @@ export function TemplateCard({
                   <Badge variant="secondary" className="text-xs">内置</Badge>
                 )}
                 <Badge 
-                  variant="outline" 
-                  className={cn('text-xs', categoryConfig.color)}
+                  variant="secondary" 
+                  className={cn('text-xs', categoryConfig.colorClass)}
                 >
                   {categoryConfig.icon}
                   <span className="ml-1">{categoryConfig.label}</span>
@@ -814,14 +815,14 @@ export function TemplateCard({
   
   // 网格视图
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow border-border/50">
       {/* 缩略图 */}
       <div className={cn(
         'h-32 flex items-center justify-center',
-        isBuiltIn ? 'bg-gradient-to-br from-primary/20 to-primary/5' : 'bg-muted'
+        isBuiltIn ? 'bg-gradient-to-br from-primary/10 to-primary/5' : 'bg-muted'
       )}>
-        <div className="text-4xl opacity-50">
-          {TYPE_CONFIG[template.type].icon}
+        <div className={cn('text-4xl opacity-50', categoryConfig.colorClass)}>
+          {typeConfig.icon}
         </div>
       </div>
       
@@ -830,8 +831,8 @@ export function TemplateCard({
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base truncate">{template.name}</CardTitle>
             <Badge 
-              variant="outline" 
-              className={cn('text-xs mt-1', categoryConfig.color)}
+              variant="secondary" 
+              className={cn('text-xs mt-1', categoryConfig.colorClass)}
             >
               {categoryConfig.label}
             </Badge>

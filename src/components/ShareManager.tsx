@@ -163,6 +163,14 @@ export const SHARE_PRESETS = [
   },
 ];
 
+// ==================== 权限颜色配置 ====================
+
+const PERMISSION_CONFIG: Record<SharePermission, { icon: React.ReactNode; label: string; colorClass: string; bgClass: string }> = {
+  view: { icon: <Eye className="w-4 h-4" />, label: '只读', colorClass: 'text-[hsl(var(--permission-view))]', bgClass: 'bg-[hsl(var(--permission-view))/10]' },
+  edit: { icon: <Edit3 className="w-4 h-4" />, label: '可编辑', colorClass: 'text-[hsl(var(--permission-edit))]', bgClass: 'bg-[hsl(var(--permission-edit))/10]' },
+  admin: { icon: <Settings className="w-4 h-4" />, label: '管理员', colorClass: 'text-[hsl(var(--permission-admin))]', bgClass: 'bg-[hsl(var(--permission-admin))/10]' },
+};
+
 // ==================== 分享存储 Hook ====================
 
 const SHARES_STORAGE_KEY = 'jubuai-share-links';
@@ -674,9 +682,7 @@ export function ShareManagerPanel({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">分享链接管理</h3>
-        <span className="text-sm text-muted-foreground">
-          {shares.length} 个链接
-        </span>
+        <Badge variant="secondary">{shares.length} 个链接</Badge>
       </div>
       
       {shares.length === 0 ? (
@@ -689,14 +695,14 @@ export function ShareManagerPanel({
         <ScrollArea className="max-h-96">
           <div className="space-y-2">
             {shares.map(share => (
-              <div
+              <Card 
                 key={share.id}
                 className={cn(
-                  'p-3 rounded-lg border',
+                  'transition-colors border-border/50',
                   share.status === 'revoked' && 'opacity-50'
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
+                <CardContent className="p-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium truncate">
@@ -818,8 +824,8 @@ export function ShareManagerPanel({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </ScrollArea>

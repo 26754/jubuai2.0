@@ -35,6 +35,40 @@
   --color-info: hsl(var(--info));
   --color-info-foreground: hsl(var(--info-foreground));
   
+  /* Status colors */
+  --color-status-pending: hsl(var(--status-pending));
+  --color-status-in-progress: hsl(var(--status-in-progress));
+  --color-status-done: hsl(var(--status-done));
+  --color-status-error: hsl(var(--status-error));
+  
+  /* Visual style indicator colors */
+  --color-style-anime: hsl(var(--style-anime));
+  --color-style-realistic: hsl(var(--style-realistic));
+  --color-style-watercolor: hsl(var(--style-watercolor));
+  --color-style-comic: hsl(var(--style-comic));
+  --color-style-oil-painting: hsl(var(--style-oil-painting));
+  
+  /* Permission colors */
+  --color-permission-view: hsl(var(--permission-view));
+  --color-permission-edit: hsl(var(--permission-edit));
+  --color-permission-admin: hsl(var(--permission-admin));
+  
+  /* Category colors */
+  --color-category-anime: hsl(var(--category-anime));
+  --color-category-drama: hsl(var(--category-drama));
+  --color-category-commercial: hsl(var(--category-commercial));
+  --color-category-education: hsl(var(--category-education));
+  --color-category-social: hsl(var(--category-social));
+  --color-category-custom: hsl(var(--category-custom));
+  
+  /* Tag category colors */
+  --color-tag-genre: hsl(var(--tag-genre));
+  --color-tag-style: hsl(var(--tag-style));
+  --color-tag-mood: hsl(var(--tag-mood));
+  --color-tag-character: hsl(var(--tag-character));
+  --color-tag-theme: hsl(var(--tag-theme));
+  --color-tag-custom: hsl(var(--tag-custom));
+  
   /* Brand gradient */
   --color-brand-start: hsl(var(--brand-start));
   --color-brand-end: hsl(var(--brand-end));
@@ -100,6 +134,40 @@
   --info: 199 89% 48%;            /* 青色 - 信息 */
   --info-foreground: 0 0% 100%;
   
+  /* Status colors - 任务状态色 */
+  --status-pending: 38 92% 50%;   /* 等待 - 橙 */
+  --status-in-progress: 212 100% 50%; /* 进行中 - 蓝 */
+  --status-done: 142 71% 45%;     /* 完成 - 绿 */
+  --status-error: 0 72% 51%;      /* 错误 - 红 */
+  
+  /* Visual style indicator colors - 视觉风格指示色 */
+  --style-anime: 330 80% 60%;     /* 动漫风格 - 粉 */
+  --style-realistic: 199 89% 48%; /* 写实风格 - 青 */
+  --style-watercolor: 280 70% 65%;/* 水彩风格 - 紫 */
+  --style-comic: 25 95% 53%;       /* 漫画风格 - 橙 */
+  --style-oil-painting: 340 80% 50%; /* 油画风格 - 深粉 */
+  
+  /* Share permission colors - 分享权限色 */
+  --permission-view: 199 89% 48%;  /* 只读 - 青 */
+  --permission-edit: 38 92% 50%;   /* 可编辑 - 橙 */
+  --permission-admin: 280 70% 65%; /* 管理员 - 紫 */
+  
+  /* Template category colors - 模板分类色 */
+  --category-anime: 330 80% 60%;
+  --category-drama: 25 95% 53%;
+  --category-commercial: 212 100% 50%;
+  --category-education: 142 71% 45%;
+  --category-social: 199 89% 48%;
+  --category-custom: 262 83% 58%;
+  
+  /* Tag category colors - 标签分类色 */
+  --tag-genre: 212 100% 50%;      /* 题材 - 蓝 */
+  --tag-style: 280 70% 65%;        /* 风格 - 紫 */
+  --tag-mood: 25 95% 53%;          /* 氛围 - 橙 */
+  --tag-character: 330 80% 60%;   /* 角色 - 粉 */
+  --tag-theme: 142 71% 45%;        /* 主题 - 绿 */
+  --tag-custom: 262 83% 58%;       /* 自定义 - 紫 */
+  
   /* Brand gradient */
   --brand-start: 212 100% 48%;    /* 蓝色 */
   --brand-end: 262 83% 58%;       /* 紫色 */
@@ -163,6 +231,40 @@
   --warning-foreground: 0 0% 10%;
   --info: 199 89% 48%;            /* #06b6d4 */
   --info-foreground: 0 0% 100%;
+  
+  /* Status colors - 任务状态色 */
+  --status-pending: 38 92% 55%;   /* 等待 - 橙 */
+  --status-in-progress: 212 100% 60%; /* 进行中 - 蓝 */
+  --status-done: 142 71% 50%;     /* 完成 - 绿 */
+  --status-error: 0 72% 56%;      /* 错误 - 红 */
+  
+  /* Visual style indicator colors - 视觉风格指示色 */
+  --style-anime: 330 80% 65%;     /* 动漫风格 - 粉 */
+  --style-realistic: 199 89% 55%; /* 写实风格 - 青 */
+  --style-watercolor: 280 70% 70%;/* 水彩风格 - 紫 */
+  --style-comic: 25 95% 58%;      /* 漫画风格 - 橙 */
+  --style-oil-painting: 340 80% 55%; /* 油画风格 - 深粉 */
+  
+  /* Share permission colors - 分享权限色 */
+  --permission-view: 199 89% 55%;  /* 只读 - 青 */
+  --permission-edit: 38 92% 55%;  /* 可编辑 - 橙 */
+  --permission-admin: 280 70% 70%;/* 管理员 - 紫 */
+  
+  /* Template category colors - 模板分类色 */
+  --category-anime: 330 80% 65%;
+  --category-drama: 25 95% 58%;
+  --category-commercial: 212 100% 60%;
+  --category-education: 142 71% 50%;
+  --category-social: 199 89% 55%;
+  --category-custom: 262 83% 70%;
+  
+  /* Tag category colors - 标签分类色 */
+  --tag-genre: 212 100% 60%;      /* 题材 - 蓝 */
+  --tag-style: 280 70% 70%;        /* 风格 - 紫 */
+  --tag-mood: 25 95% 58%;         /* 氛围 - 橙 */
+  --tag-character: 330 80% 65%;   /* 角色 - 粉 */
+  --tag-theme: 142 71% 50%;       /* 主题 - 绿 */
+  --tag-custom: 262 83% 70%;       /* 自定义 - 紫 */
   
   /* Brand gradient */
   --brand-start: 212 100% 50%;    /* 蓝色 */

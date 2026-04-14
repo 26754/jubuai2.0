@@ -138,13 +138,13 @@ const PRESET_TAGS: Tag[] = [
 
 // ==================== 分类配置 ====================
 
-const CATEGORY_CONFIG: Record<TagCategory, { label: string; icon: React.ReactNode; color: string }> = {
-  genre: { label: '题材', icon: <FolderOpen className="w-4 h-4" />, color: 'text-blue-500' },
-  style: { label: '风格', icon: <Sparkles className="w-4 h-4" />, color: 'text-purple-500' },
-  mood: { label: '氛围', icon: <TrendingUp className="w-4 h-4" />, color: 'text-pink-500' },
-  character: { label: '角色', icon: <Users className="w-4 h-4" />, color: 'text-green-500' },
-  theme: { label: '主题', icon: <Star className="w-4 h-4" />, color: 'text-yellow-500' },
-  custom: { label: '自定义', icon: <Hash className="w-4 h-4" />, color: 'text-gray-500' },
+const CATEGORY_CONFIG: Record<TagCategory, { label: string; icon: React.ReactNode; colorClass: string; bgClass: string }> = {
+  genre: { label: '题材', icon: <FolderOpen className="w-4 h-4" />, colorClass: 'text-[hsl(var(--tag-genre))]', bgClass: 'bg-[hsl(var(--tag-genre))/10]' },
+  style: { label: '风格', icon: <Sparkles className="w-4 h-4" />, colorClass: 'text-[hsl(var(--tag-style))]', bgClass: 'bg-[hsl(var(--tag-style))/10]' },
+  mood: { label: '氛围', icon: <TrendingUp className="w-4 h-4" />, colorClass: 'text-[hsl(var(--tag-mood))]', bgClass: 'bg-[hsl(var(--tag-mood))/10]' },
+  character: { label: '角色', icon: <Users className="w-4 h-4" />, colorClass: 'text-[hsl(var(--tag-character))]', bgClass: 'bg-[hsl(var(--tag-character))/10]' },
+  theme: { label: '主题', icon: <Star className="w-4 h-4" />, colorClass: 'text-[hsl(var(--tag-theme))]', bgClass: 'bg-[hsl(var(--tag-theme))/10]' },
+  custom: { label: '自定义', icon: <Hash className="w-4 h-4" />, colorClass: 'text-muted-foreground', bgClass: 'bg-muted' },
 };
 
 // ==================== 标签存储 Hook ====================

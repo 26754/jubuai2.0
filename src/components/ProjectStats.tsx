@@ -240,7 +240,7 @@ export function StatCard({
               {trend && (
                 <span className={cn(
                   'flex items-center text-xs',
-                  trend.value >= 0 ? 'text-green-500' : 'text-red-500'
+                  trend.value >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--status-error))]'
                 )}>
                   {trend.value >= 0 ? (
                     <ArrowUp className="w-3 h-3 mr-0.5" />
@@ -373,26 +373,26 @@ export function ProjectStatsPanel({
               title="项目总数"
               value={stats.totalProjects}
               icon={<FileText className="w-5 h-5" />}
-              color="text-blue-500"
+              color="text-[hsl(var(--info))]"
             />
             <StatCard
               title="剧本字数"
               value={formatNumber(stats.totalWords)}
               icon={<FileText className="w-5 h-5" />}
-              color="text-green-500"
+              color="text-[hsl(var(--success))]"
               description="总计"
             />
             <StatCard
               title="生成图片"
               value={stats.totalImages}
               icon={<Image className="w-5 h-5" />}
-              color="text-purple-500"
+              color="text-[hsl(var(--style-watercolor))]"
             />
             <StatCard
               title="分镜数量"
               value={stats.totalShots}
               icon={<Video className="w-5 h-5" />}
-              color="text-orange-500"
+              color="text-[hsl(var(--warning))]"
             />
           </div>
           

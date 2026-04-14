@@ -169,12 +169,12 @@ export const ASSISTANT_PRESETS: AssistantPreset[] = [
 
 // ==================== 模式配置 ====================
 
-const MODE_CONFIG: Record<AssistantMode, { icon: React.ReactNode; label: string; color: string }> = {
-  chat: { icon: <MessageSquare className="w-4 h-4" />, label: '对话', color: 'text-blue-500' },
-  script: { icon: <FileText className="w-4 h-4" />, label: '剧本', color: 'text-green-500' },
-  character: { icon: <Users className="w-4 h-4" />, label: '角色', color: 'text-purple-500' },
-  scene: { icon: <Film className="w-4 h-4" />, label: '场景', color: 'text-orange-500' },
-  storyboard: { icon: <Clapperboard className="w-4 h-4" />, label: '分镜', color: 'text-pink-500' },
+const MODE_CONFIG: Record<AssistantMode, { icon: React.ReactNode; label: string; colorClass: string; bgClass: string }> = {
+  chat: { icon: <MessageSquare className="w-4 h-4" />, label: '对话', colorClass: 'text-[hsl(var(--info))]', bgClass: 'bg-[hsl(var(--info))/10]' },
+  script: { icon: <FileText className="w-4 h-4" />, label: '剧本', colorClass: 'text-[hsl(var(--success))]', bgClass: 'bg-[hsl(var(--success))/10]' },
+  character: { icon: <Users className="w-4 h-4" />, label: '角色', colorClass: 'text-[hsl(var(--style-anime))]', bgClass: 'bg-[hsl(var(--style-anime))/10]' },
+  scene: { icon: <Film className="w-4 h-4" />, label: '场景', colorClass: 'text-[hsl(var(--warning))]', bgClass: 'bg-[hsl(var(--warning))/10]' },
+  storyboard: { icon: <Clapperboard className="w-4 h-4" />, label: '分镜', colorClass: 'text-[hsl(var(--style-watercolor))]', bgClass: 'bg-[hsl(var(--style-watercolor))/10]' },
 };
 
 // ==================== 上下文提示词 ====================
@@ -566,14 +566,16 @@ export function AIAssistantPanel({
   };
   
   return (
-    <Card className={cn('flex flex-col', className)}>
+    <Card className={cn('flex flex-col border-border/50 bg-card/80 backdrop-blur-sm', className)}>
       {/* 头部 */}
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 border-b border-border/30">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className={cn('w-5 h-5', MODE_CONFIG[mode].color)} />
+          <div className="flex items-center gap-3">
+            <div className={cn('p-2 rounded-lg', MODE_CONFIG[mode].bgClass)}>
+              <Bot className={cn('w-5 h-5', MODE_CONFIG[mode].colorClass)} />
+            </div>
             <CardTitle className="text-lg">AI 创作助手</CardTitle>
-            <Badge variant="outline" className={cn('text-xs', MODE_CONFIG[mode].color)}>
+            <Badge variant="secondary" className={cn('text-xs gap-1', MODE_CONFIG[mode].colorClass)}>
               {MODE_CONFIG[mode].icon}
               <span className="ml-1">{MODE_CONFIG[mode].label}</span>
             </Badge>
@@ -583,11 +585,11 @@ export function AIAssistantPanel({
             {/* 模式选择 */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
                   <Settings className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-popover border-border">
                 <DropdownMenuLabel>选择模式</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {(Object.keys(MODE_CONFIG) as AssistantMode[]).map(m => (
@@ -607,7 +609,7 @@ export function AIAssistantPanel({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 hover:bg-muted/50"
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -684,7 +686,7 @@ export function AIAssistantPanel({
             </ScrollArea>
             
             {/* 输入区域 */}
-            <div className="p-4 border-t">
+            <div className="p-4 border-t border-border/30">
               <div className="flex gap-2">
                 <Textarea
                   ref={inputRef}
@@ -692,7 +694,7 @@ export function AIAssistantPanel({
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={`输入你的问题，或者选择上面的快捷按钮...`}
-                  className="min-h-[80px] resize-none"
+                  className="min-h-[80px] resize-none bg-panel border-border/50 focus:border-primary/50"
                   disabled={isLoading}
                 />
               </div>
