@@ -10,6 +10,8 @@
 import { create } from 'zustand';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { cloudSyncManager } from '@/storage/database/cloud-sync-manager';
+import { getCloudProjects, isCloudStorageAvailable } from '@/storage/database/cloud-storage';
 
 export interface User {
   id: string;
@@ -317,6 +319,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: null,
         });
         console.log('[Auth] User logged in:', email);
+        
+        // 登录成功后自动触发云端同步
+        triggerAutoSync();
+        
         return true;
       }
 
@@ -392,6 +398,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: null,
         });
         console.log('[Auth] User registered:', email);
+        
+        // 注册成功后自动触发云端同步
+        triggerAutoSync();
+        
         return true;
       }
 
@@ -483,3 +493,66 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+/**
+ * 自动云端同步
+ * 登录成功后自动触发，处理本地与云端数据同步
+ */
+async function triggerAutoSync() {
+  // 延迟执行，确保 UI 已经渲染完成
+  setTimeout(async () => {
+    try {
+      if (!isCloudStorageAvailable()) {
+        console.log('[AutoSync] Cloud storage not available, skipping sync');
+        return;
+      }
+
+      console.log('[AutoSync] Starting automatic cloud sync...');
+
+      // 获取本地项目数量
+      const { useProjectStore } = await import('@/stores/project-store');
+      const localProjects = useProjectStore.getState().projects;
+      
+      // 过滤掉默认项目（只有默认项目时不认为是有本地数据）
+      const hasLocalData = localProjects.some(p => p.id !== 'default-project');
+      
+      // 获取云端项目数量
+      let cloudProjectCount = 0;
+      try {
+        const cloudProjects = await getCloudProjects();
+        cloudProjectCount = cloudProjects.length;
+      } catch (e) {
+        console.warn('[AutoSync] Failed to get cloud projects:', e);
+      }
+
+      console.log(`[AutoSync] Local projects: ${localProjects.length}, Cloud projects: ${cloudProjectCount}`);
+
+      if (cloudProjectCount > 0 && !hasLocalData) {
+        // 场景1: 云端有数据，本地没有 → 从云端恢复
+        console.log('[AutoSync] Restoring from cloud...');
+        await cloudSyncManager.restoreFromCloud();
+        console.log('[AutoSync] Restored from cloud successfully');
+        
+      } else if (hasLocalData && cloudProjectCount === 0) {
+        // 场景2: 本地有数据，云端没有 → 上传到云端
+        console.log('[AutoSync] Uploading to cloud...');
+        await cloudSyncManager.syncAllToCloud();
+        console.log('[AutoSync] Uploaded to cloud successfully');
+        
+      } else if (hasLocalData && cloudProjectCount > 0) {
+        // 场景3: 都有数据 → 保留本地（用户可能正在本地工作），同时更新云端
+        console.log('[AutoSync] Syncing local changes to cloud...');
+        await cloudSyncManager.syncAllToCloud();
+        console.log('[AutoSync] Local changes synced to cloud');
+        
+      } else {
+        // 场景4: 都没有数据（只有默认项目）→ 无需同步
+        console.log('[AutoSync] No data to sync (only default project)');
+      }
+
+    } catch (error) {
+      console.error('[AutoSync] Sync failed:', error);
+      // 同步失败不影响用户体验，静默处理
+    }
+  }, 1000); // 延迟1秒执行，确保应用已完全加载
+}
