@@ -132,7 +132,12 @@ function App() {
   const [showSplash, setShowSplash] = useState(false);
   
   // 认证状态
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, initialize } = useAuthStore();
+
+  // 初始化认证状态
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   // 启动时运行存储迁移 + 数据恢复
   useEffect(() => {

@@ -245,3 +245,29 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - 代理路由必须在 CSP 中间件之前注册
 - 只允许代理 http/https 协议的 URL
 - 原始 headers 通过 JSON 序列化的 `x-proxy-headers` 头传递
+
+## 云端同步问题修复
+
+### 问题描述
+- **问题**: 数据无法上传到云端，Auth 初始化未执行
+- **根因**: `App.tsx` 中未调用 `useAuthStore.initialize()` 函数，导致认证状态无法恢复
+
+### 解决方案
+1. 在 `App.tsx` 中添加 Auth 初始化调用：
+   ```tsx
+   const { isAuthenticated, initialize } = useAuthStore();
+   
+   useEffect(() => {
+     initialize();
+   }, [initialize]);
+   ```
+
+2. 确保 RLS 策略已配置（数据库层面）
+
+### 云端同步前提条件
+1. 用户必须先登录/注册账户
+2. 登录成功后 `triggerAutoSync()` 会自动执行云端同步
+3. 同步逻辑：
+   - 云端有数据、本地没有 → 从云端恢复
+   - 本地有数据、云端没有 → 上传到云端
+   - 都有数据 → 保留本地同时更新云端
