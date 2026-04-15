@@ -32,28 +32,45 @@ app.use(express.json());
 const SITE_URL = process.env.VITE_SITE_URL || 'https://jubuguanai.coze.site';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://voorsnefrbmqgbtfdoel.supabase.co';
 
-// 允许访问的外部 API 域名
+// 允许访问的外部 API 域名（用于 connect-src）
+// 基于 API 供应商：MemeFast API、阿里云百炼、火山引擎、JuBu API (memefast)、RunningHub
 const ALLOWED_API_DOMAINS = [
+  // MemeFast / JuBu API
   'memefast.top',
+  'api.memefast.top',
+  // 阿里云百炼
   'dashscope.aliyuncs.com',
+  'dashscope.cn-shanghai.aliyuncs.com',
+  // 火山引擎
   'ark.cn-beijing.volces.com',
   'ark.cn-shanghai.volces.com',
   'ark.cn-guangzhou.volces.com',
+  'ark.cn-hangzhou.volces.com',
+  // RunningHub
   'www.runninghub.cn',
+  'openapi.runninghub.cn',
+  // 常见 AI API
   'api.deepseek.com',
   'api.openai.com',
   'api.anthropic.com',
   'generativelanguage.googleapis.com',
+  'api.coze.cn',
+  'api.coze.com',
 ];
 
+// 构建 CSP 指令
+const allowedDomainsHttps = ALLOWED_API_DOMAINS.map(d => `https://${d}`).join(' ');
+const allowedWss = ALLOWED_API_DOMAINS.map(d => `wss://${d}`).join(' ');
+
 const CSP_HEADER = [
-  `default-src 'self' ${SITE_URL} ${SITE_URL.replace('https://', 'https://')}:`,
+  `default-src 'self' ${SITE_URL}`,
   `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${ALLOWED_API_DOMAINS.map(d => `https://${d}`).join(' ')} ${ALLOWED_API_DOMAINS.map(d => `wss://${d}`).join(' ')}`,
-  "img-src 'self' data: blob: https:",
-  "frame-src 'none'",
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+  `font-src 'self' data: https://fonts.gstatic.com`,
+  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${allowedDomainsHttps} ${allowedWss}`,
+  `img-src 'self' data: blob: https:`,
+  `frame-src 'none'`,
+  `worker-src 'self' blob:`,
 ].join('; ');
 
 // 全局中间件：设置 CSP 头
@@ -78,5 +95,6 @@ const server = http.createServer(app);
 server.listen(Number(PORT), HOST, () => {
   console.log(`[Server] Production server running on http://${HOST}:${PORT}`);
   console.log('[Server] Serving static files from:', distPath);
-  console.log('[Server] CSP connect-src includes:', ALLOWED_API_DOMAINS.join(', '));
+  console.log('[Server] CSP connect-src includes:');
+  ALLOWED_API_DOMAINS.forEach(d => console.log(`  - https://${d}`));
 });
