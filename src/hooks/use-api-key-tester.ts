@@ -106,9 +106,22 @@ export async function testApiKey(
       }
       
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        // 区分 CSP 阻止和其他网络错误
+        const isCSPError = error.message.includes('CORS') || 
+                          error.message.includes('Content Security Policy') ||
+                          error.message.includes('ERR_BLOCKED_BY_CLIENT');
+        
+        if (isCSPError) {
+          return {
+            valid: false,
+            message: 'CSP 阻止请求，请检查域名是否在白名单中',
+            responseTime,
+          };
+        }
+        
         return {
           valid: false,
-          message: '网络错误，请检查网络连接',
+          message: '网络错误，请检查网络连接或 VPN/代理设置',
           responseTime,
         };
       }
