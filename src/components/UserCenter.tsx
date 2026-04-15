@@ -14,10 +14,7 @@ import {
   Edit3,
   Camera,
   Key,
-  Monitor,
-  Smartphone,
   Globe,
-  Clock,
   BarChart3,
   FolderOpen,
   Users,
@@ -38,8 +35,6 @@ import {
   MessageSquare,
   BookOpen,
   ChevronRight,
-  Trash,
-  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -687,229 +682,6 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
   );
 }
 
-// ==================== 会话管理组件 ====================
-
-interface Session {
-  id: string;
-  deviceType: string;
-  browser: string;
-  os: string;
-  ip: string;
-  lastActive: string;
-  current: boolean;
-}
-
-interface SessionManagerProps {
-  onRefresh: () => void;
-}
-
-function SessionManager({ onRefresh }: SessionManagerProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 获取会话数据（当前会话）
-  useEffect(() => {
-    const fetchSessions = async () => {
-      setIsLoading(true);
-      try {
-        // 模拟数据
-        const userAgent = navigator.userAgent;
-        const isMobile = /mobile|tablet|android|iphone/i.test(userAgent);
-        const browser = isMobile ? 'Mobile Browser' : 'Chrome';
-        const os = isMobile ? 'iOS' : 'Windows';
-
-        setSessions([
-          {
-            id: 'current',
-            deviceType: isMobile ? 'mobile' : 'desktop',
-            browser,
-            os,
-            ip: '127.0.0.1',
-            lastActive: new Date().toISOString(),
-            current: true,
-          },
-        ]);
-      } catch (error) {
-        console.error('[SessionManager] Failed to fetch sessions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSessions();
-  }, []);
-
-  const getDeviceIcon = (deviceType: string) => {
-    switch (deviceType) {
-      case 'mobile':
-        return <Smartphone className="h-4 w-4" />;
-      case 'tablet':
-        return <Smartphone className="h-4 w-4" />;
-      default:
-        return <Monitor className="h-4 w-4" />;
-    }
-  };
-
-  const formatLastActive = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="bg-card border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-5 w-5 text-primary" />
-            活跃会话
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="bg-card border-border/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-5 w-5 text-primary" />
-            活跃会话
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            刷新
-          </Button>
-        </div>
-        <CardDescription>
-          管理您已登录的设备
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {sessions.map((session) => (
-          <div
-            key={session.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                'p-2 rounded-lg',
-                session.current ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-              )}>
-                {getDeviceIcon(session.deviceType)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">
-                    {session.browser} on {session.os}
-                  </p>
-                  {session.current && (
-                    <Badge variant="secondary" className="text-xs">当前</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  最后活动: {formatLastActive(session.lastActive)}
-                </p>
-              </div>
-            </div>
-            {!session.current && (
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                <Trash className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        ))}
-        <p className="text-xs text-muted-foreground text-center pt-2">
-          仅显示最近的会话记录
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ==================== 数据管理组件 ====================
-
-interface DataManagementProps {
-  onExport: () => void;
-  onClearCache: () => void;
-}
-
-function DataManagement({ onExport, onClearCache }: DataManagementProps) {
-  const [storageUsed, setStorageUsed] = useState<string>('计算中...');
-
-  useEffect(() => {
-    const calculateStorage = async () => {
-      if ('storage' in navigator && 'estimate' in navigator.storage) {
-        try {
-          const estimate = await navigator.storage.estimate();
-          const usedMB = estimate.usage ? (estimate.usage / (1024 * 1024)).toFixed(2) : '0';
-          setStorageUsed(`${usedMB} MB`);
-        } catch {
-          setStorageUsed('未知');
-        }
-      } else {
-        setStorageUsed('不支持');
-      }
-    };
-
-    calculateStorage();
-  }, []);
-
-  return (
-    <Card className="bg-card border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <HardDrive className="h-5 w-5 text-primary" />
-          数据管理
-        </CardTitle>
-        <CardDescription>
-          管理和导出您的本地数据
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* 存储使用 */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <div className="flex items-center gap-3">
-            <HardDrive className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">本地存储使用</span>
-          </div>
-          <span className="text-sm text-muted-foreground">{storageUsed}</span>
-        </div>
-
-        {/* 导出数据 */}
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={onExport}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          导出所有数据
-        </Button>
-
-        {/* 清除缓存 */}
-        <Button
-          variant="outline"
-          className="w-full justify-start text-destructive hover:text-destructive"
-          onClick={onClearCache}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          清除本地缓存
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ==================== 帮助与支持组件 ====================
 
 function HelpSupport() {
@@ -1379,15 +1151,6 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
               </CardContent>
             </Card>
           </div>
-
-          {/* 会话管理 */}
-          <SessionManager onRefresh={() => {}} />
-
-          {/* 数据管理 */}
-          <DataManagement
-            onExport={handleExportData}
-            onClearCache={handleClearCache}
-          />
 
           {/* 账户安全 */}
           <SecuritySection
