@@ -15,7 +15,7 @@
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, Lock, Unlock } from "lucide-react";
+import { Check, Lock, Unlock, Sparkles } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -57,6 +57,10 @@ interface StylePickerProps {
   locked?: boolean;
   /** 锁定状态变化回调 */
   onLockToggle?: (locked: boolean) => void;
+  /** 是否显示智能跟随提示（当从项目自动应用风格时） */
+  showAutoFollowHint?: boolean;
+  /** 跟随来源提示文本 */
+  followSourceHint?: string;
 }
 
 /**
@@ -72,6 +76,8 @@ export function StylePicker({
   placeholder = "选择风格",
   locked = false,
   onLockToggle,
+  showAutoFollowHint = false,
+  followSourceHint = "智能跟随项目风格",
 }: StylePickerProps) {
   const [hoveredStyle, setHoveredStyle] = useState<StylePreset | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -211,6 +217,12 @@ export function StylePicker({
                 </span>
               </div>
               <div className="flex items-center gap-1">
+                {showAutoFollowHint && (
+                  <div className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                    <Sparkles className="w-3 h-3" />
+                    <span className="hidden sm:inline">{followSourceHint}</span>
+                  </div>
+                )}
                 {locked && (
                   <Lock className="w-4 h-4 text-primary" />
                 )}

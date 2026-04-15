@@ -23,16 +23,25 @@ interface ProjectStore {
   activeProject: Project | null;
   // 视觉风格锁定状态（锁定后跟随剧本自动调整）
   visualStyleLocked: boolean;
+  // 智能跟随模式：自动跟随剧本风格，无需手动锁定
+  visualStyleAutoFollow: boolean;
+  // 记住上次选择：首次选择后自动应用到后续新建
+  rememberLastStyle: boolean;
+  lastSelectedStyleId: string | null; // 上次选择的风格ID
   createProject: (name?: string) => Project;
   createDemoProject: () => Project;
   renameProject: (id: string, name: string) => void;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
   ensureDefaultProject: () => void;
-  // 设置项目视觉风格
+  // 设置项目视觉风格（同时触发智能跟随逻辑）
   setProjectVisualStyle: (id: string, styleId: string) => void;
   // 视觉风格锁定/解锁
   setVisualStyleLocked: (locked: boolean) => void;
+  // 智能跟随模式开关
+  setVisualStyleAutoFollow: (enabled: boolean) => void;
+  // 记住上次选择开关
+  setRememberLastStyle: (enabled: boolean) => void;
   // 从模板创建/应用模板
   setProjectFromTemplate: (template: any) => void;
 }
@@ -52,8 +61,11 @@ export const useProjectStore = create<ProjectStore>()(
       projects: [DEFAULT_PROJECT],
       activeProjectId: DEFAULT_PROJECT.id,
       activeProject: DEFAULT_PROJECT,
-      // 默认不锁定视觉风格
+      // 默认不锁定视觉风格，但启用智能跟随
       visualStyleLocked: false,
+      visualStyleAutoFollow: true, // 新建项目默认启用智能跟随
+      rememberLastStyle: true,     // 默认记住上次选择的风格
+      lastSelectedStyleId: null,   // 初始为空
 
       ensureDefaultProject: () => {
         const { projects, activeProjectId } = get();
@@ -155,12 +167,25 @@ export const useProjectStore = create<ProjectStore>()(
             state.activeProject?.id === id
               ? { ...state.activeProject, visualStyleId: styleId, updatedAt: Date.now() }
               : state.activeProject,
+          // 记住这次选择的风格，用于后续新建时自动应用
+          lastSelectedStyleId: state.rememberLastStyle ? styleId : state.lastSelectedStyleId,
         }));
+        console.log('[ProjectStore] Visual style set to:', styleId);
       },
 
       setVisualStyleLocked: (locked) => {
         set({ visualStyleLocked: locked });
         console.log('[ProjectStore] Visual style locked:', locked);
+      },
+
+      setVisualStyleAutoFollow: (enabled) => {
+        set({ visualStyleAutoFollow: enabled });
+        console.log('[ProjectStore] Visual style auto-follow:', enabled);
+      },
+
+      setRememberLastStyle: (enabled) => {
+        set({ rememberLastStyle: enabled });
+        console.log('[ProjectStore] Remember last style:', enabled);
       },
 
       setProjectFromTemplate: (template) => {
@@ -202,6 +227,10 @@ export const useProjectStore = create<ProjectStore>()(
       partialize: (state) => ({
         projects: state.projects,
         activeProjectId: state.activeProjectId,
+        visualStyleLocked: state.visualStyleLocked,
+        visualStyleAutoFollow: state.visualStyleAutoFollow,
+        rememberLastStyle: state.rememberLastStyle,
+        lastSelectedStyleId: state.lastSelectedStyleId,
       }),
       migrate: (persisted: any) => {
         if (persisted?.projects && persisted.projects.length > 0) {

@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createProjectScopedStorage } from "@/lib/project-storage";
+import { useProjectStore } from "@/stores/project-store";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
 
 export type ParseStatus = "idle" | "parsing" | "ready" | "error";
@@ -336,6 +337,13 @@ export const useScriptStore = create<ScriptStore>()(
             },
           },
         }));
+        
+        // 同步到项目级别（触发智能跟随）
+        const projectStore = useProjectStore.getState();
+        if (projectStore.activeProjectId === projectId) {
+          projectStore.setProjectVisualStyle(projectId, styleId);
+        }
+        console.log('[ScriptStore] Style synced to project:', styleId);
       },
 
       setStyleManuallyChanged: (projectId, changed) => {

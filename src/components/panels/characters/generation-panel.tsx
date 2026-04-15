@@ -146,21 +146,35 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
   // 检查是否有 AI 校准数据
   const hasCalibrationData = !!(identityAnchors || charNegativePrompt || visualPromptEn || visualPromptZh);
   
-  // 获取项目的视觉风格和锁定状态
+  // 获取项目的视觉风格和智能跟随状态
   const projectVisualStyleId = useProjectStore(state => state.activeProject?.visualStyleId);
+  const visualStyleAutoFollow = useProjectStore(state => state.visualStyleAutoFollow);
+  const lastSelectedStyleId = useProjectStore(state => state.lastSelectedStyleId);
   const isStyleLocked = useProjectStore(state => state.visualStyleLocked);
   const [justSyncedFromProject, setJustSyncedFromProject] = useState(false);
 
-  // 监听项目视觉风格变化，锁定时自动同步
+  // 初始化视觉风格：优先使用项目风格，其次使用上次记住的风格
   useEffect(() => {
-    if (isStyleLocked && projectVisualStyleId && projectVisualStyleId !== styleId) {
-      console.log('[CharacterGen] Visual style synced from project:', projectVisualStyleId);
+    // 智能默认：首次加载时自动使用项目风格或记住的风格
+    const defaultStyle = projectVisualStyleId || lastSelectedStyleId || DEFAULT_STYLE_ID;
+    if (defaultStyle !== styleId) {
+      console.log('[CharacterGen] Initializing style from project/last:', defaultStyle);
+      setStyleId(defaultStyle);
+    }
+  }, []); // 仅在组件首次挂载时执行
+
+  // 监听项目视觉风格变化，自动跟随（智能跟随模式）
+  useEffect(() => {
+    // 启用智能跟随时自动同步，或锁定时也同步
+    const shouldSync = visualStyleAutoFollow || isStyleLocked;
+    if (shouldSync && projectVisualStyleId && projectVisualStyleId !== styleId) {
+      console.log('[CharacterGen] Visual style synced from project (auto-follow):', projectVisualStyleId);
       setStyleId(projectVisualStyleId);
       setJustSyncedFromProject(true);
       // 3秒后清除同步提示
       setTimeout(() => setJustSyncedFromProject(false), 3000);
     }
-  }, [projectVisualStyleId, isStyleLocked]);
+  }, [projectVisualStyleId, visualStyleAutoFollow, isStyleLocked]);
 
   // 注意：左边栏始终用于新建角色，不响应中间角色库的选择
   // 右边栏用于查看/编辑已有角色的详情
@@ -962,6 +976,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
                 setStyleId(id);
               }}
               disabled={isGenerating || useProjectStore.getState().visualStyleLocked}
+              showAutoFollowHint={justSyncedFromProject}
+              followSourceHint={projectVisualStyleId ? "跟随项目" : "记住风格"}
             />
           </div>
 
