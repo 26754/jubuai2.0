@@ -259,6 +259,9 @@ class ShortcutExecutor {
   handleKeyboardEvent(event: KeyboardEvent): boolean {
     if (!this.settings.enabled) return false;
     
+    // 安全检查：确保 event.key 存在
+    if (!event.key) return false;
+    
     // 忽略在输入框中的快捷键（除了特定例外）
     const target = event.target as HTMLElement;
     const isInputField = target.tagName === 'INPUT' || 
