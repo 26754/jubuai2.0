@@ -13,11 +13,15 @@ import http from 'http';
 import pg from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+
+// 加载 .env 文件
+const __filename = fileURLToPath(import.meta.url);
+dotenv.config({ path: path.join(path.dirname(__filename), '..', '.env') });
+
+const __dirname = path.dirname(__filename);
 
 const { Pool } = pg;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.DEPLOY_RUN_PORT || 5000;
