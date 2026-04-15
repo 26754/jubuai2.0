@@ -59,31 +59,99 @@ const FEATURE_DEFAULT_MODEL: Partial<Record<AIFeature, Record<string, string>>> 
 };
 
 /**
- * MemeFast 模型别名映射：将旧/错误的模型名称映射到正确的模型
+ * 模型别名映射：将旧/错误的模型名称映射到正确的模型
  * 解决用户选择不存在模型导致 503 错误的问题
  */
-const MEMEFAST_MODEL_ALIAS_MAP: Record<string, string> = {
-  // DeepSeek 系列
-  'deepseek-v3-0324': 'deepseek-v3.2',
-  'deepseek-v3-0327': 'deepseek-v3.2',
-  'deepseek-v3': 'deepseek-v3.2',
-  'deepseek-r1-0324': 'deepseek-r1',
-  'deepseek-r1': 'deepseek-r1',
-  // Gemini 系列
-  'gemini-2.0-flash': 'gemini-2.5-flash',
-  'gemini-2.5-pro': 'gemini-3-pro',
+const MODEL_ALIAS_MAP: Record<string, Record<string, string>> = {
+  // ========== MemeFast (JuBu API) ==========
+  memefast: {
+    // DeepSeek 系列
+    'deepseek-v3-0324': 'deepseek-v3.2',
+    'deepseek-v3-0327': 'deepseek-v3.2',
+    'deepseek-v3': 'deepseek-v3.2',
+    'deepseek-r1-0324': 'deepseek-r1',
+    'deepseek-r1': 'deepseek-r1',
+    // Gemini 系列
+    'gemini-2.0-flash': 'gemini-2.5-flash',
+    'gemini-2.5-pro': 'gemini-3-pro',
+    'gemini-2.0-pro': 'gemini-2.5-pro',
+    // Qwen 系列
+    'qwen-2.5-72b': 'qwen-2.5-32b',
+    'qwen-2-72b': 'qwen-2-7b',
+  },
+  
+  // ========== 火山引擎 (Volcengine) ==========
+  volcengine: {
+    // 豆包系列
+    'doubao-pro-32k': 'doubao-pro-4k',
+    'doubao-lite-32k': 'doubao-lite-4k',
+    'doubao-pro': 'doubao-lite',
+  },
+  
+  // ========== 阿里云百炼 (DashScope) ==========
+  dashscope: {
+    // 通义千问系列
+    'qwen-2.5-72b': 'qwen-2.5-32b',
+    'qwen-2-72b': 'qwen-2-7b',
+    'qwen-plus': 'qwen-turbo',
+    'qwen-max': 'qwen-plus',
+  },
+  
+  // ========== RunningHub ==========
+  runninghub: {
+    // RunningHub 模型名纠错
+    'kling-1.5': 'kling-1.0',
+    'kling-pro-1.5': 'kling-pro',
+  },
 };
+
+/**
+ * 获取平台对应的模型别名映射
+ */
+function getPlatformAliasMap(platform: string): Record<string, string> {
+  // 尝试直接匹配
+  if (MODEL_ALIAS_MAP[platform]) {
+    return MODEL_ALIAS_MAP[platform];
+  }
+  // 尝试兼容旧平台名称
+  const platformAliases: Record<string, string> = {
+    'bailian': 'dashscope',  // 阿里云百炼
+    'doubao': 'volcengine',  // 豆包
+  };
+  const aliasedPlatform = platformAliases[platform];
+  if (aliasedPlatform && MODEL_ALIAS_MAP[aliasedPlatform]) {
+    return MODEL_ALIAS_MAP[aliasedPlatform];
+  }
+  return {};
+}
 
 /**
  * 解析 model 别名（如果存在）
  */
 function resolveModelAlias(model: string, platform: string): string {
-  if (platform === 'memefast' && MEMEFAST_MODEL_ALIAS_MAP[model]) {
-    const resolved = MEMEFAST_MODEL_ALIAS_MAP[model];
-    console.log(`[ModelAlias] 映射 ${model} -> ${resolved}`);
+  const aliasMap = getPlatformAliasMap(platform);
+  if (aliasMap[model]) {
+    const resolved = aliasMap[model];
+    console.log(`[ModelAlias] ${platform}: ${model} -> ${resolved}`);
     return resolved;
   }
   return model;
+}
+
+/**
+ * 获取平台的首选默认模型（用于 fallback）
+ */
+function getPlatformDefaultModel(platform: string): string | null {
+  const defaults: Record<string, string> = {
+    memefast: 'deepseek-v3.2',
+    volcengine: 'doubao-lite',
+    dashscope: 'qwen-turbo',
+    bailian: 'qwen-turbo',
+    doubao: 'doubao-lite',
+    runninghub: 'minimax-image-01',
+    openai: 'gpt-4o-mini',
+  };
+  return defaults[platform] || null;
 }
 
 
