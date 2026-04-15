@@ -14,7 +14,6 @@ import {
   Edit3,
   Camera,
   Key,
-  Globe,
   BarChart3,
   FolderOpen,
   Users,
@@ -74,27 +73,6 @@ interface UserStats {
   characterCount: number;
   sceneCount: number;
   shotCount: number;
-  cloudSynced: boolean;
-  lastSyncTime: number | null;
-}
-
-interface SessionInfo {
-  id: string;
-  createdAt: string;
-  lastRefreshedAt: string;
-  expiresAt: string;
-  userAgent?: string;
-  deviceType?: 'desktop' | 'mobile' | 'tablet' | 'unknown';
-}
-
-// 格式化最后同步时间
-function formatLastSync(timestamp: number | null): string {
-  if (!timestamp) return '从未同步';
-  const diff = Date.now() - timestamp;
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-  return new Date(timestamp).toLocaleDateString('zh-CN');
 }
 
 // ==================== 用户资料卡片组件 ====================
@@ -230,15 +208,6 @@ interface StatsOverviewProps {
 }
 
 function StatsOverview({ stats, isLoading }: StatsOverviewProps) {
-  const formatLastSync = useCallback((timestamp: number | null) => {
-    if (!timestamp) return '从未同步';
-    const diff = Date.now() - timestamp;
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-    return new Date(timestamp).toLocaleDateString('zh-CN');
-  }, []);
-
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -282,35 +251,16 @@ function StatsOverview({ stats, isLoading }: StatsOverviewProps) {
         />
       </div>
 
-      {/* 云端同步状态 */}
-      <Card className="bg-card border-border/50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                'p-2 rounded-lg',
-                stats.cloudSynced ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
-              )}>
-                <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">云端同步</p>
-                <p className="text-xs text-muted-foreground">
-                  {stats.cloudSynced ? `已同步 · ${formatLastSync(stats.lastSyncTime)}` : '未连接到云端'}
-                </p>
-              </div>
-            </div>
-            <Badge variant={stats.cloudSynced ? 'default' : 'secondary'}>
-              {stats.cloudSynced ? '已连接' : '未连接'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 账户安全 */}
+      <SecuritySection
+        user={currentUser}
+        onChangePassword={() => setChangePasswordOpen(true)}
+        onLogout={() => setLogoutDialogOpen(true)}
+      />
+
     </div>
   );
 }
-
-// ==================== 账户安全组件 ====================
 
 interface SecuritySectionProps {
   user: AppUser | undefined;
@@ -789,8 +739,6 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
     characterCount: 0,
     sceneCount: 0,
     shotCount: 0,
-    cloudSynced: false,
-    lastSyncTime: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -852,72 +800,14 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
 
   // 计算统计数据
   useEffect(() => {
-    if (!isAuthenticated || isDemoUser) {
-      setStats({
-        projectCount: projects.length,
-        characterCount: characters.length,
-        sceneCount: scenes.length,
-        shotCount: 0,
-        cloudSynced: false,
-        lastSyncTime: null,
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    // 从云端获取更多统计信息
-    const fetchCloudStats = async () => {
-      try {
-        // 确保 currentUser 存在
-        if (!currentUser?.id) {
-          setStats({
-            projectCount: projects.length,
-            characterCount: characters.length,
-            sceneCount: scenes.length,
-            shotCount: 0,
-            cloudSynced: false,
-            lastSyncTime: null,
-          });
-          setIsLoading(false);
-          return;
-        }
-        
-        // 使用我们的 API 获取云端项目数量
-        const headers = cloudAuth.getAuthHeader();
-        const response = await fetch('/api/sync/projects', { headers });
-        const data = await response.json();
-        const cloudProjectCount = data.success && data.data ? data.data.length : 0;
-
-        // 获取最后同步时间
-        const lastSyncTime = localStorage.getItem('jubuai-last-sync-time') 
-          ? parseInt(localStorage.getItem('jubuai-last-sync-time')!, 10) 
-          : null;
-        
-        setStats({
-          projectCount: cloudProjectCount || projects.length,
-          characterCount: characters.length,
-          sceneCount: scenes.length,
-          shotCount: 0,
-          cloudSynced: isAuthenticated,
-          lastSyncTime,
-        });
-      } catch (error) {
-        console.error('[UserCenter] Failed to fetch cloud stats:', error);
-        setStats({
-          projectCount: projects.length,
-          characterCount: characters.length,
-          sceneCount: scenes.length,
-          shotCount: 0,
-          cloudSynced: isAuthenticated,
-          lastSyncTime: null,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCloudStats();
-  }, [isAuthenticated, isDemoUser, projects, characters, scenes, currentUser]);
+    setStats({
+      projectCount: projects.length,
+      characterCount: characters.length,
+      sceneCount: scenes.length,
+      shotCount: 0,
+    });
+    setIsLoading(false);
+  }, [projects, characters, scenes]);
 
   // 处理登出
   const handleLogout = async () => {
@@ -954,7 +844,7 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">演示模式</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      您当前使用的是演示账户，登录后即可享受完整功能，包括云端同步、团队协作等高级特性。
+                      您当前使用的是演示账户，登录后即可享受完整功能，包括账户安全、高级模板等高级特性。
                     </p>
                   </div>
                 </div>
@@ -994,9 +884,7 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { icon: Globe, title: '云端同步', desc: '跨设备无缝同步数据' },
                   { icon: Shield, title: '账户安全', desc: '修改密码，保护账户' },
-                  { icon: Users, title: '团队协作', desc: '邀请成员共同创作' },
                   { icon: Crown, title: '高级模板', desc: '解锁更多专业模板' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -1063,7 +951,7 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
                 请先登录
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                登录后即可享受云端同步和更多高级功能
+                登录后即可享受更多高级功能
               </p>
             </CardContent>
           </Card>
@@ -1098,37 +986,6 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
               使用统计
             </h3>
             <StatsOverview stats={stats} isLoading={isLoading} />
-          </div>
-
-          {/* 云端同步状态 */}
-          <div className="space-y-4">
-            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              云端同步
-            </h3>
-            <Card className="bg-card border-border/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      'p-2 rounded-lg',
-                      stats.cloudSynced ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
-                    )}>
-                      <Globe className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">数据同步</p>
-                      <p className="text-xs text-muted-foreground">
-                        {stats.cloudSynced ? `已连接 · ${formatLastSync(stats.lastSyncTime)}` : '未连接到云端'}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={stats.cloudSynced ? 'default' : 'secondary'}>
-                    {stats.cloudSynced ? '已连接' : '未连接'}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* 账户安全 */}
