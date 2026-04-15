@@ -17,7 +17,7 @@ const app = express();
 const PORT = process.env.DEPLOY_RUN_PORT || 5000;
 const HOST = '0.0.0.0';
 
-// 向上两级到达项目根目录
+// 向上一级到达项目根目录（scripts -> 项目根目录）
 const projectRoot = path.join(__dirname, '..');
 const distPath = path.join(projectRoot, 'dist');
 
