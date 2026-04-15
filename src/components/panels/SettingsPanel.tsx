@@ -78,7 +78,6 @@ import {
   ExternalLink,
   Cloud,
   Share2,
-  Store,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -90,7 +89,6 @@ import packageJson from "../../../package.json";
 import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { useAuthStore } from "@/stores/auth-store";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
-import { TemplateMarketplace } from "@/components/TemplateMarketplace";
 import { UserCenter } from "@/components/UserCenter";
 
 // Platform icon mapping
@@ -654,6 +652,13 @@ export function SettingsPanel() {
         <div className="border-b border-border px-6">
           <TabsList className="h-12 bg-transparent p-0 gap-4">
             <TabsTrigger 
+              value="usercenter" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <User className="h-4 w-4 mr-2" />
+              用户中心
+            </TabsTrigger>
+            <TabsTrigger 
               value="api" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
@@ -690,20 +695,6 @@ export function SettingsPanel() {
             >
               <Share2 className="h-4 w-4 mr-2" />
               分享
-            </TabsTrigger>
-            <TabsTrigger 
-              value="templates" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Store className="h-4 w-4 mr-2" />
-              模板
-            </TabsTrigger>
-            <TabsTrigger 
-              value="usercenter" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <User className="h-4 w-4 mr-2" />
-              用户中心
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1662,11 +1653,6 @@ export function SettingsPanel() {
           <SharingTabContent />
         </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="flex-1 overflow-hidden mt-0">
-          <TemplatesTabContent />
-        </TabsContent>
-
         {/* User Center Tab */}
         <TabsContent value="usercenter" className="flex-1 overflow-hidden mt-0">
           <UserCenter />
@@ -1881,27 +1867,6 @@ function SharingTabContent() {
           projectName={activeProject?.name || '未命名项目'}
           onCreate={createShare}
           presets={SHARE_PRESETS}
-        />
-      </div>
-    </ScrollArea>
-  );
-}
-
-// ==================== 模板 Tab 内容组件 ====================
-function TemplatesTabContent() {
-  const { setProjectFromTemplate } = useProjectStore();
-  
-  const handleUseTemplate = (template: any) => {
-    // 应用模板到当前项目
-    setProjectFromTemplate(template);
-    toast.success(`已应用模板: ${template.name}`);
-  };
-  
-  return (
-    <ScrollArea className="h-full">
-      <div className="p-8 max-w-6xl mx-auto">
-        <TemplateMarketplace
-          onSelectTemplate={handleUseTemplate}
         />
       </div>
     </ScrollArea>
