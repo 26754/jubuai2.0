@@ -512,10 +512,17 @@ ${rawScript}
 
   const cleaned = cleanJsonString(response);
   console.log('[parseScript] Cleaned response length:', cleaned.length);
-  console.log('[parseScript] Cleaned response preview:', cleaned.slice(0, 200));
+  console.log('[parseScript] Cleaned response preview:', cleaned.slice(0, 500));
 
   try {
     const parsed = JSON.parse(cleaned);
+
+    // 检查是否返回了错误消息
+    if (parsed.error || parsed.message || parsed.detail) {
+      const errorText = parsed.error || parsed.message || parsed.detail;
+      console.error('[parseScript] API returned error:', errorText);
+      throw new Error(`API返回错误: ${errorText}`);
+    }
 
     // Validate and transform scenes with detailed visual design
     const scenes = (parsed.scenes || []).map((s: any, i: number) => ({
@@ -592,10 +599,21 @@ ${rawScript}
 
     return scriptData;
   } catch (e) {
-    console.error('[parseScript] Failed to parse JSON:', cleaned);
+    console.error('[parseScript] Failed to parse JSON:', cleaned.slice(0, 500));
     console.error('[parseScript] Raw response preview:', response.slice(0, 500));
     console.error('[parseScript] Parse error:', e);
-    throw new Error('无法解析AI返回的剧本数据，请检查网络连接或API配置');
+    
+    // 检查是否是 API 错误响应
+    const cleanedForCheck = cleanJsonString(response);
+    try {
+      const parsedError = JSON.parse(cleanedForCheck);
+      if (parsedError.error || parsedError.message || parsedError.detail) {
+        const errorText = parsedError.error || parsedError.message || parsedError.detail;
+        throw new Error(`API返回错误: ${errorText}`);
+      }
+    } catch {}
+    
+    throw new Error('无法解析AI返回的剧本数据，请检查API配置或稍后重试');
   }
 }
 
