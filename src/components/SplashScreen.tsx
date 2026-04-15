@@ -11,6 +11,11 @@ import { useThemeStore } from "@/stores/theme-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { AuthPage } from "./auth/AuthPage";
+import { HelpGuide } from "./auth/HelpGuide";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 import { 
   Film, 
   Sun, 
@@ -22,7 +27,8 @@ import {
   UserPlus,
   PenTool,
   ChevronRight,
-  Wand2
+  Wand2,
+  BookOpen
 } from "lucide-react";
 
 interface SplashScreenProps {
@@ -34,6 +40,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
   useAuthStore();
   const [showAuthPage, setShowAuthPage] = useState(false);
   const [isHovered, setIsHovered] = useState<string | null>(null);
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
 
   const handleLogin = () => {
     setShowAuthPage(true);
@@ -213,12 +220,31 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
               <p>© 2025 JuBu AI · 让创作更简单</p>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground/60">
-              <Sparkles className="w-4 h-4 text-primary/60" />
-              <span>Powered by AI</span>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHelpGuide(true)}
+                className="text-muted-foreground/60 hover:text-foreground text-xs gap-1.5"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                使用指南
+              </Button>
+              
+              <div className="flex items-center gap-2 text-sm text-muted-foreground/60">
+                <Sparkles className="w-4 h-4 text-primary/60" />
+                <span>Powered by AI</span>
+              </div>
             </div>
           </div>
         </footer>
+
+        {/* 帮助指南 */}
+        <Dialog open={showHelpGuide} onOpenChange={setShowHelpGuide}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+            <HelpGuide className="rounded-xl" />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <style>{`

@@ -97,7 +97,26 @@ export class CloudAuthManager {
         body: JSON.stringify({ email, password }),
       });
 
-      const data: AuthResponse = await response.json();
+      // 检查响应状态
+      if (!response.ok) {
+        console.error('[CloudAuth] 注册请求失败:', response.status, response.statusText);
+        return { success: false, error: `服务器错误: ${response.status}` };
+      }
+
+      // 检查响应内容
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.error('[CloudAuth] 注册响应为空');
+        return { success: false, error: '服务器响应为空，请稍后重试' };
+      }
+
+      let data: AuthResponse;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error('[CloudAuth] JSON 解析失败:', text.substring(0, 100));
+        return { success: false, error: '服务器响应格式错误，请稍后重试' };
+      }
 
       if (!data.success || !data.user) {
         console.error('[CloudAuth] 注册失败:', data.error);
@@ -120,7 +139,7 @@ export class CloudAuthManager {
       return { success: true, user: cloudUser, token: data.token };
     } catch (error: any) {
       console.error('[CloudAuth] 注册异常:', error);
-      return { success: false, error: error.message || '注册失败' };
+      return { success: false, error: error.message || '注册失败，请检查网络连接' };
     }
   }
 
@@ -137,7 +156,26 @@ export class CloudAuthManager {
         body: JSON.stringify({ email, password }),
       });
 
-      const data: AuthResponse = await response.json();
+      // 检查响应状态
+      if (!response.ok) {
+        console.error('[CloudAuth] 登录请求失败:', response.status, response.statusText);
+        return { success: false, error: `服务器错误: ${response.status}` };
+      }
+
+      // 检查响应内容
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.error('[CloudAuth] 登录响应为空');
+        return { success: false, error: '服务器响应为空，请稍后重试' };
+      }
+
+      let data: AuthResponse;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error('[CloudAuth] JSON 解析失败:', text.substring(0, 100));
+        return { success: false, error: '服务器响应格式错误，请稍后重试' };
+      }
 
       if (!data.success || !data.user) {
         console.error('[CloudAuth] 登录失败:', data.error);
@@ -160,7 +198,7 @@ export class CloudAuthManager {
       return { success: true, user: cloudUser, token: data.token };
     } catch (error: any) {
       console.error('[CloudAuth] 登录异常:', error);
-      return { success: false, error: error.message || '登录失败' };
+      return { success: false, error: error.message || '登录失败，请检查网络连接' };
     }
   }
 
@@ -198,7 +236,20 @@ export class CloudAuthManager {
         return null;
       }
 
-      const data: AuthResponse = await response.json();
+      // 检查响应内容
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.error('[CloudAuth] 获取用户响应为空');
+        return this.getSavedUser();
+      }
+
+      let data: AuthResponse;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error('[CloudAuth] JSON 解析失败:', text.substring(0, 100));
+        return this.getSavedUser();
+      }
 
       if (!data.success || !data.user) {
         return this.getSavedUser();
