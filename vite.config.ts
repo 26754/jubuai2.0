@@ -191,6 +191,12 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // 数据同步 API 代理
+      '/api/sync': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
       // OAuth 路由代理
       '/oauth': {
         target: 'http://localhost:3001',

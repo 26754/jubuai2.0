@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pg from 'pg';
+
+const { Pool } = pg;
 
 const _filename = fileURLToPath(import.meta.url);
 
@@ -11,6 +14,51 @@ const HOST = process.env.API_HOST || '0.0.0.0';
 
 app.use(cors());
 app.use(express.json());
+
+// ==================== Supabase PostgreSQL 数据库连接 ====================
+
+// 构建 Supabase PostgreSQL 连接配置
+const getDbConfig = () => {
+  return {
+    host: process.env.PGHOST || 'cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com',
+    port: parseInt(process.env.PGPORT || '5432'),
+    database: process.env.PGDATABASE || 'postgres',
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || process.env.SUPABASE_DB_PASSWORD || 'mNS7unB909M2drG7Sd',
+    ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
+    max: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
+  };
+};
+
+let dbPool: Pool | null = null;
+
+const getDbPool = (): Pool => {
+  if (!dbPool) {
+    const config = getDbConfig();
+    console.log('[DB] Connecting to:', config.host, ':', config.port);
+    dbPool = new Pool(config);
+    
+    dbPool.on('error', (err) => {
+      console.error('[DB] Unexpected error on idle client:', err.message);
+    });
+  }
+  return dbPool;
+};
+
+// 测试数据库连接
+const testDbConnection = async () => {
+  try {
+    const pool = getDbPool();
+    const result = await pool.query('SELECT NOW() as now');
+    console.log('[DB] Connected to Supabase PostgreSQL:', result.rows[0].now);
+    return true;
+  } catch (error: any) {
+    console.error('[DB] Connection failed:', error.message);
+    return false;
+  }
+};
 
 // ==================== OAuth Routes ====================
 
@@ -49,7 +97,311 @@ app.get('/auth/callback', (req, res) => {
   res.status(400).send('Missing authorization code or error');
 });
 
-// ==================== Existing Routes ====================
+// ==================== 数据同步 API 路由 ====================
+
+// 数据同步 API 中间件 - 验证用户身份
+const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const userId = req.headers['x-user-id'] as string;
+  if (!userId) {
+    return res.status(401).json({ error: 'Missing X-User-Id header' });
+  }
+  (req as any).userId = userId;
+  next();
+};
+
+// 辅助函数：将 snake_case 转换为 camelCase
+const toCamelCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCase);
+  }
+  if (obj && typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      result[camelKey] = toCamelCase(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+};
+
+// ==================== Projects API ====================
+
+// 获取所有项目
+app.get('/api/sync/projects', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+    const result = await pool.query(
+      'SELECT * FROM projects WHERE user_id = $1 ORDER BY updated_at DESC',
+      [userId]
+    );
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error: any) {
+    console.error('[API] Get projects error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取单个项目
+app.get('/api/sync/projects/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+    const result = await pool.query(
+      'SELECT * FROM projects WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error: any) {
+    console.error('[API] Get project error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新项目（upsert）
+app.post('/api/sync/projects', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { id, name, script_data, created_at, updated_at } = req.body;
+    
+    if (!id || !name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: id, name' });
+    }
+    
+    const pool = getDbPool();
+    const now = new Date().toISOString();
+    
+    const result = await pool.query(
+      `INSERT INTO projects (id, user_id, name, script_data, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         script_data = EXCLUDED.script_data,
+         updated_at = EXCLUDED.updated_at
+       RETURNING *`,
+      [id, userId, name, JSON.stringify(script_data || {}), created_at || now, updated_at || now]
+    );
+    
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error: any) {
+    console.error('[API] Upsert project error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 删除项目
+app.delete('/api/sync/projects/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+    
+    const result = await pool.query(
+      'DELETE FROM projects WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+    
+    res.json({ success: true, deletedId: id });
+  } catch (error: any) {
+    console.error('[API] Delete project error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Shots API ====================
+
+// 获取项目的所有分镜
+app.get('/api/sync/shots', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { project_id } = req.query;
+    const pool = getDbPool();
+    
+    let query = 'SELECT * FROM shots WHERE user_id = $1';
+    const params: any[] = [userId];
+    
+    if (project_id) {
+      query += ' AND project_id = $2';
+      params.push(project_id);
+    }
+    
+    query += ' ORDER BY created_at ASC';
+    
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error: any) {
+    console.error('[API] Get shots error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新分镜（upsert）
+app.post('/api/sync/shots', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { id, project_id, episode_id, scene_id, index_data, content, camera, status, created_at, updated_at } = req.body;
+    
+    if (!id || !project_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: id, project_id' });
+    }
+    
+    const pool = getDbPool();
+    const now = new Date().toISOString();
+    
+    const result = await pool.query(
+      `INSERT INTO shots (id, user_id, project_id, episode_id, scene_id, index_data, content, camera, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (id) DO UPDATE SET
+         episode_id = EXCLUDED.episode_id,
+         scene_id = EXCLUDED.scene_id,
+         index_data = EXCLUDED.index_data,
+         content = EXCLUDED.content,
+         camera = EXCLUDED.camera,
+         status = EXCLUDED.status,
+         updated_at = EXCLUDED.updated_at
+       RETURNING *`,
+      [id, userId, project_id, episode_id, scene_id, JSON.stringify(index_data || {}), JSON.stringify(content || {}), JSON.stringify(camera || {}), status || 'draft', created_at || now, updated_at || now]
+    );
+    
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error: any) {
+    console.error('[API] Upsert shot error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 批量创建/更新分镜
+app.post('/api/sync/shots/batch', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { shots } = req.body;
+    
+    if (!Array.isArray(shots) || shots.length === 0) {
+      return res.status(400).json({ success: false, error: 'Missing or invalid shots array' });
+    }
+    
+    const pool = getDbPool();
+    const now = new Date().toISOString();
+    const results: any[] = [];
+    
+    for (const shot of shots) {
+      const { id, project_id, episode_id, scene_id, index_data, content, camera, status, created_at, updated_at } = shot;
+      
+      if (!id || !project_id) {
+        continue;
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO shots (id, user_id, project_id, episode_id, scene_id, index_data, content, camera, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         ON CONFLICT (id) DO UPDATE SET
+           episode_id = EXCLUDED.episode_id,
+           scene_id = EXCLUDED.scene_id,
+           index_data = EXCLUDED.index_data,
+           content = EXCLUDED.content,
+           camera = EXCLUDED.camera,
+           status = EXCLUDED.status,
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [id, userId, project_id, episode_id, scene_id, JSON.stringify(index_data || {}), JSON.stringify(content || {}), JSON.stringify(camera || {}), status || 'draft', created_at || now, updated_at || now]
+      );
+      
+      results.push(toCamelCase(result.rows[0]));
+    }
+    
+    res.json({ success: true, data: results, count: results.length });
+  } catch (error: any) {
+    console.error('[API] Batch upsert shots error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 删除分镜
+app.delete('/api/sync/shots/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+    
+    const result = await pool.query(
+      'DELETE FROM shots WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Shot not found' });
+    }
+    
+    res.json({ success: true, deletedId: id });
+  } catch (error: any) {
+    console.error('[API] Delete shot error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== User Settings API ====================
+
+// 获取用户设置
+app.get('/api/sync/settings', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+    const result = await pool.query(
+      'SELECT * FROM user_settings WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+    
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error: any) {
+    console.error('[API] Get settings error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新用户设置（upsert）
+app.post('/api/sync/settings', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { theme, language, api_configs, editor_settings, sync_preferences } = req.body;
+    
+    const pool = getDbPool();
+    const now = new Date().toISOString();
+    
+    const result = await pool.query(
+      `INSERT INTO user_settings (user_id, theme, language, api_configs, editor_settings, sync_preferences, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id) DO UPDATE SET
+         theme = COALESCE(EXCLUDED.theme, user_settings.theme),
+         language = COALESCE(EXCLUDED.language, user_settings.language),
+         api_configs = COALESCE(EXCLUDED.api_configs, user_settings.api_configs),
+         editor_settings = COALESCE(EXCLUDED.editor_settings, user_settings.editor_settings),
+         sync_preferences = COALESCE(EXCLUDED.sync_preferences, user_settings.sync_preferences),
+         updated_at = EXCLUDED.updated_at
+       RETURNING *`,
+      [userId, theme, language, JSON.stringify(api_configs || {}), JSON.stringify(editor_settings || {}), JSON.stringify(sync_preferences || {}), now]
+    );
+    
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error: any) {
+    console.error('[API] Upsert settings error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Health Check ====================
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -318,22 +670,36 @@ app.all(/\/__proxy\/memefast(\/.*)?$/, async (req, res) => {
 });
 
 app.listen(Number(PORT), HOST, () => {
+  // 初始化数据库连接
+  testDbConnection();
+  
   console.log(`[API Server] Running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   console.log('[API Server] Available endpoints:');
-  console.log('  GET  /oauth/consent         - OAuth 授权同意屏幕');
-  console.log('  GET  /auth/callback         - OAuth 回调处理');
-  console.log('  POST /api/ai/chat        - AI dialogue');
-  console.log('  POST /api/ai/screenplay  - Screenplay generation');
-  console.log('  POST /api/ai/image       - Image generation');
-  console.log('  POST /api/ai/video       - Video generation');
-  console.log('  GET  /api/ai/task/:id   - Task status query');
-  console.log('  GET  /api/proxy-image   - Image proxy');
-  console.log('  POST /api/proxy-doubao   - Doubao API proxy');
-  console.log('  GET  /api/health         - Health check');
-  console.log('  [Proxy] /__proxy/volcengine/*   - 火山引擎 ARK 北京');
-  console.log('  [Proxy] /__proxy/volcengine-sh/* - 火山引擎 ARK 上海');
-  console.log('  [Proxy] /__proxy/volcengine-gz/* - 火山引擎 ARK 广州');
-  console.log('  [Proxy] /__proxy/bailian/*      - 阿里云百炼');
-  console.log('  [Proxy] /__proxy/memefast/*     - MemeFast');
-  console.log('  [Proxy] /__proxy/external/*      - 通用外部 API');
+  console.log('  === Data Sync API ===');
+  console.log('  GET    /api/sync/projects         - 获取所有项目');
+  console.log('  GET    /api/sync/projects/:id    - 获取单个项目');
+  console.log('  POST   /api/sync/projects         - 创建/更新项目');
+  console.log('  DELETE /api/sync/projects/:id     - 删除项目');
+  console.log('  GET    /api/sync/shots            - 获取分镜列表');
+  console.log('  POST   /api/sync/shots            - 创建/更新分镜');
+  console.log('  POST   /api/sync/shots/batch      - 批量创建/更新分镜');
+  console.log('  DELETE /api/sync/shots/:id        - 删除分镜');
+  console.log('  GET    /api/sync/settings         - 获取用户设置');
+  console.log('  POST   /api/sync/settings         - 创建/更新用户设置');
+  console.log('');
+  console.log('  === OAuth ===');
+  console.log('  GET    /oauth/consent              - OAuth 授权同意屏幕');
+  console.log('  GET    /auth/callback               - OAuth 回调处理');
+  console.log('');
+  console.log('  === AI API ===');
+  console.log('  POST   /api/ai/chat                 - AI 对话');
+  console.log('  POST   /api/ai/screenplay           - 剧本生成');
+  console.log('  POST   /api/ai/image                - 图片生成');
+  console.log('  POST   /api/ai/video                - 视频生成');
+  console.log('  GET    /api/ai/task/:id             - 任务状态查询');
+  console.log('');
+  console.log('  === Proxy ===');
+  console.log('  GET    /api/proxy-image            - 图片代理');
+  console.log('  POST   /api/proxy-doubao           - 豆包 API 代理');
+  console.log('  GET    /api/health                 - 健康检查');
 });

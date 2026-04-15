@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
  * 云端用户设置存储模块
- * 处理用户设置数据的云端同步
+ * 使用 Express API Server 直连 Supabase PostgreSQL 处理用户设置数据的云端同步
  */
 
 import { getSupabaseClient } from './supabase-client';
@@ -33,6 +33,50 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
 };
 
+// ==================== API 基础 URL ====================
+
+const getApiBaseUrl = (): string => {
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3001';
+  }
+  return '';
+};
+
+// ==================== 认证头 ====================
+
+const getAuthHeaders = (userId: string): HeadersInit => {
+  return {
+    'Content-Type': 'application/json',
+    'X-User-Id': userId,
+  };
+};
+
+// ==================== API 请求封装 ====================
+
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  userId: string
+): Promise<T> {
+  const url = `${getApiBaseUrl()}${endpoint}`;
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(userId),
+      ...options.headers,
+    },
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || `API request failed: ${response.status}`);
+  }
+  
+  return data.data;
+}
+
 /**
  * 获取云端用户设置
  */
@@ -44,22 +88,13 @@ export async function getCloudUserSettings(): Promise<UserSettings | null> {
     return null;
   }
   
-  const { data, error } = await supabase
-    .from('user_settings')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-  
-  if (error) {
-    if (error.code === 'PGRST116') {
-      // 没有找到记录，返回 null
-      return null;
-    }
+  try {
+    const settings = await apiRequest<UserSettings | null>('/api/sync/settings', {}, user.id);
+    return settings;
+  } catch (error) {
     console.error('[CloudSettings] Failed to get settings:', error);
     return null;
   }
-  
-  return data as UserSettings;
 }
 
 /**
@@ -75,29 +110,25 @@ export async function createCloudUserSettings(settings: Partial<UserSettings>): 
   
   const now = new Date().toISOString();
   const newSettings = {
-    user_id: user.id,
     theme: settings.theme || DEFAULT_SETTINGS.theme,
     language: settings.language || DEFAULT_SETTINGS.language,
     api_configs: settings.api_configs || DEFAULT_SETTINGS.api_configs,
     editor_settings: settings.editor_settings || DEFAULT_SETTINGS.editor_settings,
     sync_preferences: settings.sync_preferences || DEFAULT_SETTINGS.sync_preferences,
-    created_at: now,
-    updated_at: now,
   };
   
-  const { data, error } = await supabase
-    .from('user_settings')
-    .insert(newSettings)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const result = await apiRequest<UserSettings>('/api/sync/settings', {
+      method: 'POST',
+      body: JSON.stringify(newSettings),
+    }, user.id);
+    
+    console.log('[CloudSettings] Settings created for user:', user.id);
+    return result;
+  } catch (error) {
     console.error('[CloudSettings] Failed to create settings:', error);
     return null;
   }
-  
-  console.log('[CloudSettings] Settings created for user:', user.id);
-  return data as UserSettings;
 }
 
 /**
@@ -111,9 +142,8 @@ export async function updateCloudUserSettings(updates: Partial<UserSettings>): P
     return null;
   }
   
-  const updateData: Record<string, any> = {
-    updated_at: new Date().toISOString(),
-  };
+  // 使用 upsert 逻辑
+  const updateData: Record<string, any> = {};
   
   if (updates.theme !== undefined) updateData.theme = updates.theme;
   if (updates.language !== undefined) updateData.language = updates.language;
@@ -121,20 +151,18 @@ export async function updateCloudUserSettings(updates: Partial<UserSettings>): P
   if (updates.editor_settings !== undefined) updateData.editor_settings = updates.editor_settings;
   if (updates.sync_preferences !== undefined) updateData.sync_preferences = updates.sync_preferences;
   
-  const { data, error } = await supabase
-    .from('user_settings')
-    .update(updateData)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-  
-  if (error) {
+  try {
+    const result = await apiRequest<UserSettings>('/api/sync/settings', {
+      method: 'POST',
+      body: JSON.stringify(updateData),
+    }, user.id);
+    
+    console.log('[CloudSettings] Settings updated for user:', user.id);
+    return result;
+  } catch (error) {
     console.error('[CloudSettings] Failed to update settings:', error);
     return null;
   }
-  
-  console.log('[CloudSettings] Settings updated for user:', user.id);
-  return data as UserSettings;
 }
 
 /**

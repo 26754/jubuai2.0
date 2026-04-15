@@ -138,6 +138,10 @@ VITE_SITE_URL=https://jubuguanai.coze.site
 # Supabase 配置
 VITE_SUPABASE_URL=https://voorsnefrbmqgbtfdoel.supabase.co
 VITE_SUPABASE_ANON_KEY=<your-anon-key>
+
+# Supabase PostgreSQL 数据库配置（服务端直连）
+SUPABASE_DB_PASSWORD=<your-db-password>
+SUPABASE_DB_HOST=cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com
 ```
 
 ## 生产部署
@@ -151,13 +155,11 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
 生产服务器同时提供：
 - 静态文件服务（dist 目录）
-- API 代理路由：
-  - `/__proxy/memefast/*` - MemeFast API
-  - `/__proxy/volcengine/*` - 火山引擎 ARK 北京
-  - `/__proxy/volcengine-sh/*` - 火山引擎 ARK 上海
-  - `/__proxy/volcengine-gz/*` - 火山引擎 ARK 广州
-  - `/__proxy/bailian/*` - 阿里云百炼
-  - `/__proxy/external/*` - 通用外部 API
+- **数据同步 API**（通过直连 Supabase PostgreSQL）
+  - `/api/sync/projects` - 项目 CRUD
+  - `/api/sync/shots` - 分镜 CRUD
+  - `/api/sync/settings` - 用户设置 CRUD
+- **第三方 API 代理**（直接浏览器调用，已移除代理）
 
 ### 端口配置
 - 生产环境端口: 5000 (由 `DEPLOY_RUN_PORT` 环境变量控制)
@@ -204,73 +206,87 @@ curl -I http://localhost:5000 | grep Content-Security-Policy
 - 确保 Vite dev 服务器已停止，否则 5000 端口会被占用
 - 修改 `dist/index.html` 后需要重新构建或手动更新文件
 
-## API 代理配置
+## API 调用配置
 
-### 问题描述
-- **问题**: 剧本解析 API 调用失败（CORS 错误或网络请求失败）
-- **根因**: 生产环境中 `corsFetch` 直接使用 `fetch()` 访问第三方 API，触发 CORS 错误
+### 变更说明
+- **已移除**: 所有第三方 API 代理路由
+- **新方案**: 浏览器直接调用第三方 API（通过 CSP 白名单）
 
-### 解决方案
-1. **服务端添加通用 API 代理** (`scripts/server.js`):
-   - 添加 `/__api_proxy` 路由，将所有第三方 API 请求通过服务端转发
-   - 前端通过 `/__api_proxy?url=<encoded_url>` 调用代理
-
-2. **前端使用代理** (`src/lib/cors-fetch.ts`):
-   - 在浏览器环境（包括开发和生产）都使用代理
-   - 将原始 headers 通过 `x-proxy-headers` 头传递给代理
-
-### 代理路由清单
+### CSP 配置（scripts/server.js）
+生产服务器 CSP 允许以下域名直接访问：
 ```
-/__api_proxy/*         - 通用 API 代理（所有第三方 API）
-/__proxy/memefast/*    - MemeFast API
-/__proxy/volcengine/*  - 火山引擎 ARK 北京
-/__proxy/volcengine-sh/* - 火山引擎 ARK 上海
-/__proxy/volcengine-gz/* - 火山引擎 ARK 广州
-/__proxy/bailian/*     - 阿里云百炼
-/__proxy/external/*    - 通用外部 API（需指定 host）
+connect-src: memefast.top, dashscope.aliyuncs.com, ark.cn-beijing.volces.com, ...
 ```
 
-### CSP 代理豁免
-代理路由 (`/__proxy/*`, `/__api_proxy/*`, `/api/*`) 跳过 CSP 头设置，避免代理响应被拦截。
+### 前端 API 调用
+浏览器直接使用 `fetch()` 调用第三方 API，无需代理：
+- MemeFast API: `https://api.memefast.top/*`
+- 阿里云百炼: `https://dashscope.aliyuncs.com/*`
+- 火山引擎: `https://ark.cn-beijing.volces.com/*`
 
-### 验证方法
-```bash
-# 测试代理是否正常工作
-curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"test":"hello"}' \
-  'http://localhost:5000/__api_proxy?url=https%3A%2F%2Fhttpbin.org%2Fpost'
+### Vite 开发代理配置
+开发环境中，数据同步 API 通过 Vite 代理到 API 服务器：
+```typescript
+// vite.config.ts
+proxy: {
+  '/api/sync': {
+    target: 'http://localhost:3001',
+    changeOrigin: true,
+  },
+}
 ```
-
-### 注意事项
-- 代理路由必须在 CSP 中间件之前注册
-- 只允许代理 http/https 协议的 URL
-- 原始 headers 通过 JSON 序列化的 `x-proxy-headers` 头传递
 
 ## 云端同步问题修复
 
 ### 问题描述
-- **问题**: 数据无法上传到云端，Auth 初始化未执行
-- **根因**: `App.tsx` 中未调用 `useAuthStore.initialize()` 函数，导致认证状态无法恢复
+- **问题**: Supabase 表无法通过 REST API 访问（表未发布到 PostgREST publication）
+- **根因**: Supabase 的 REST API 访问限制导致数据无法上传到云端
 
-### 解决方案
-1. 在 `App.tsx` 中添加 Auth 初始化调用：
-   ```tsx
-   const { isAuthenticated, initialize } = useAuthStore();
-   
-   useEffect(() => {
-     initialize();
-   }, [initialize]);
-   ```
+### 解决方案：Express API Server 直连数据库
 
-2. 确保 RLS 策略已配置（数据库层面）
+1. **服务端直连 PostgreSQL**:
+   - 使用 `pg` 库直接连接 Supabase PostgreSQL 数据库
+   - 绕过 REST API 限制
+   - 支持完整的 CRUD 操作
 
-### 云端同步前提条件
-1. 用户必须先登录/注册账户
-2. 登录成功后 `triggerAutoSync()` 会自动执行云端同步
-3. 同步逻辑：
-   - 云端有数据、本地没有 → 从云端恢复
-   - 本地有数据、云端没有 → 上传到云端
-   - 都有数据 → 保留本地同时更新云端
+2. **API 设计**:
+   - `/api/sync/projects` - 项目 CRUD
+   - `/api/sync/shots` - 分镜 CRUD
+   - `/api/sync/settings` - 用户设置 CRUD
+   - 所有 API 需要 `X-User-Id` 请求头认证
+
+3. **前端云存储模块**:
+   - 更新 `cloud-project-storage.ts` 使用新的服务端 API
+   - 更新 `cloud-settings-storage.ts` 使用新的服务端 API
+   - 保留 Supabase Auth 用于身份验证
+
+4. **认证流程**:
+   - 用户通过 Supabase Auth 登录获取用户 ID
+   - 将用户 ID 作为 `X-User-Id` 头传递给服务端 API
+   - 服务端使用用户 ID 进行 RLS 策略验证
+
+### 开发环境配置
+```bash
+# 启动 API 服务器（端口 3001）
+npx tsx server/api-server.ts
+
+# 启动 Vite 开发服务器（端口 5000，代理 /api/sync/* 到 3001）
+pnpm dev
+```
+
+### 测试数据同步 API
+```bash
+# 获取项目列表
+curl -H "X-User-Id: <user-id>" http://localhost:3001/api/sync/projects
+
+# 创建项目
+curl -X POST -H "X-User-Id: <user-id>" -H "Content-Type: application/json" \
+  -d '{"id":"proj-1","name":"Test Project","script_data":{}}' \
+  http://localhost:3001/api/sync/projects
+
+# 删除项目
+curl -X DELETE -H "X-User-Id: <user-id>" http://localhost:3001/api/sync/projects/proj-1
+```
 
 ## 云端同步优化
 
