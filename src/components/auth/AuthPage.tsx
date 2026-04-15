@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/stores/auth-store";
+import { HelpGuide } from "./HelpGuide";
 import { toast } from "sonner";
 import { 
   Clapperboard, 
@@ -482,6 +483,9 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
               注册即表示同意我们的服务条款和隐私政策
             </p>
           )}
+
+          {/* 帮助指南 */}
+          <HelpGuide className="mt-6" />
         </div>
       </div>
 
