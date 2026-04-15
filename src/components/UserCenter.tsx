@@ -62,6 +62,8 @@ import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supa
 import { useProjectStore } from '@/stores/project-store';
 import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
+import { useRealtimeSync } from '@/hooks/use-realtime-sync';
+import { SyncStatusIndicator, SyncStatusPanel } from '@/components/SyncStatusIndicator';
 
 // ==================== 类型定义 ====================
 
@@ -628,6 +630,11 @@ export function UserCenter() {
   const { characters } = useCharacterLibraryStore();
   const { scenes } = useSceneStore();
 
+  // 实时同步状态
+  const { isConnected, isSyncing, status: syncStatus, offlineQueueCount, triggerSync } = useRealtimeSync({
+    autoStart: true,
+  });
+
   const [stats, setStats] = useState<UserStats>({
     projectCount: 0,
     characterCount: 0,
@@ -681,16 +688,17 @@ export function UserCenter() {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser?.id);
 
-        // 获取最后同步时间（从本地存储）
-        const lastSyncTime = localStorage.getItem('jubuai-last-sync-time');
+        // 获取最后同步时间（从实时同步管理器）
+        const lastSyncTime = syncStatus.lastEventAt || 
+          (localStorage.getItem('jubuai-last-sync-time') ? parseInt(localStorage.getItem('jubuai-last-sync-time')!, 10) : null);
         
         setStats({
           projectCount: cloudProjectCount || projects.length,
           characterCount: characters.length,
           sceneCount: scenes.length,
           shotCount: 0,
-          cloudSynced: true,
-          lastSyncTime: lastSyncTime ? parseInt(lastSyncTime, 10) : null,
+          cloudSynced: isConnected,
+          lastSyncTime,
         });
       } catch (error) {
         console.error('[UserCenter] Failed to fetch cloud stats:', error);
@@ -699,7 +707,7 @@ export function UserCenter() {
           characterCount: characters.length,
           sceneCount: scenes.length,
           shotCount: 0,
-          cloudSynced: false,
+          cloudSynced: isConnected,
           lastSyncTime: null,
         });
       } finally {
@@ -708,7 +716,7 @@ export function UserCenter() {
     };
 
     fetchCloudStats();
-  }, [isAuthenticated, isDemoUser, projects, characters, scenes, currentUser]);
+  }, [isAuthenticated, isDemoUser, projects, characters, scenes, currentUser, isConnected, syncStatus.lastEventAt]);
 
   // 处理登出
   const handleLogout = async () => {
@@ -889,6 +897,16 @@ export function UserCenter() {
               使用统计
             </h3>
             <StatsOverview stats={stats} isLoading={isLoading} />
+          </div>
+
+          {/* 实时同步状态 */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              实时同步
+              <SyncStatusIndicator showText={false} showCount={true} />
+            </h3>
+            <SyncStatusPanel />
           </div>
 
           {/* 账户安全 */}
