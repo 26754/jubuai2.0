@@ -79,9 +79,20 @@
 - 错误处理统一使用 `src/lib/error-handler.tsx` 模块
 - API 代理配置统一使用 `src/lib/proxy-config.ts` 模块
 
-## Supabase 数据库
+## Neon PostgreSQL 数据库
+
+> **重要变更**: 已从 Supabase 迁移到 Neon PostgreSQL + JWT 认证
 
 ### 表结构
+
+#### users 表 (新增)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 用户ID |
+| email | varchar | 用户邮箱 |
+| password_hash | varchar | 密码哈希 |
+| created_at | timestamptz | 创建时间 |
+| updated_at | timestamptz | 更新时间 |
 
 #### projects 表
 | 字段 | 类型 | 说明 |
@@ -106,12 +117,27 @@
 | camera | jsonb | 镜头数据 |
 | status | varchar | 状态 |
 
-### RLS 策略
-- users can insert their own projects - 仅插入自己的项目
-- users can view their own projects - 仅查看自己的项目
-- users can update their own projects - 仅更新自己的项目
-- users can delete their own projects - 仅删除自己的项目
-- shots 表同样策略
+#### user_settings 表 (新增)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 设置ID |
+| user_id | varchar | 用户ID |
+| theme | varchar | 主题 |
+| language | varchar | 语言 |
+| api_configs | jsonb | API配置 |
+| editor_settings | jsonb | 编辑器设置 |
+| sync_preferences | jsonb | 同步偏好 |
+
+### 认证方式
+- **JWT Token**: 用户登录成功后获取 7 天有效的 JWT Token
+- **认证头**: `Authorization: Bearer <token>`
+- **密码加密**: 使用 bcryptjs 加密存储
+
+### 数据库初始化
+```bash
+# 初始化 Neon 数据库表结构
+node scripts/init-neon-db.js
+```
 
 ## 数据导出功能
 
@@ -135,13 +161,15 @@
 # 站点域名
 VITE_SITE_URL=https://jubuguanai.coze.site
 
-# Supabase 配置
-VITE_SUPABASE_URL=https://voorsnefrbmqgbtfdoel.supabase.co
-VITE_SUPABASE_ANON_KEY=<your-anon-key>
+# ============================================
+# Neon PostgreSQL 数据库 (云端数据存储)
+# ============================================
+NEON_DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 
-# Supabase PostgreSQL 数据库配置（服务端直连）
-SUPABASE_DB_PASSWORD=<your-db-password>
-SUPABASE_DB_HOST=cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com
+# ============================================
+# JWT 认证密钥
+# ============================================
+JWT_SECRET=your-jwt-secret-key
 ```
 
 ## 生产部署
@@ -155,11 +183,15 @@ SUPABASE_DB_HOST=cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com
 
 生产服务器同时提供：
 - 静态文件服务（dist 目录）
-- **数据同步 API**（通过直连 Supabase PostgreSQL）
+- **JWT 认证 API**
+  - `POST /api/auth/register` - 用户注册
+  - `POST /api/auth/login` - 用户登录
+  - `GET /api/auth/me` - 获取当前用户信息
+  - `POST /api/auth/update-password` - 更新密码
+- **数据同步 API**（通过直连 Neon PostgreSQL）
   - `/api/sync/projects` - 项目 CRUD
   - `/api/sync/shots` - 分镜 CRUD
   - `/api/sync/settings` - 用户设置 CRUD
-- **第三方 API 代理**（直接浏览器调用，已移除代理）
 
 ### 端口配置
 - 生产环境端口: 5000 (由 `DEPLOY_RUN_PORT` 环境变量控制)
@@ -167,32 +199,17 @@ SUPABASE_DB_HOST=cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com
 
 ### CSP 配置
 
-位置: `scripts/server.js` 和 `dist/index.html`
-
-#### 问题描述
-- **问题**: CSP 阻止 Supabase 脚本执行（EvalError: call to Function() blocked by CSP）
-- **影响**: 用户无法通过 Supabase Auth 登录/注册
-
-#### 解决方案
-1. **HTTP 响应头方式**（主要）：
-   - 在 Express 服务器中添加 CSP 中间件
-   - 设置 `Content-Security-Policy` 响应头
-   - 允许 `unsafe-eval`、`unsafe-inline` 和 Supabase 域名
-
-2. **HTML meta 标签方式**（后备）：
-   - 在 `dist/index.html` 中添加 `<meta http-equiv="Content-Security-Policy">` 标签
-   - 确保即使响应头未设置，浏览器也会应用 CSP
+位置: `scripts/server.js`
 
 #### CSP 策略配置
 ```
 default-src 'self';
-script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com;
+script-src 'self' 'unsafe-eval' 'unsafe-inline';
 style-src 'self' 'unsafe-inline';
-connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com;
+connect-src 'self' https://memefast.top https://dashscope.aliyuncs.com https://ark.cn-beijing.volces.com ...;
 img-src 'self' data: blob: https:;
-font-src 'self' data:;
-worker-src 'self' blob:;
 frame-src 'none';
+worker-src 'self' blob:;
 ```
 
 #### 验证方法
@@ -236,29 +253,30 @@ proxy: {
 }
 ```
 
-## 云端同步问题修复
+## 云端同步 - Neon PostgreSQL
 
-### 问题描述
-- **问题**: Supabase 表无法通过 REST API 访问（表未发布到 PostgREST publication）
-- **根因**: Supabase 的 REST API 访问限制导致数据无法上传到云端
+### 技术方案
 
-### 解决方案：Express API Server 直连数据库
-
-1. **服务端直连 PostgreSQL**:
-   - 使用 `pg` 库直接连接 Supabase PostgreSQL 数据库
-   - 绕过 REST API 限制
+1. **服务端直连 Neon PostgreSQL**:
+   - 使用 `pg` 库直接连接 Neon PostgreSQL 数据库
+   - 支持 SSL 连接
    - 支持完整的 CRUD 操作
 
-2. **API 设计**:
+2. **JWT 认证 API**:
+   - `POST /api/auth/register` - 用户注册
+   - `POST /api/auth/login` - 用户登录
+   - `GET /api/auth/me` - 获取当前用户信息
+   - `POST /api/auth/update-password` - 更新密码
+
+3. **数据同步 API**:
    - `/api/sync/projects` - 项目 CRUD
    - `/api/sync/shots` - 分镜 CRUD
    - `/api/sync/settings` - 用户设置 CRUD
-   - 所有 API 需要 `X-User-Id` 请求头认证
+   - 所有 API 需要 JWT Token 认证
 
-3. **前端云存储模块**:
-   - 更新 `cloud-project-storage.ts` 使用新的服务端 API
-   - 更新 `cloud-settings-storage.ts` 使用新的服务端 API
-   - 保留 Supabase Auth 用于身份验证
+4. **前端云存储模块**:
+   - `cloud-project-storage.ts` 使用服务端 API
+   - `cloud-settings-storage.ts` 使用服务端 API
 
 4. **认证流程**:
    - 用户通过 Supabase Auth 登录获取用户 ID
@@ -274,18 +292,28 @@ npx tsx server/api-server.ts
 pnpm dev
 ```
 
-### 测试数据同步 API
+### 测试认证 API
 ```bash
-# 获取项目列表
-curl -H "X-User-Id: <user-id>" http://localhost:3001/api/sync/projects
+# 用户注册
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"123456"}' \
+  http://localhost:5000/api/auth/register
+
+# 用户登录
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"123456"}' \
+  http://localhost:5000/api/auth/login
+
+# 获取用户信息（需要 JWT Token）
+curl -H "Authorization: Bearer <token>" http://localhost:5000/api/auth/me
+
+# 测试数据同步 API（需要 JWT Token）
+curl -H "Authorization: Bearer <token>" http://localhost:5000/api/sync/projects
 
 # 创建项目
-curl -X POST -H "X-User-Id: <user-id>" -H "Content-Type: application/json" \
+curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{"id":"proj-1","name":"Test Project","script_data":{}}' \
-  http://localhost:3001/api/sync/projects
-
-# 删除项目
-curl -X DELETE -H "X-User-Id: <user-id>" http://localhost:3001/api/sync/projects/proj-1
+  http://localhost:5000/api/sync/projects
 ```
 
 ## 云端同步优化
