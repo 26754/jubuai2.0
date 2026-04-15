@@ -390,6 +390,77 @@ app.post('/api/sync/settings', authMiddleware, async (req, res) => {
   }
 });
 
+// ==================== 外部 API 代理（解决 CORS 问题） ====================
+
+// 允许代理的域名列表
+const PROXIED_DOMAINS = [
+  'memefast.top',
+  'api.memefast.top',
+];
+
+// 通用 API 代理路由
+app.use('/api/proxy', async (req, res) => {
+  const targetUrl = req.query.url;
+  
+  if (!targetUrl) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  
+  // 验证 URL 是否来自允许的域名
+  try {
+    const urlObj = new URL(targetUrl);
+    const isAllowed = PROXIED_DOMAINS.some(domain => 
+      urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+    );
+    
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Domain not allowed for proxy' });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  
+  try {
+    // 读取请求体
+    let body;
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      body = JSON.stringify(req.body);
+    }
+    
+    // 构建请求头
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'JuBuAI/1.0',
+    };
+    
+    // 如果有原始请求头需要传递，添加到这里
+    if (req.headers['authorization']) {
+      headers['Authorization'] = req.headers['authorization'];
+    }
+    
+    // 发起请求
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers,
+      body,
+    });
+    
+    // 获取响应内容
+    const contentType = response.headers.get('content-type');
+    const data = await response.text();
+    
+    // 返回响应
+    res.setHeader('Content-Type', contentType || 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(response.status).send(data);
+  } catch (error) {
+    console.error('[Proxy] Error:', error.message);
+    res.status(502).json({ error: 'Proxy request failed', detail: error.message });
+  }
+});
+
+// ==================== 健康检查 ====================
+
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });

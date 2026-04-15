@@ -6,6 +6,7 @@
  * 
  * 直接调用 API，让浏览器处理 CORS
  * 支持超时控制和错误处理
+ * 自动检测需要代理的域名
  */
 
 // 默认超时时间（毫秒）
@@ -16,12 +17,42 @@ function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof fetch !== 'undefined';
 }
 
+/** 需要代理的域名 */
+const PROXIED_DOMAINS = [
+  'memefast.top',
+  'api.memefast.top',
+];
+
+/** 检测 URL 是否需要代理 */
+function needsProxy(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return PROXIED_DOMAINS.some(domain => 
+      urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** 转换为代理 URL */
+function toProxyUrl(url: string): string {
+  // 在开发环境使用 Vite 代理，在生产环境使用服务端代理
+  if (import.meta.env.DEV) {
+    // 开发环境使用 Vite 代理路径
+    return url;
+  }
+  // 生产环境使用服务端代理
+  return `/api/proxy?url=${encodeURIComponent(url)}`;
+}
+
 /**
  * API 调用配置
  */
 export interface FetchOptions extends RequestInit {
   timeout?: number;  // 超时时间（毫秒），默认 60000
   retries?: number;  // 重试次数，默认 0
+  forceDirect?: boolean;  // 强制直接调用（绕过代理检测）
 }
 
 /**
@@ -126,7 +157,7 @@ async function fetchWithRetry(
  * CORS 安全的 fetch 封装
  * 
  * 功能：
- * - 直接调用 API，让浏览器处理 CORS
+ * - 检测需要代理的域名，自动使用代理
  * - 支持超时控制
  * - 支持自动重试（可选）
  * - 统一的错误处理
@@ -139,15 +170,21 @@ export async function corsFetch(
   url: string | URL,
   init?: FetchOptions
 ): Promise<Response> {
-  const { retries, timeout, ...fetchInit } = init || {};
+  const { retries, timeout, forceDirect, ...fetchInit } = init || {};
+  
+  // 检测是否需要代理（除非强制直接调用）
+  let targetUrl = url.toString();
+  if (!forceDirect && needsProxy(targetUrl)) {
+    targetUrl = toProxyUrl(targetUrl);
+  }
   
   // 如果配置了重试，使用带重试的版本
   if (retries && retries > 0) {
-    return fetchWithRetry(url, fetchInit, { timeout, retries });
+    return fetchWithRetry(targetUrl, fetchInit, { timeout, retries });
   }
   
   // 否则使用带超时的版本
-  return fetchWithTimeout(url, fetchInit, timeout || DEFAULT_TIMEOUT);
+  return fetchWithTimeout(targetUrl, fetchInit, timeout || DEFAULT_TIMEOUT);
 }
 
 /**
