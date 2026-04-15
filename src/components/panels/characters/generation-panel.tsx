@@ -47,11 +47,14 @@ import {
   ListOrdered,
   Play,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { StylePicker } from "@/components/ui/style-picker";
 import { getStyleById, getStylePrompt, type VisualStyleId, DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
+import { SyncStatusIndicator } from "@/components/ui/context-navigation";
+import { Badge } from "@/components/ui/badge";
 
 // Gender presets
 const GENDER_PRESETS = [
@@ -639,6 +642,33 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
         </div>
       )}
       
+      {/* 来源剧本信息 */}
+      {sourceScriptCharId && (
+        <div className="px-3 py-2 bg-primary/5 border-b border-primary/10 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileImage className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-xs text-muted-foreground">来自剧本</span>
+              {sourceScriptCharId && (
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  角色
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {sourceScriptCharId && (
+                <SyncStatusIndicator status="pending" />
+              )}
+            </div>
+          </div>
+          {name && (
+            <div className="mt-1 flex items-center gap-1">
+              <span className="text-sm font-medium truncate">{name}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="p-3 pb-2 border-b shrink-0">
         <h3 className="font-medium text-sm">生成控制台</h3>
       </div>

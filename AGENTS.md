@@ -558,3 +558,102 @@ Phase 4 包含三大增强功能：智能标签系统、跨模块搜索、项目
 - `jubuai-tags`: 用户自定义标签数据
 - `jubuai-tags-favorites`: 收藏的标签 ID 列表
 - `jubuai-search-history`: 搜索历史记录
+
+## Phase 5: 场景与剧本优化
+
+### 场景多视角优化 (`SceneViewpointOptimizer`)
+
+#### 功能特性
+- **AI 自动分析**：分析场景内容，推荐最佳视角数量（3-6个）
+- **智能命名建议**：提供中文/英文视角名称建议
+- **网格布局优化**：自动计算最佳网格布局（2x2、2x3、3x3）
+- **视角预览**：实时预览视角在网格中的位置
+- **置信度评估**：每个建议都有置信度评分
+- **场景类型识别**：自动识别教室、客厅、办公室等场景类型
+
+#### 技术实现
+- 位置: `src/lib/script/scene-viewpoint-analyzer.ts`
+- 组件: `src/components/panels/scenes/scene-viewpoint-optimizer.tsx`
+- 支持多种预设视角模板（全景、广角、中景、特写等）
+- AI 分析失败时自动回退到默认配置
+
+#### 使用方式
+1. 在场景面板中点击「多视角优化」按钮
+2. AI 自动分析场景内容
+3. 查看推荐的视角列表和网格预览
+4. 选择要应用的视角
+5. 点击「应用建议」确认
+
+### 剧本导入增强 (`ScriptImportDialog`)
+
+#### 功能特性
+- **多格式支持**：
+  - Markdown（# 标题、**加粗**、对话格式）
+  - Fountain（专业 screenplay 格式）
+  - JSON（结构化数据）
+  - Final Draft XML（专业剧本软件格式）
+- **自动格式检测**：智能识别导入内容格式
+- **角色自动提取**：从内容中自动识别角色
+- **场景智能解析**：自动分割场景并提取元数据
+- **导入预览**：预览导入结果和统计信息
+
+#### 技术实现
+- 主导入器: `src/lib/script/script-import.ts`
+- Markdown 解析器: `src/lib/script/markdown-parser.ts`
+- Fountain 解析器: `src/lib/script/fountain-parser.ts`
+- 导入对话框: `src/components/dialogs/script-import-dialog.tsx`
+
+#### 使用方式
+1. 在剧本模块点击「导入」按钮
+2. 选择粘贴内容或上传文件
+3. 选择格式（自动检测或手动指定）
+4. 点击「预览」查看导入结果
+5. 确认无误后点击「确认导入」
+
+#### 支持的格式详情
+
+**Markdown 格式**:
+```markdown
+# 第一集：相遇
+
+## 第一场：咖啡馆
+
+**咖啡馆内，白天**
+
+小明坐在角落。
+
+**小明**：今天天气真好。
+```
+
+**Fountain 格式**:
+```fountain
+Title: 第一集
+Author: 作者名
+
+---
+
+INT. 咖啡馆 - 白天
+
+小明坐在角落。
+
+小明
+今天天气真好。
+```
+
+**JSON 格式**:
+```json
+{
+  "title": "第一集",
+  "scenes": [
+    {
+      "name": "第一场",
+      "location": "咖啡馆",
+      "time": "白天",
+      "content": [
+        { "type": "action", "content": "小明坐在角落" },
+        { "type": "dialogue", "character": "小明", "content": "你好" }
+      ]
+    }
+  ]
+}
+```

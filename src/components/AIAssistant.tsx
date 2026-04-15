@@ -159,7 +159,6 @@ const MODE_CONFIG: Record<AssistantMode, { icon: React.ReactNode; label: string;
   scene: { icon: <Film className="w-4 h-4" />, label: '场景', colorClass: 'text-[hsl(var(--warning))]', bgClass: 'bg-[hsl(var(--warning))/10]' },
   storyboard: { icon: <Clapperboard className="w-4 h-4" />, label: '分镜', colorClass: 'text-[hsl(var(--style-watercolor))]', bgClass: 'bg-[hsl(var(--style-watercolor))/10]' },
 };
-}
 
 // ==================== AI 消息处理 ====================
 

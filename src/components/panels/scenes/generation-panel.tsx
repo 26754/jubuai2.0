@@ -59,8 +59,11 @@ import {
   ListOrdered,
   Play,
   Trash2,
+  FileImage,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SyncStatusIndicator } from "@/components/ui/context-navigation";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StylePicker } from "@/components/ui/style-picker";
@@ -3234,6 +3237,33 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
               </span>
             )}
           </div>
+        </div>
+      )}
+      
+      {/* 来源剧本信息 */}
+      {sourceScriptSceneId && (
+        <div className="px-3 py-2 bg-primary/5 border-b border-primary/10 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileImage className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-xs text-muted-foreground">来自剧本</span>
+              {sourceScriptSceneId && (
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  场景
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {sourceScriptSceneId && (
+                <SyncStatusIndicator status="pending" />
+              )}
+            </div>
+          </div>
+          {(name || location) && (
+            <div className="mt-1 flex items-center gap-1">
+              <span className="text-sm font-medium truncate">{name || location}</span>
+            </div>
+          )}
         </div>
       )}
       
