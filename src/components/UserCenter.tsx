@@ -250,14 +250,6 @@ function StatsOverview({ stats, isLoading }: StatsOverviewProps) {
           color="warning"
         />
       </div>
-
-      {/* 账户安全 */}
-      <SecuritySection
-        user={currentUser}
-        onChangePassword={() => setChangePasswordOpen(true)}
-        onLogout={() => setLogoutDialogOpen(true)}
-      />
-
     </div>
   );
 }
