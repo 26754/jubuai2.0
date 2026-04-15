@@ -37,6 +37,7 @@ interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
   resetPassword: (email: string) => Promise<boolean>;
+  updateUsername: (username: string) => void;
 }
 
 // Demo 用户配置
@@ -559,6 +560,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: err.message || '密码重置失败，请稍后重试',
       });
       return false;
+    }
+  },
+
+  updateUsername: (username: string) => {
+    const { currentUser } = get();
+    if (currentUser) {
+      set({
+        currentUser: {
+          ...currentUser,
+          username,
+        },
+      });
+      console.log('[Auth] Username updated to:', username);
     }
   },
 }));
