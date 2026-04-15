@@ -98,9 +98,83 @@ export default defineConfig({
     },
   },
   build: {
-    // 警告限制
-    chunkSizeWarningLimit: 600,
+    // 启用更好的代码分割
+    rollupOptions: {
+      output: {
+        // 手动分包策略
+        manualChunks: (id) => {
+          // React 生态
+          if (id.includes('node_modules/react')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/react-dom')) {
+            return 'vendor-react-dom';
+          }
+          // Radix UI 组件库
+          if (id.includes('node_modules/@radix-ui')) {
+            return 'vendor-radix';
+          }
+          // Recharts 图表库
+          if (id.includes('node_modules/recharts')) {
+            return 'vendor-charts';
+          }
+          // PDF.js
+          if (id.includes('node_modules/pdfjs-dist')) {
+            return 'vendor-pdf';
+          }
+          // Motion 动画库
+          if (id.includes('node_modules/motion')) {
+            return 'vendor-motion';
+          }
+          // i18n
+          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
+            return 'vendor-i18n';
+          }
+          // Zustand 状态管理
+          if (id.includes('node_modules/zustand')) {
+            return 'vendor-state';
+          }
+          // Supabase
+          if (id.includes('node_modules/@supabase')) {
+            return 'vendor-supabase';
+          }
+          // 其他 vendor
+          if (id.includes('node_modules')) {
+            return 'vendor-misc';
+          }
+        },
+      },
+    },
+    // 启用 CSS 代码分割
+    cssCodeSplit: true,
+    // 启用 SourceMap 用于生产调试（可按需禁用）
+    sourcemap: false,
+    // 开启 minify
+    minify: 'terser',
+    // 分包大小警告阈值
+    chunkSizeWarningLimit: 500,
+    // 压缩
+    terserOptions: {
+      compress: {
+        drop_console: true, // 生产环境移除 console
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info'],
+      },
+    },
   },
+  // 优化依赖预构建
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'zustand',
+      'clsx',
+      'tailwind-merge',
+      'class-variance-authority',
+    ],
+  },
+  // 警告限制
+  chunkSizeWarningLimit: 600,
   plugins: [
     apiCorsProxyPlugin(),
     react(),

@@ -86,8 +86,20 @@ import { uploadToImageHost } from "@/lib/image-host";
 import { useAuthStore } from "@/stores/auth-store";
 import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
-import { UserCenter } from "@/components/UserCenter";
 import { useApiKeyTester } from "@/hooks/use-api-key-tester";
+import { Suspense, lazy } from "react";
+
+// 懒加载大型组件 - 代码分割优化
+const UserCenter = lazy(() => import("@/components/UserCenter").then(m => ({ default: m.UserCenter })));
+
+// 加载占位符
+function ComponentLoader() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 // 错误边界组件，用于捕获 UserCenter 渲染错误
 interface ErrorBoundaryState {
@@ -155,7 +167,9 @@ function UserCenterWrapper() {
 
   return (
     <UserCenterErrorBoundary key={key}>
-      <UserCenter onRefresh={handleRefresh} />
+      <Suspense fallback={<ComponentLoader />}>
+        <UserCenter onRefresh={handleRefresh} />
+      </Suspense>
     </UserCenterErrorBoundary>
   );
 }

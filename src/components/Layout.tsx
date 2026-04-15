@@ -1,6 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+import { Suspense, lazy } from "react";
 import { TabBar } from "./TabBar";
 import { PreviewPanel } from "./PreviewPanel";
 import { RightPanel } from "./RightPanel";
@@ -13,8 +14,9 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Loader2 } from "lucide-react";
 
-// Panel imports
+// Panel imports - 核心面板静态导入
 import { ScriptView } from "@/components/panels/script";
 import { DirectorView } from "@/components/panels/director";
 import { SClassView } from "@/components/panels/sclass";
@@ -22,10 +24,24 @@ import { CharactersView } from "@/components/panels/characters";
 import { ScenesView } from "@/components/panels/scenes";
 import { FreedomView } from "@/components/panels/freedom";
 import { MediaView } from "@/components/panels/media";
-import { SettingsPanel } from "@/components/panels/SettingsPanel";
 import { ExportView } from "@/components/panels/export";
 import { OverviewPanel } from "@/components/panels/overview";
 import { AssetsView } from "@/components/panels/assets";
+
+// 大型组件懒加载 - 代码分割优化
+const SettingsPanel = lazy(() => import("@/components/panels/SettingsPanel").then(m => ({ default: m.SettingsPanel })));
+
+// 加载占位符组件
+function PanelLoader() {
+  return (
+    <div className="h-full flex items-center justify-center bg-panel">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">加载中...</span>
+      </div>
+    </div>
+  );
+}
 
 export function Layout() {
   const { activeTab, inProject } = useMediaPanelStore();
@@ -36,7 +52,13 @@ export function Layout() {
       <div className="h-full flex bg-background">
         <TabBar />
         <div className="flex-1">
-          {activeTab === "settings" ? <SettingsPanel /> : <Dashboard />}
+          {activeTab === "settings" ? (
+            <Suspense fallback={<PanelLoader />}>
+              <SettingsPanel />
+            </Suspense>
+          ) : (
+            <Dashboard />
+          )}
         </div>
       </div>
     );
@@ -52,7 +74,11 @@ export function Layout() {
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <ProjectHeader />
           {activeTab === "export" && <ExportView />}
-          {activeTab === "settings" && <SettingsPanel />}
+          {activeTab === "settings" && (
+            <Suspense fallback={<PanelLoader />}>
+              <SettingsPanel />
+            </Suspense>
+          )}
           {activeTab === "overview" && <OverviewPanel />}
           {activeTab === "script" && <ScriptView />}
           {activeTab === "characters" && <CharactersView />}
