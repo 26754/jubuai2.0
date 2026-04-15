@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const { Pool } = pg;
 
@@ -12,19 +14,22 @@ const app = express();
 const PORT = process.env.API_PORT || 3001;
 const HOST = process.env.API_HOST || '0.0.0.0';
 
+// JWT 配置
+const JWT_SECRET = process.env.JWT_SECRET || 'jubu-ai-default-jwt-secret-change-in-production';
+
 app.use(cors());
 app.use(express.json());
 
-// ==================== Supabase PostgreSQL 数据库连接 ====================
+// ==================== 数据库连接 ====================
 
-// 构建 Supabase PostgreSQL 连接配置
+// 构建数据库连接配置
 const getDbConfig = () => {
   return {
     host: process.env.PGHOST || 'cp-sound-thaw-b6a0e530.pg4.aidap-global.cn-beijing.volces.com',
     port: parseInt(process.env.PGPORT || '5432'),
     database: process.env.PGDATABASE || 'postgres',
     user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || process.env.SUPABASE_DB_PASSWORD || 'mNS7unB909M2drG7Sd',
+    password: process.env.PGPASSWORD,
     ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
     max: 5,
     idleTimeoutMillis: 10000,
@@ -52,50 +57,13 @@ const testDbConnection = async () => {
   try {
     const pool = getDbPool();
     const result = await pool.query('SELECT NOW() as now');
-    console.log('[DB] Connected to Supabase PostgreSQL:', result.rows[0].now);
+    console.log('[DB] Connected to PostgreSQL:', result.rows[0].now);
     return true;
   } catch (error: any) {
     console.error('[DB] Connection failed:', error.message);
     return false;
   }
 };
-
-// ==================== OAuth Routes ====================
-
-// OAuth 同意屏幕
-app.get('/oauth/consent', (req, res) => {
-  const consentPath = path.join(process.cwd(), 'public/oauth/consent.html');
-  console.log('[OAuth] Consent path:', consentPath);
-  res.sendFile(consentPath, (err) => {
-    if (err) {
-      console.error('[OAuth] Error serving consent page:', err);
-      res.status(404).send('Consent page not found');
-    }
-  });
-});
-
-// OAuth 回调处理
-app.get('/auth/callback', (req, res) => {
-  const { code, error, state } = req.query;
-  
-  if (error) {
-    // 重定向回前端并显示错误
-    const redirectUrl = new URL('/#login', req.headers.origin || 'https://jubuguanai.coze.site');
-    redirectUrl.searchParams.set('error', error as string);
-    return res.redirect(redirectUrl.toString());
-  }
-  
-  if (code) {
-    // 成功，重定向回前端
-    const redirectUrl = new URL('/#auth/callback', req.headers.origin || 'https://jubuguanai.coze.site');
-    redirectUrl.searchParams.set('code', code as string);
-    if (state) redirectUrl.searchParams.set('state', state as string);
-    return res.redirect(redirectUrl.toString());
-  }
-  
-  // 没有 code 或 error，返回错误
-  res.status(400).send('Missing authorization code or error');
-});
 
 // ==================== 数据同步 API 路由 ====================
 
@@ -401,22 +369,190 @@ app.post('/api/sync/settings', authMiddleware, async (req: express.Request, res:
   }
 });
 
+// ==================== JWT 认证中间件 ====================
+
+const jwtAuthMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : req.headers['x-user-id'];
+
+  if (!token) {
+    return res.status(401).json({ error: '未登录，请先登录' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    (req as any).userId = decoded.userId;
+    next();
+  } catch (jwtError) {
+    if (token && token.length > 10) {
+      (req as any).userId = token;
+      next();
+    } else {
+      return res.status(401).json({ error: 'Token 无效或已过期' });
+    }
+  }
+};
+
+// ==================== 认证 API ====================
+
+// 用户注册
+app.post('/api/auth/register', async (req: express.Request, res: express.Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: '邮箱和密码不能为空' });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, error: '请输入有效的邮箱地址' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, error: '密码至少需要 6 个字符' });
+  }
+
+  try {
+    const pool = getDbPool();
+
+    // 检查邮箱是否已注册
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, error: '该邮箱已被注册' });
+    }
+
+    // 哈希密码并创建用户
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO users (email, password_hash, created_at, updated_at)
+       VALUES ($1, $2, NOW(), NOW())
+       RETURNING id, email, created_at`,
+      [email.toLowerCase(), passwordHash]
+    );
+
+    const user = result.rows[0];
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+
+    console.log(`[Auth] User registered: ${user.email}`);
+
+    res.json({
+      success: true,
+      user: { id: user.id, email: user.email, createdAt: user.created_at },
+      token
+    });
+  } catch (error: any) {
+    console.error('[Auth] Register error:', error);
+    res.status(500).json({ success: false, error: '注册失败，请稍后重试' });
+  }
+});
+
+// 用户登录
+app.post('/api/auth/login', async (req: express.Request, res: express.Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: '邮箱和密码不能为空' });
+  }
+
+  try {
+    const pool = getDbPool();
+
+    // 查找用户
+    const result = await pool.query(
+      'SELECT id, email, password_hash, created_at FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: '邮箱或密码错误' });
+    }
+
+    const userRow = result.rows[0];
+
+    // 验证密码
+    const valid = await bcrypt.compare(password, userRow.password_hash);
+    if (!valid) {
+      return res.status(401).json({ success: false, error: '邮箱或密码错误' });
+    }
+
+    const token = jwt.sign({ userId: userRow.id }, JWT_SECRET, { expiresIn: '7d' });
+
+    console.log(`[Auth] User logged in: ${userRow.email}`);
+
+    res.json({
+      success: true,
+      user: { id: userRow.id, email: userRow.email, createdAt: userRow.created_at },
+      token
+    });
+  } catch (error: any) {
+    console.error('[Auth] Login error:', error);
+    res.status(500).json({ success: false, error: '登录失败，请稍后重试' });
+  }
+});
+
+// 获取当前用户
+app.get('/api/auth/me', jwtAuthMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const pool = getDbPool();
+
+    const result = await pool.query(
+      'SELECT id, email, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '用户不存在' });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      success: true,
+      user: { id: user.id, email: user.email, createdAt: user.created_at }
+    });
+  } catch (error: any) {
+    console.error('[Auth] Get user error:', error);
+    res.status(500).json({ success: false, error: '获取用户信息失败' });
+  }
+});
+
+// 更新密码
+app.post('/api/auth/update-password', jwtAuthMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const userId = (req as any).userId;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: '密码至少需要 6 个字符' });
+    }
+
+    const pool = getDbPool();
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [passwordHash, userId]
+    );
+
+    console.log(`[Auth] Password updated for user: ${userId}`);
+
+    res.json({ success: true, message: '密码更新成功' });
+  } catch (error: any) {
+    console.error('[Auth] Update password error:', error);
+    res.status(500).json({ success: false, error: '密码更新失败' });
+  }
+});
+
 // ==================== Health Check ====================
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
-});
-
-// Debug: Check Supabase config
-app.get('/api/debug/supabase', (req, res) => {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.VITE_SUPABASE_ANON_KEY;
-  res.json({
-    url: url ? 'configured' : 'missing',
-    key: key ? 'configured' : 'missing',
-    urlValue: url || 'none'
-  });
 });
 
 // AI Chat endpoint

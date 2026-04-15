@@ -9,7 +9,7 @@ import './lib/i18n'
 
 // 全局错误处理：捕获未处理的 Promise 错误
 window.addEventListener('unhandledrejection', (event) => {
-  // 忽略 Supabase 相关的网络错误（跨域、超时等）
+  // 忽略常见的网络错误（跨域、超时等）
   const error = event.reason;
   if (error && typeof error === 'object') {
     const message = error.message || '';

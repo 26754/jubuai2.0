@@ -107,7 +107,7 @@ const testDbConnection = async () => {
   try {
     const pool = getDbPool();
     const result = await pool.query('SELECT NOW() as now');
-    const dbType = NEON_DATABASE_URL ? 'Neon PostgreSQL' : 'Supabase PostgreSQL';
+    const dbType = NEON_DATABASE_URL ? 'Neon PostgreSQL' : 'PostgreSQL';
     console.log(`[DB] Connected to ${dbType}:`, result.rows[0].now);
     return true;
   } catch (error) {
@@ -679,7 +679,6 @@ app.get('/api/health', (req, res) => {
 
 // CSP 配置
 const SITE_URL = process.env.VITE_SITE_URL || 'https://jubuguanai.coze.site';
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://voorsnefrbmqgbtfdoel.supabase.co';
 
 // 允许访问的外部 API 域名
 const ALLOWED_API_DOMAINS = [
@@ -722,10 +721,10 @@ const allowedWss = ALLOWED_API_DOMAINS.map(d => `wss://${d}`).join(' ');
 
 const CSP_HEADER = [
   `default-src 'self' ${SITE_URL}`,
-  `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com https://apm.volccdn.com`,
+  `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apm.volccdn.com`,
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
   `font-src 'self' data: https://fonts.gstatic.com`,
-  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${allowedDomainsHttps} ${allowedWss} https://apm.volccdn.com`,
+  `connect-src 'self' https://localhost:* http://localhost:* ${allowedDomainsHttps} ${allowedWss} https://apm.volccdn.com`,
   `img-src 'self' data: blob: https:`,
   `frame-src 'none'`,
   `worker-src 'self' blob:`,

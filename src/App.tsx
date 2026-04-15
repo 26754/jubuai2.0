@@ -23,7 +23,7 @@ import { shortcutExecutor, registerShortcutActions, PRESET_SHORTCUTS } from "@/l
 
 let hasTriggeredStartupUpdateCheck = false;
 
-// Auth Callback 组件 - 简化版（不再使用 Supabase OAuth）
+// Auth Callback 组件 - 处理认证回调
 function AuthCallbackHandler() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");

@@ -6,9 +6,7 @@ import react from '@vitejs/plugin-react'
 const mode = process.env.NODE_ENV || 'development';
 // 加载所有 .env 文件
 const env = loadEnv(mode, process.cwd(), '');
-const supabaseUrl = env.VITE_SUPABASE_URL || '';
-const supabaseKey = env.VITE_SUPABASE_ANON_KEY || '';
-console.log('[Vite] Loading env - Mode:', mode, '- SUPABASE_URL:', supabaseUrl ? 'set' : 'missing');
+console.log('[Vite] Loading env - Mode:', mode);
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -108,6 +106,11 @@ export default defineConfig({
     proxy: mode === 'development' ? {
       // 开发环境：代理到 API 服务器
       '/api/sync': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path,
+      },
+      '/api/auth': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path,
