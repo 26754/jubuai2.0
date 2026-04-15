@@ -186,7 +186,7 @@ export function SettingsPanel() {
   const { isAuthenticated } = useAuthStore();
   const { testKey } = useApiKeyTester();
 
-  const [activeTab, setActiveTab] = useState("usercenter");
+  const [activeTab, setActiveTab] = useState("api");
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
