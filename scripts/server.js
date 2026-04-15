@@ -401,6 +401,13 @@ const PROXIED_DOMAINS = [
   'ark.cn-shanghai.volces.com',
   'ark.cn-guangzhou.volces.com',
   'ark.cn-hangzhou.volces.com',
+  // 阿里云百炼
+  'dashscope.aliyuncs.com',
+  'dashscope.cn-shanghai.aliyuncs.com',
+  'dashcope.cn-beijing.aliyuncs.com',
+  // RunningHub
+  'www.runninghub.cn',
+  'openapi.runninghub.cn',
 ];
 
 // 通用 API 代理路由
