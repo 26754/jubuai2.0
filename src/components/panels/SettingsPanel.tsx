@@ -69,6 +69,7 @@ import {
   Palette,
   Sparkles,
   Grid3X3,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
