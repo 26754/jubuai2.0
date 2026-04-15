@@ -9,7 +9,7 @@
  * Based on AionUi's ModelModalContent pattern
  */
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Component, type ReactNode } from "react";
 import {
   isVisibleImageHostProvider,
   useAPIConfigStore,
@@ -87,6 +87,77 @@ import { useAuthStore } from "@/stores/auth-store";
 import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
 import { UserCenter } from "@/components/UserCenter";
+
+// 错误边界组件，用于捕获 UserCenter 渲染错误
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class UserCenterErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[SettingsPanel] UserCenter render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col h-full bg-background overflow-hidden">
+          <div className="h-16 border-b border-border bg-panel px-6 flex items-center shrink-0">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-3">
+              <User className="w-5 h-5 text-primary" />
+              用户中心
+            </h2>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-md text-center">
+              <div className="text-destructive text-lg font-semibold mb-2">
+                用户中心加载失败
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                {this.state.error?.message || '发生了未知错误'}
+              </p>
+              <Button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+              >
+                刷新页面
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// UserCenter 包装组件
+function UserCenterWrapper() {
+  const [key, setKey] = useState(0);
+
+  // 当 key 变化时，组件会重新挂载
+  const handleRefresh = useCallback(() => {
+    setKey(k => k + 1);
+  }, []);
+
+  return (
+    <UserCenterErrorBoundary key={key}>
+      <UserCenter onRefresh={handleRefresh} />
+    </UserCenterErrorBoundary>
+  );
+}
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -1532,7 +1603,7 @@ export function SettingsPanel() {
 
         {/* User Center Tab */}
         <TabsContent value="usercenter" className="flex-1 overflow-hidden mt-0">
-          <UserCenter />
+          <UserCenterWrapper />
         </TabsContent>
       </Tabs>
 

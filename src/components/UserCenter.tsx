@@ -1042,7 +1042,11 @@ function LogoutDialog({ open, onOpenChange, onConfirm }: LogoutDialogProps) {
 
 // ==================== 主用户中心组件 ====================
 
-export function UserCenter() {
+interface UserCenterProps {
+  onRefresh?: () => void;
+}
+
+export function UserCenter({ onRefresh }: UserCenterProps = {}) {
   const { currentUser, supabaseUser, isAuthenticated, isDemoUser, logout, updateUsername } = useAuthStore();
   const { projects } = useProjectStore();
   const { characters } = useCharacterLibraryStore();
