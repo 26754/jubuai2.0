@@ -131,6 +131,7 @@ export function SettingsPanel() {
   const { assignProjectToUnscoped: assignMediaToProject } = useMediaStore();
   const { isAuthenticated } = useAuthStore();
 
+  const [activeTab, setActiveTab] = useState("usercenter");
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -265,7 +266,6 @@ export function SettingsPanel() {
     (p) => parseApiKeys(p.apiKey).length > 0
   ).length;
 
-  const [activeTab, setActiveTab] = useState<string>("api");
   const hasStorageManager = typeof window !== "undefined" && !!window.storageManager;
 
   const formatBytes = useCallback((bytes: number) => {
