@@ -105,16 +105,16 @@ function formatLastSync(timestamp: number | null): string {
 // ==================== 用户资料卡片组件 ====================
 
 interface ProfileCardProps {
-  user: AppUser;
+  user: AppUser | undefined;
   onEditProfile: () => void;
 }
 
 function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
   // 获取头像首字母
   const getInitial = useCallback((name: string | undefined) => {
-    if (!name) return user.email?.[0]?.toUpperCase() || 'U';
+    if (!name) return user?.email?.[0]?.toUpperCase() || 'U';
     return name[0].toUpperCase();
-  }, [user.email]);
+  }, [user?.email]);
 
   // 格式化日期
   const formatDate = useCallback((timestamp: number) => {
@@ -133,7 +133,7 @@ function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
           <div className="relative">
             <Avatar className="h-24 w-24 border-2 border-primary/20 shadow-lg">
               <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-2xl font-bold">
-                {getInitial(user.username)}
+                {getInitial(user?.username)}
               </AvatarFallback>
             </Avatar>
             <TooltipProvider>
@@ -159,9 +159,9 @@ function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-foreground">
-                {user.username || '未设置用户名'}
+                {user?.username || '未设置用户名'}
               </h2>
-              {user.username && (
+              {user?.username && (
                 <Badge variant="secondary" className="gap-1">
                   <BadgeCheck className="h-3 w-3" />
                   已验证
@@ -171,13 +171,13 @@ function ProfileCard({ user, onEditProfile }: ProfileCardProps) {
 
             <div className="flex items-center gap-2 text-muted-foreground">
               <Mail className="h-4 w-4" />
-              <span className="text-sm">{user.email}</span>
+              <span className="text-sm">{user?.email}</span>
             </div>
 
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span className="text-sm">
-                注册于 {formatDate(user.createdAt)}
+                注册于 {formatDate(user?.createdAt || 0)}
               </span>
             </div>
           </div>
@@ -318,7 +318,7 @@ function StatsOverview({ stats, isLoading }: StatsOverviewProps) {
 // ==================== 账户安全组件 ====================
 
 interface SecuritySectionProps {
-  user: AppUser;
+  user: AppUser | undefined;
   onChangePassword: () => void;
   onLogout: () => void;
 }
@@ -342,7 +342,7 @@ function SecuritySection({ user, onChangePassword, onLogout }: SecuritySectionPr
             <Mail className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium text-foreground">登录邮箱</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
           </div>
           <Badge variant="outline">已验证</Badge>
@@ -384,17 +384,17 @@ interface EditProfileDialogProps {
 }
 
 function EditProfileDialog({ open, onOpenChange, user, onSuccess }: EditProfileDialogProps) {
-  const [username, setUsername] = useState(user.username || '');
+  const [username, setUsername] = useState(user?.username || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   // 当对话框打开时，同步用户名
   useEffect(() => {
     if (open) {
-      setUsername(user.username || '');
+      setUsername(user?.username || '');
       setError('');
     }
-  }, [open, user.username]);
+  }, [open, user?.username]);
 
   const handleSubmit = async () => {
     setError('');
@@ -1152,11 +1152,25 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
       try {
         const supabase = getSupabaseClient();
         
+        // 确保 currentUser 存在
+        if (!currentUser?.id) {
+          setStats({
+            projectCount: projects.length,
+            characterCount: characters.length,
+            sceneCount: scenes.length,
+            shotCount: 0,
+            cloudSynced: false,
+            lastSyncTime: null,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
         // 获取云端项目数量
         const { count: cloudProjectCount } = await supabase
           .from('projects')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser?.id);
+          .eq('user_id', currentUser.id);
 
         // 获取最后同步时间
         const lastSyncTime = localStorage.getItem('jubuai-last-sync-time') 

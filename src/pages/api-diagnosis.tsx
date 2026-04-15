@@ -93,7 +93,7 @@ export default function APIDiagnosisPage() {
         platform: provider.name || provider.platform,
         status: 'error',
         message: errorType,
-        details: `URL: ${proxyPath}\n错误: ${error.message}${suggestion}`,
+        details: `URL: ${proxiedUrl}\n错误: ${error.message}${suggestion}`,
       };
     }
   };
