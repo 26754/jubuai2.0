@@ -166,6 +166,9 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   custom: <Settings className="h-5 w-5" />,
 };
 
+// 应用版本号
+const APP_VERSION = '1.0.0';
+
 export function SettingsPanel() {
   const {
     providers,
@@ -1078,7 +1081,7 @@ export function SettingsPanel() {
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
-                <p className="text-xs mt-1">v{appVersion} · AI 驱动的动漫视频创作工具</p>
+                <p className="text-xs mt-1">v{APP_VERSION} · AI 驱动的动漫视频创作工具</p>
               </div>
             </div>
           </ScrollArea>
@@ -1224,7 +1227,7 @@ export function SettingsPanel() {
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
-                <p className="text-xs mt-1">v{appVersion} · AI 驱动的动漫视频创作工具</p>
+                <p className="text-xs mt-1">v{APP_VERSION} · AI 驱动的动漫视频创作工具</p>
               </div>
             </div>
           </ScrollArea>
@@ -1344,7 +1347,7 @@ export function SettingsPanel() {
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
-                <p className="text-xs mt-1">v{appVersion} · AI 驱动的动漫视频创作工具</p>
+                <p className="text-xs mt-1">v{APP_VERSION} · AI 驱动的动漫视频创作工具</p>
               </div>
             </div>
           </ScrollArea>
@@ -1590,7 +1593,7 @@ export function SettingsPanel() {
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
-                <p className="text-xs mt-1">v{appVersion} · AI 驱动的动漫视频创作工具</p>
+                <p className="text-xs mt-1">v{APP_VERSION} · AI 驱动的动漫视频创作工具</p>
               </div>
             </div>
           </ScrollArea>

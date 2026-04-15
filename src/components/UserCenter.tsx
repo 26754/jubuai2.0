@@ -1417,8 +1417,6 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
             onLogout={() => setLogoutDialogOpen(true)}
           />
 
-          {/* 帮助与支持 */}
-          <HelpSupport />
         </div>
       </ScrollArea>
 
