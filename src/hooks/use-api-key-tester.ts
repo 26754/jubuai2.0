@@ -10,7 +10,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import type { IProvider } from '@/lib/api-key-manager';
-import { proxyUrl } from '@/lib/proxy-config';
+import { corsFetch } from '@/lib/cors-fetch';
 
 interface TestResult {
   valid: boolean;
@@ -36,13 +36,11 @@ export async function testApiKey(
   testUrl = `${testUrl}/models`;
   
   try {
-    // 使用代理避免 CORS
-    const proxyTestUrl = proxyUrl(testUrl);
-    
+    // 使用 corsFetch 避免 CORS
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(proxyTestUrl, {
+    const response = await corsFetch(testUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

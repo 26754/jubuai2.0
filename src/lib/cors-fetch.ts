@@ -6,8 +6,8 @@
  *
  * 自动检测运行环境：
  * - Electron 桌面模式 → 直接使用原生 fetch()（无 CORS 限制）
- * - 浏览器开发模式   → 通过 Vite 开发服务器 /__api_proxy?url=... 代理转发
- * - 浏览器生产模式   → 通过生产服务器 /__api_proxy?url=... 代理转发
+ * - 浏览器开发模式   → 通过 Vite 开发服务器代理转发
+ * - 浏览器生产模式   → 通过生产服务器代理转发
  */
 
 /** 检测是否在 Electron 环境中运行 */
@@ -26,6 +26,11 @@ function isViteDev(): boolean {
 /** 检测是否在浏览器环境中运行 */
 function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof fetch !== 'undefined';
+}
+
+/** 检测 URL 是否已经是代理路径 */
+function isProxiedUrl(url: string): boolean {
+  return url.startsWith('/__proxy/') || url.startsWith('/__api_proxy');
 }
 
 /**
@@ -49,18 +54,30 @@ export async function corsFetch(
     return fetch(targetUrl, init);
   }
 
+  // 已经是代理路径，直接使用原生 fetch
+  if (isProxiedUrl(targetUrl)) {
+    return fetch(targetUrl, init);
+  }
+
   // 浏览器环境（包括开发和生产）：走代理
   if (isBrowser()) {
-    const proxyUrl = `/__api_proxy?url=${encodeURIComponent(targetUrl)}`;
-
-    // 将原始 headers 序列化到 x-proxy-headers 头中
+    // 构建原始 headers
     const proxyHeaders = new Headers(init?.headers);
-
-    // 把原始 headers 打包进一个特殊头，代理端负责解包
     const originalHeaders: Record<string, string> = {};
     proxyHeaders.forEach((value, key) => {
       originalHeaders[key] = value;
     });
+
+    // 构建代理 URL
+    let proxyPath: string;
+    if (targetUrl.includes('memefast.top')) {
+      // MemeFast 特殊处理：使用专用代理 + host 参数
+      const path = targetUrl.replace(/^https?:\/\/[^\/]+/, '');
+      proxyPath = `/__proxy/memefast${path}?host=https://memefast.top`;
+    } else {
+      // 通用代理
+      proxyPath = `/__api_proxy?url=${encodeURIComponent(targetUrl)}`;
+    }
 
     const proxyInit: RequestInit = {
       ...init,
@@ -70,7 +87,7 @@ export async function corsFetch(
       },
     };
 
-    return fetch(proxyUrl, proxyInit);
+    return fetch(proxyPath, proxyInit);
   }
 
   // 非浏览器环境（如 Node.js）：直连

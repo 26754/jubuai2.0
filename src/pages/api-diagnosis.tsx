@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAPIConfigStore } from '@/stores/api-config-store';
-import { proxyUrl } from '@/lib/proxy-config';
+import { corsFetch } from '@/lib/cors-fetch';
 
 interface DiagnosticResult {
   platform: string;
@@ -43,13 +43,10 @@ export default function APIDiagnosisPage() {
       modelsUrl = `${baseUrl}/models`;
     }
 
-    // 使用集中化的代理配置
-    const proxiedUrl = proxyUrl(modelsUrl);
-
     try {
-      console.log(`[诊断] 测试 ${provider.name}: ${proxiedUrl}`);
+      console.log(`[诊断] 测试 ${provider.name}: ${modelsUrl}`);
 
-      const response = await fetch(proxiedUrl, {
+      const response = await corsFetch(modelsUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
@@ -63,7 +60,7 @@ export default function APIDiagnosisPage() {
           platform: provider.name || provider.platform,
           status: 'success',
           message: `成功！获取到 ${modelCount} 个模型`,
-          details: `URL: ${proxiedUrl}\n状态码: ${response.status}`,
+          details: `URL: ${modelsUrl}\n状态码: ${response.status}`,
         };
       } else {
         const errorText = await response.text();
@@ -71,7 +68,7 @@ export default function APIDiagnosisPage() {
           platform: provider.name || provider.platform,
           status: 'error',
           message: `HTTP ${response.status}`,
-          details: `URL: ${proxiedUrl}\n响应: ${errorText.substring(0, 200)}`,
+          details: `URL: ${modelsUrl}\n响应: ${errorText.substring(0, 200)}`,
         };
       }
     } catch (error: any) {

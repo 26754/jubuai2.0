@@ -20,7 +20,6 @@ import {
   classifyModelByName,
 } from '@/lib/api-key-manager';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
-import { proxyUrl } from '@/lib/proxy-config';
 import { corsFetch } from '@/lib/cors-fetch';
 
 // Re-export IProvider for convenience
@@ -611,8 +610,8 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
           if (isMemefast) {
             // MemeFast: /api/pricing_new 获取全量元数据（公开接口）
-            const domain = baseUrl.replace(/\/v\d+$/, '');
-            const pricingUrl = proxyUrl(`${domain}/api/pricing_new`);
+            // corsFetch 会自动检测 memefast.top 域名并使用正确的代理
+            const pricingUrl = `${domain}/api/pricing_new`;
 
             const response = await corsFetch(pricingUrl);
             if (!response.ok) {
@@ -655,9 +654,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
             }
 
             // 再遍历每个 key 查 /v1/models 补充该 key 独有模型
-            const memefastModelsUrl = proxyUrl(/\/v\d+$/.test(baseUrl)
+            // corsFetch 会自动检测 memefast.top 域名并使用正确的代理
+            const memefastModelsUrl = /\/v\d+$/.test(baseUrl)
               ? `${baseUrl}/models`
-              : `${baseUrl}/v1/models`);
+              : `${baseUrl}/v1/models`;
 
             for (let ki = 0; ki < keys.length; ki++) {
               try {
@@ -686,9 +686,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
             }
           } else {
             // Standard OpenAI-compatible: 遍历每个 key 查 /v1/models，合并去重
-            const modelsUrl = proxyUrl(/\/v\d+$/.test(baseUrl)
+            // corsFetch 会自动检测域名并使用正确的代理
+            const modelsUrl = /\/v\d+$/.test(baseUrl)
               ? `${baseUrl}/models`
-              : `${baseUrl}/v1/models`);
+              : `${baseUrl}/v1/models`;
 
             const endpointUpdates: Record<string, string[]> = {};
             let anySuccess = false;
