@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import type { IProvider } from "@/lib/api-key-manager";
 import { getApiKeyCount } from "@/lib/api-key-manager";
 import { Loader2, CheckCircle2, XCircle, Globe } from "lucide-react";
+import { corsFetch } from "@/lib/cors-fetch";
 
 interface EditProviderDialogProps {
   open: boolean;
@@ -89,11 +90,11 @@ export function EditProviderDialog({
       // 移除末尾斜杠并添加 /v1/models
       testUrl = testUrl.replace(/\/$/, '') + '/v1/models';
 
-      // 使用 fetch 测试连接
+      // 使用 corsFetch 测试连接（支持跨域）
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(testUrl, {
+      const response = await corsFetch(testUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -97,6 +97,10 @@ export default defineConfig({
       '@opencut/ai-core': path.resolve(__dirname, './src/packages/ai-core/index.ts'),
     },
   },
+  build: {
+    // 警告限制
+    chunkSizeWarningLimit: 600,
+  },
   plugins: [
     apiCorsProxyPlugin(),
     react(),

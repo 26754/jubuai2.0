@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Search, Filter, X, File, User, Grid3X3, Camera, Tag, Star, Clock, ChevronRight, SortAsc, SortDesc, Settings } from 'lucide-react';
+import { Search, Filter, X, File, User, Grid3X3, Camera, Tag, Star, Clock, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

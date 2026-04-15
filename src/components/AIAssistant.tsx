@@ -4,7 +4,7 @@
  * AI 助手面板
  */
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Bot,
   Send,
@@ -15,8 +15,6 @@ import {
   FileText,
   Users,
   Clapperboard,
-  ChevronDown,
-  ChevronUp,
   Copy,
   Check,
   RefreshCw,
@@ -24,28 +22,19 @@ import {
   Settings,
   BookOpen,
   Layers,
-  Clock,
   Star,
-  ThumbsUp,
-  ThumbsDown,
   AlertCircle,
   Loader2,
   Maximize2,
   Minimize2,
-  X,
-  Paperclip,
-  Image,
   WandSparkles,
   Film,
-  Mic,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -63,15 +52,9 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  ResizablePanel,
-  ResizableHandle,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 
 // ==================== 类型定义 ====================
@@ -176,49 +159,6 @@ const MODE_CONFIG: Record<AssistantMode, { icon: React.ReactNode; label: string;
   scene: { icon: <Film className="w-4 h-4" />, label: '场景', colorClass: 'text-[hsl(var(--warning))]', bgClass: 'bg-[hsl(var(--warning))/10]' },
   storyboard: { icon: <Clapperboard className="w-4 h-4" />, label: '分镜', colorClass: 'text-[hsl(var(--style-watercolor))]', bgClass: 'bg-[hsl(var(--style-watercolor))/10]' },
 };
-
-// ==================== 上下文提示词 ====================
-
-function buildContextPrompt(
-  mode: AssistantMode,
-  context?: {
-    currentScript?: string;
-    characters?: string[];
-    scenes?: string[];
-    projectName?: string;
-  }
-): string {
-  let contextPrompt = '';
-  
-  if (context?.projectName) {
-    contextPrompt += `【项目名称】${context.projectName}\n`;
-  }
-  
-  if (mode === 'script' || mode === 'storyboard') {
-    if (context?.currentScript) {
-      contextPrompt += `\n【当前剧本】\n${context.currentScript.slice(0, 2000)}...\n`;
-    }
-    if (context?.characters?.length) {
-      contextPrompt += `\n【已有角色】\n${context.characters.join(', ')}\n`;
-    }
-  }
-  
-  if (mode === 'character') {
-    if (context?.characters?.length) {
-      contextPrompt += `\n【项目角色】\n${context.characters.join(', ')}\n`;
-    }
-    if (context?.currentScript) {
-      contextPrompt += `\n【剧本背景】\n${context.currentScript.slice(0, 500)}...\n`;
-    }
-  }
-  
-  if (mode === 'scene') {
-    if (context?.scenes?.length) {
-      contextPrompt += `\n【已有场景】\n${context.scenes.join(', ')}\n`;
-    }
-  }
-  
-  return contextPrompt;
 }
 
 // ==================== AI 消息处理 ====================
@@ -249,9 +189,12 @@ export function useAIChat({ mode, systemPrompt, context }: UseAIChatOptions) {
     setError(null);
     
     try {
-      // 构建上下文
-      const contextPrompt = buildContextPrompt(mode, context);
-      const fullPrompt = contextPrompt ? `${contextPrompt}\n\n用户消息：${content}` : content;
+      // 构建上下文（预留真实 API 调用使用）
+      // const contextPrompt = buildContextPrompt(mode, context);
+      // const fullPrompt = contextPrompt ? `${contextPrompt}\n\n用户消息：${content}` : content;
+      
+      // TODO: 替换为真实 API 调用
+      // const response = await callAIAPI(fullPrompt);
       
       // 模拟 AI 响应（实际项目中应调用真实 API）
       await new Promise(resolve => setTimeout(resolve, 1500));

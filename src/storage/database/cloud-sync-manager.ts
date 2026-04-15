@@ -30,6 +30,8 @@ export interface SyncStatus {
   error: string | null;
   pendingChanges: number;
   syncMode: 'idle' | 'auto' | 'manual';
+  isOnline: boolean;
+  isOffline: boolean;
 }
 
 interface SyncOptions {
@@ -45,6 +47,8 @@ class CloudSyncManager {
     error: null,
     pendingChanges: 0,
     syncMode: 'idle',
+    isOnline: true,
+    isOffline: false,
   };
   
   private syncCallbacks: Set<(status: SyncStatus) => void> = new Set();
@@ -53,6 +57,78 @@ class CloudSyncManager {
   private retryCount = 0;
   private maxRetries = 3;
   private retryDelay = 5000; // 5秒
+  private offlineQueue: Array<() => Promise<void>> = [];
+  private isProcessingOfflineQueue = false;
+  
+  constructor() {
+    // 初始化网络状态监听
+    this.initNetworkListener();
+  }
+  
+  /**
+   * 初始化网络状态监听
+   */
+  private initNetworkListener(): void {
+    if (typeof window === 'undefined') return;
+    
+    // 监听浏览器在线/离线事件
+    const handleOnline = () => {
+      console.log('[CloudSync] Network online detected');
+      this.updateStatus({ isOnline: true, isOffline: false });
+      this.processOfflineQueue();
+    };
+    
+    const handleOffline = () => {
+      console.log('[CloudSync] Network offline detected');
+      this.updateStatus({ isOnline: false, isOffline: true });
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // 初始化网络状态
+    this.updateStatus({ isOnline: navigator.onLine, isOffline: !navigator.onLine });
+    
+    console.log('[CloudSync] Network listener initialized, online:', navigator.onLine);
+  }
+  
+  /**
+   * 处理离线队列中的待同步操作
+   */
+  private async processOfflineQueue(): Promise<void> {
+    if (this.isProcessingOfflineQueue || !navigator.onLine) return;
+    if (this.offlineQueue.length === 0) return;
+    
+    this.isProcessingOfflineQueue = true;
+    console.log('[CloudSync] Processing offline queue, items:', this.offlineQueue.length);
+    
+    while (this.offlineQueue.length > 0) {
+      const operation = this.offlineQueue.shift();
+      if (operation) {
+        try {
+          await operation();
+        } catch (error) {
+          console.error('[CloudSync] Failed to process offline operation:', error);
+        }
+      }
+    }
+    
+    this.isProcessingOfflineQueue = false;
+    console.log('[CloudSync] Offline queue processed');
+  }
+  
+  /**
+   * 添加操作到离线队列
+   */
+  private addToOfflineQueue(operation: () => Promise<void>): void {
+    if (this.offlineQueue.length >= 100) {
+      // 队列过大，移除最旧的项
+      this.offlineQueue.shift();
+      console.warn('[CloudSync] Offline queue overflow, removed oldest item');
+    }
+    this.offlineQueue.push(operation);
+    console.log('[CloudSync] Operation added to offline queue, queue size:', this.offlineQueue.length);
+  }
   
   /**
    * 获取当前同步状态
@@ -79,11 +155,18 @@ class CloudSyncManager {
   }
   
   /**
-   * 检查是否需要进行同步
+   * 检查是否可以进行同步
    */
   canSync(): boolean {
     const { isAuthenticated, isSupabaseConfigured } = useAuthStore.getState();
-    return isAuthenticated && isSupabaseConfigured && isCloudStorageAvailable();
+    return isAuthenticated && isSupabaseConfigured && isCloudStorageAvailable() && navigator.onLine;
+  }
+  
+  /**
+   * 获取离线队列大小
+   */
+  getOfflineQueueSize(): number {
+    return this.offlineQueue.length;
   }
   
   /**
@@ -128,6 +211,15 @@ class CloudSyncManager {
       clearTimeout(this.pendingSyncTimeout);
     }
     
+    // 如果离线，将操作添加到队列
+    if (!navigator.onLine) {
+      this.addToOfflineQueue(async () => {
+        await this.syncAllToCloud({ syncProjects: true, syncSettings: true });
+      });
+      console.log('[CloudSync] Network offline, added to queue');
+      return;
+    }
+    
     // 延迟 2 秒后执行同步（批量处理变更）
     this.pendingSyncTimeout = setTimeout(async () => {
       if (this.canSync()) {
@@ -141,6 +233,15 @@ class CloudSyncManager {
    */
   async syncAllToCloud(options: SyncOptions = {}): Promise<void> {
     const { syncProjects = true, syncSettings = true, forceUpload = false } = options;
+    
+    // 检查网络状态
+    if (!navigator.onLine) {
+      console.log('[CloudSync] Cannot sync: network offline');
+      this.addToOfflineQueue(async () => {
+        await this.syncAllToCloud(options);
+      });
+      return;
+    }
     
     if (!this.canSync()) {
       console.log('[CloudSync] Cannot sync: not authenticated or cloud unavailable');

@@ -4,7 +4,7 @@
  * 全局搜索系统
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Search,
   SearchX,
@@ -17,28 +17,16 @@ import {
   Sparkles,
   Filter,
   X,
-  Plus,
-  ArrowRight,
-  Hash,
-  Star,
   TrendingUp,
   ChevronRight,
   Loader2,
   Command,
-  Keyboard,
-  Settings,
-  BarChart3,
   Image,
-  Video,
-  Bookmark,
-  Tag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,

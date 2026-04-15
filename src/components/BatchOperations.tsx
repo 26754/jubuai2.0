@@ -4,35 +4,23 @@
  * 批量操作工具
  */
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   CheckSquare,
   Square,
   MinusSquare,
-  Layers,
-  Trash2,
-  Copy,
   Tag,
-  FolderOpen,
-  Download,
-  Upload,
-  Edit3,
   MoreVertical,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Filter,
   X,
   Loader2,
   Check,
   AlertCircle,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
