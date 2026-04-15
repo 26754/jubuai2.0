@@ -79,6 +79,7 @@ import {
   Cloud,
   Share2,
   Store,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -90,6 +91,7 @@ import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedDat
 import { useAuthStore } from "@/stores/auth-store";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
 import { TemplateMarketplace } from "@/components/TemplateMarketplace";
+import { UserCenter } from "@/components/UserCenter";
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -695,6 +697,13 @@ export function SettingsPanel() {
             >
               <Store className="h-4 w-4 mr-2" />
               模板
+            </TabsTrigger>
+            <TabsTrigger 
+              value="usercenter" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <User className="h-4 w-4 mr-2" />
+              用户中心
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1656,6 +1665,11 @@ export function SettingsPanel() {
         {/* Templates Tab */}
         <TabsContent value="templates" className="flex-1 overflow-hidden mt-0">
           <TemplatesTabContent />
+        </TabsContent>
+
+        {/* User Center Tab */}
+        <TabsContent value="usercenter" className="flex-1 overflow-hidden mt-0">
+          <UserCenter />
         </TabsContent>
       </Tabs>
 
