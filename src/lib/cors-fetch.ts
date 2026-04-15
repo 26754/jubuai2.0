@@ -21,6 +21,11 @@ function isBrowser(): boolean {
 const PROXIED_DOMAINS = [
   'memefast.top',
   'api.memefast.top',
+  // 火山引擎
+  'ark.cn-beijing.volces.com',
+  'ark.cn-shanghai.volces.com',
+  'ark.cn-guangzhou.volces.com',
+  'ark.cn-hangzhou.volces.com',
 ];
 
 /** 检测 URL 是否需要代理 */

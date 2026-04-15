@@ -396,6 +396,11 @@ app.post('/api/sync/settings', authMiddleware, async (req, res) => {
 const PROXIED_DOMAINS = [
   'memefast.top',
   'api.memefast.top',
+  // 火山引擎
+  'ark.cn-beijing.volces.com',
+  'ark.cn-shanghai.volces.com',
+  'ark.cn-guangzhou.volces.com',
+  'ark.cn-hangzhou.volces.com',
 ];
 
 // 通用 API 代理路由
