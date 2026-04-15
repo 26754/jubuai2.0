@@ -12,7 +12,7 @@ import { useState, useEffect } from "react";
 import { useCharacterLibraryStore, type Character } from "@/stores/character-library-store";
 import { useProjectStore } from "@/stores/project-store";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt, PromptLanguage } from "@/types/script";
-import { useActiveScriptProject } from "@/stores/script-store";
+import { useScriptStore, useActiveScriptProject } from "@/stores/script-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { useMediaStore } from "@/stores/media-store";
 import { generateCharacterImage as generateCharacterImageAPI } from "@/lib/ai/image-generator";
@@ -44,6 +44,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Copy,
+  ListOrdered,
+  Play,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -96,7 +99,7 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
   const { activeProjectId } = useProjectStore();
   const scriptProject = useActiveScriptProject();
   
-  const { pendingCharacterData, setPendingCharacterData } = useMediaPanelStore();
+  const { pendingCharacterData, setPendingCharacterData, characterCreationQueue, removeFromCharacterQueue, clearCharacterQueue, getNextCharacterFromQueue } = useMediaPanelStore();
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   
   // Form state
@@ -127,6 +130,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
   const [era, setEra] = useState<string | undefined>();
   // === 集作用域（从 pending 数据透传）===
   const [sourceEpisodeId, setSourceEpisodeId] = useState<string | undefined>();
+  // === 来源剧本角色ID（用于双向同步）===
+  const [sourceScriptCharId, setSourceScriptCharId] = useState<string | undefined>();
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [styleId, setStyleId] = useState<string>(DEFAULT_STYLE_ID);
   const [selectedElements, setSelectedElements] = useState<SheetElementId[]>(
@@ -270,6 +275,8 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
       }
       // === 集作用域透传 ===
       setSourceEpisodeId(pendingCharacterData.sourceEpisodeId);
+      // === 来源剧本角色ID（用于双向同步）===
+      setSourceScriptCharId(pendingCharacterData.sourceScriptCharId);
 
       if (pendingCharacterData.styleId) {
         const validStyle = getStyleById(pendingCharacterData.styleId);
@@ -397,9 +404,40 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
       negativePrompt: charNegativePrompt,
       // === 集作用域 ===
       linkedEpisodeId: sourceEpisodeId,
+      // === 状态标记 ===
+      status: 'linked',
     });
     selectCharacter(targetId);
     onCharacterCreated?.(targetId);
+
+    // === 双向同步：创建角色后自动关联回剧本 ===
+    if (sourceScriptCharId && activeProjectId) {
+      const scriptStore = useScriptStore.getState();
+      const currentScriptProject = scriptStore.projects[activeProjectId];
+      if (currentScriptProject) {
+        // 更新剧本的角色映射：scriptCharId -> libraryCharId
+        const updatedCharacterIdMap = {
+          ...currentScriptProject.characterIdMap,
+          [sourceScriptCharId]: targetId,
+        };
+        scriptStore.setMappings(activeProjectId, { characterIdMap: updatedCharacterIdMap });
+        
+        // 同时更新剧本角色数据中的 characterLibraryId
+        const characterIndex = currentScriptProject.scriptData?.characters.findIndex(
+          c => c.id === sourceScriptCharId
+        );
+        if (characterIndex !== undefined && characterIndex >= 0) {
+          scriptStore.updateCharacter(activeProjectId, sourceScriptCharId, {
+            characterLibraryId: targetId,
+          });
+        }
+        
+        console.log('[CharacterGen] 双向同步完成:', {
+          scriptCharId: sourceScriptCharId,
+          libraryCharId: targetId,
+        });
+      }
+    }
 
     // 开始生成图片
     setGenerationStatus('generating');
@@ -548,6 +586,59 @@ export function GenerationPanel({ selectedCharacter, onCharacterCreated }: Gener
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {/* 批量队列状态 */}
+      {characterCreationQueue.length > 0 && (
+        <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-600 text-xs">
+              <ListOrdered className="h-3 w-3" />
+              <span>批量队列: {characterCreationQueue.length} 个角色待生成</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                onClick={() => {
+                  const next = getNextCharacterFromQueue();
+                  if (next) {
+                    // 自动填充下一个角色的数据
+                    setPendingCharacterData(next);
+                  }
+                }}
+              >
+                <Play className="h-3 w-3 mr-1" />
+                继续
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  clearCharacterQueue();
+                  toast.info('已清空队列');
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          {/* 队列列表预览 */}
+          <div className="mt-1 flex flex-wrap gap-1">
+            {characterCreationQueue.slice(0, 3).map((char, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/20 rounded text-[10px] text-amber-700">
+                {char.name || '未命名'}
+              </span>
+            ))}
+            {characterCreationQueue.length > 3 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                +{characterCreationQueue.length - 3} 更多
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="p-3 pb-2 border-b shrink-0">
         <h3 className="font-medium text-sm">生成控制台</h3>
       </div>

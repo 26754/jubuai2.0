@@ -139,7 +139,16 @@ export function ScriptView() {
     characters: allCharacters, 
     selectCharacter: selectLibraryCharacter,
   } = useCharacterLibraryStore();
-  const { setActiveTab, goToDirectorWithData, goToCharacterWithData, goToSceneWithData, activeEpisodeIndex, enterEpisode } = useMediaPanelStore();
+  const { 
+    setActiveTab, 
+    goToDirectorWithData, 
+    goToCharacterWithData, 
+    goToSceneWithData, 
+    activeEpisodeIndex, 
+    enterEpisode,
+    addToCharacterQueue,
+    addToSceneQueue,
+  } = useMediaPanelStore();
 
   // 选中状态
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -428,6 +437,132 @@ export function ScriptView() {
   const selectedEpisodeShots = selectedItemType === "episode" && selectedEpisode
     ? shots.filter(shot => (shot as any).episodeId === selectedEpisode.id)
     : [];
+
+  // === 未关联资源计数 ===
+  const unlinkedCharacterCount = scriptData?.characters.filter(char => 
+    !char.characterId || !characterLibrary.some(c => c.id === char.characterId)
+  ).length || 0;
+  
+  const unlinkedSceneCount = scriptData?.scenes.filter(scene => 
+    !scene.sceneId || !sceneLibrary.some(s => s.id === scene.sceneId)
+  ).length || 0;
+
+  // === 批量操作回调 ===
+  
+  const handleBatchAddCharactersToQueue = useCallback((characterIds: string[]) => {
+    // 获取待添加的角色数据
+    const charsToAdd = characterIds.length > 0 
+      ? scriptData?.characters.filter(c => characterIds.includes(c.id)) || []
+      : scriptData?.characters.filter(char => 
+          !char.characterId || !characterLibrary.some(c => c.id === char.characterId)
+        ) || [];
+    
+    if (charsToAdd.length === 0) {
+      toast.success('所有角色已关联，无需批量添加');
+      return;
+    }
+
+    // 获取项目的视觉风格设置
+    const projectStyleId = projectStore.visualStyleId;
+    const promptLanguage = scriptData?.promptLanguage || 'zh';
+    
+    // 将角色添加到批量创建队列
+    charsToAdd.forEach(char => {
+      const pendingData = {
+        name: char.name,
+        gender: char.gender,
+        age: char.age,
+        personality: char.personality,
+        role: char.role,
+        traits: char.traits,
+        skills: char.skills,
+        keyActions: char.keyActions,
+        appearance: char.appearance,
+        relationships: char.relationships,
+        tags: char.tags,
+        notes: char.notes,
+        styleId: projectStyleId || char.styleId,
+        sourceScriptCharId: char.id, // 用于双向同步
+        promptLanguage,
+        // 角色相关字段
+        sourceEpisodeIndex: undefined,
+        sourceEpisodeId: undefined,
+        // 年代信息
+        storyYear: scriptData?.metadata?.storyYear,
+        era: scriptData?.metadata?.era,
+        // 视觉提示词
+        visualPromptEn: char.visualPromptEn,
+        visualPromptZh: char.visualPromptZh,
+        // 身份锚点
+        identityAnchors: char.identityAnchors,
+        negativePrompt: char.negativePrompt,
+        // 多阶段信息
+        stageInfo: char.stageInfo,
+        consistencyElements: char.consistencyElements,
+      };
+      addToCharacterQueue(pendingData);
+    });
+    
+    toast.success(`已将 ${charsToAdd.length} 个角色添加到生成队列`);
+    
+    // 切换到角色生成面板
+    setActivePanel('characters');
+  }, [scriptData, characterLibrary, projectStore, addToCharacterQueue]);
+
+  const handleBatchAddScenesToQueue = useCallback((sceneIds: string[]) => {
+    // 获取待添加的场景数据
+    const scenesToAdd = sceneIds.length > 0 
+      ? scriptData?.scenes.filter(s => sceneIds.includes(s.id)) || []
+      : scriptData?.scenes.filter(scene => 
+          !scene.sceneId || !sceneLibrary.some(s => s.id === scene.sceneId)
+        ) || [];
+    
+    if (scenesToAdd.length === 0) {
+      toast.success('所有场景已关联，无需批量添加');
+      return;
+    }
+
+    // 获取项目的视觉风格设置
+    const projectStyleId = projectStore.visualStyleId;
+    const promptLanguage = scriptData?.promptLanguage || 'zh';
+    
+    // 将场景添加到批量创建队列
+    scenesToAdd.forEach(scene => {
+      const pendingData = {
+        name: scene.name,
+        location: scene.location,
+        time: scene.time,
+        atmosphere: scene.atmosphere,
+        styleId: projectStyleId || scene.styleId,
+        tags: scene.tags,
+        notes: scene.notes,
+        sourceScriptSceneId: scene.id, // 用于双向同步
+        promptLanguage,
+        // 场景相关字段
+        sourceEpisodeIndex: undefined,
+        sourceEpisodeId: undefined,
+        // 视觉描述
+        visualPrompt: scene.visualPrompt,
+        visualPromptEn: scene.visualPromptEn,
+        // 专业场景设计
+        architectureStyle: scene.architectureStyle,
+        lightingDesign: scene.lightingDesign,
+        colorPalette: scene.colorPalette,
+        eraDetails: scene.eraDetails,
+        keyProps: scene.keyProps,
+        spatialLayout: scene.spatialLayout,
+        // 多视角
+        viewpoints: scene.viewpoints,
+        contactSheetPrompts: scene.contactSheetPrompts,
+      };
+      addToSceneQueue(pendingData);
+    });
+    
+    toast.success(`已将 ${scenesToAdd.length} 个场景添加到生成队列`);
+    
+    // 切换到场景生成面板
+    setActivePanel('scenes');
+  }, [scriptData, sceneLibrary, projectStore, addToSceneQueue]);
 
   // 为单集生成分镜（需要先定义，因为 handleImportFullScript 依赖它）
   const handleGenerateEpisodeShots = useCallback(async (episodeIndex: number) => {
@@ -1603,6 +1738,8 @@ export function ScriptView() {
         tags: character.tags,
         notes: character.notes,
         styleId,
+        // === 来源剧本角色ID（用于双向同步）===
+        sourceScriptCharId: character.id,
         // === 提示词语言偏好 ===
         promptLanguage: scriptProject?.promptLanguage || 'zh',
         // === 专业角色设计字段（世界级大师生成）===
@@ -1640,6 +1777,25 @@ export function ScriptView() {
       if (!scene) {
         setActiveTab("scenes");
         toast.info("已跳转到场景库");
+        return;
+      }
+
+      // 检查是否已关联场景库
+      const { updateScene: updateScriptScene } = useScriptStore.getState();
+      const projectId = activeProjectId;
+      if (!projectId) {
+        setActiveTab("scenes");
+        toast.info("已跳转到场景库");
+        return;
+      }
+
+      // 检查是否已关联
+      if (scene.sceneLibraryId) {
+        // 已关联，直接跳转并选中
+        const { setActiveTab } = useMediaPanelStore.getState();
+        setActiveTab("scenes");
+        // TODO: 在场景库中选中对应场景
+        toast.info(`已跳转到场景库，选中「${scene.name || scene.location}」`);
         return;
       }
 
@@ -1689,6 +1845,8 @@ export function ScriptView() {
           spatialLayout: scene.spatialLayout,
           viewpoints: contactSheetData.viewpoints,
           contactSheetPrompts: contactSheetData.contactSheetPrompts,
+          // === 来源剧本场景ID（用于双向同步）===
+          sourceScriptSceneId: scene.id,
           // === 集作用域透传 ===
           sourceEpisodeIndex: activeEpisodeIndex ?? undefined,
           sourceEpisodeId: activeEpisodeId,
@@ -1721,6 +1879,8 @@ export function ScriptView() {
             keyProps: scene.keyProps,
             spatialLayout: scene.spatialLayout,
           }),
+          // === 来源剧本场景ID（用于双向同步）===
+          sourceScriptSceneId: scene.id,
           // === 集作用域透传 ===
           sourceEpisodeIndex: activeEpisodeIndex ?? undefined,
           sourceEpisodeId: activeEpisodeId,
@@ -2509,6 +2669,11 @@ export function ScriptView() {
             stageAnalysisStatus={stageAnalysisStatus}
             suggestMultiStage={suggestMultiStage}
             multiStageHints={multiStageHints}
+            // === 批量操作回调 ===
+            onBatchAddCharactersToQueue={handleBatchAddCharactersToQueue}
+            onBatchAddScenesToQueue={handleBatchAddScenesToQueue}
+            unlinkedCharacterCount={unlinkedCharacterCount}
+            unlinkedSceneCount={unlinkedSceneCount}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

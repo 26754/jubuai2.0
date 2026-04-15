@@ -112,6 +112,8 @@ export interface PendingCharacterData {
   // 集作用域透传
   sourceEpisodeIndex?: number;
   sourceEpisodeId?: string;
+  // === 来源剧本角色ID（用于双向同步）===
+  sourceScriptCharId?: string; // 剧本中的角色ID，创建后自动关联
   // === 年代信息（从剧本元数据传递）===
   storyYear?: number;  // 故事年份，如 2002
   era?: string;        // 时代背景描述
@@ -149,6 +151,8 @@ export interface PendingSceneData {
   // 集作用域透传
   sourceEpisodeIndex?: number;
   sourceEpisodeId?: string;
+  // === 来源剧本场景ID（用于双向同步）===
+  sourceScriptSceneId?: string; // 剧本中的场景ID，创建后自动关联
   // 提示词语言偏好
   promptLanguage?: import('@/types/script').PromptLanguage;
   
@@ -216,6 +220,17 @@ interface MediaPanelStore {
   pendingSceneData: PendingSceneData | null;
   setPendingSceneData: (data: PendingSceneData | null) => void;
   goToSceneWithData: (data: PendingSceneData) => void;
+  // === 批量操作队列 ===
+  characterCreationQueue: PendingCharacterData[]; // 待创建的角色队列
+  sceneCreationQueue: PendingSceneData[];          // 待创建的场景队列
+  addToCharacterQueue: (data: PendingCharacterData) => void;
+  addToSceneQueue: (data: PendingSceneData) => void;
+  removeFromCharacterQueue: (index: number) => void;
+  removeFromSceneQueue: (index: number) => void;
+  clearCharacterQueue: () => void;
+  clearSceneQueue: () => void;
+  getNextCharacterFromQueue: () => PendingCharacterData | null;
+  getNextSceneFromQueue: () => PendingSceneData | null;
 }
 
 export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
@@ -296,4 +311,47 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
     activeStage: "assets",
     inProject: true,
   }),
+  // === 批量操作队列 ===
+  characterCreationQueue: [],
+  sceneCreationQueue: [],
+  addToCharacterQueue: (data) => set((state) => ({
+    characterCreationQueue: [...state.characterCreationQueue, data],
+  })),
+  addToSceneQueue: (data) => set((state) => ({
+    sceneCreationQueue: [...state.sceneCreationQueue, data],
+  })),
+  removeFromCharacterQueue: (index) => set((state) => ({
+    characterCreationQueue: state.characterCreationQueue.filter((_, i) => i !== index),
+  })),
+  removeFromSceneQueue: (index) => set((state) => ({
+    sceneCreationQueue: state.sceneCreationQueue.filter((_, i) => i !== index),
+  })),
+  clearCharacterQueue: () => set({ characterCreationQueue: [] }),
+  clearSceneQueue: () => set({ sceneCreationQueue: [] }),
+  getNextCharacterFromQueue: () => {
+    const state = useMediaPanelStore.getState();
+    if (state.characterCreationQueue.length === 0) return null;
+    const [next, ...rest] = state.characterCreationQueue;
+    useMediaPanelStore.setState({
+      characterCreationQueue: rest,
+      pendingCharacterData: next,
+      activeTab: "characters",
+      activeStage: "assets",
+      inProject: true,
+    });
+    return next;
+  },
+  getNextSceneFromQueue: () => {
+    const state = useMediaPanelStore.getState();
+    if (state.sceneCreationQueue.length === 0) return null;
+    const [next, ...rest] = state.sceneCreationQueue;
+    useMediaPanelStore.setState({
+      sceneCreationQueue: rest,
+      pendingSceneData: next,
+      activeTab: "scenes",
+      activeStage: "assets",
+      inProject: true,
+    });
+    return next;
+  },
 }));

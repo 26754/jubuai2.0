@@ -114,6 +114,11 @@ interface PropertyPanelProps {
   stageAnalysisStatus?: 'idle' | 'analyzing' | 'completed' | 'error';
   suggestMultiStage?: boolean;
   multiStageHints?: string[];
+  // === 批量操作回调 ===
+  onBatchAddCharactersToQueue?: (characterIds: string[]) => void; // 批量添加角色到队列
+  onBatchAddScenesToQueue?: (sceneIds: string[]) => void;         // 批量添加场景到队列
+  unlinkedCharacterCount?: number;   // 未关联的角色数量
+  unlinkedSceneCount?: number;       // 未关联的场景数量
 }
 
 export function PropertyPanel({
@@ -141,6 +146,10 @@ export function PropertyPanel({
   stageAnalysisStatus,
   suggestMultiStage,
   multiStageHints,
+  onBatchAddCharactersToQueue,
+  onBatchAddScenesToQueue,
+  unlinkedCharacterCount = 0,
+  unlinkedSceneCount = 0,
 }: PropertyPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -845,6 +854,50 @@ export function PropertyPanel({
                   )}
                 </Button>
               </>
+            )}
+            
+            {/* === 批量操作区域 === */}
+            {(unlinkedCharacterCount > 0 || unlinkedSceneCount > 0) && (
+              <div className="border-t pt-3 mt-3">
+                <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <ListChecks className="h-3 w-3" />
+                  批量创建资源
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {unlinkedCharacterCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // 获取当前集的所有未关联角色ID
+                        const episodeCharacterIds = scriptProject?.scriptData?.characters
+                          ?.filter(c => !c.characterLibraryId)
+                          ?.map(c => c.id) || [];
+                        onBatchAddCharactersToQueue?.(episodeCharacterIds);
+                      }}
+                    >
+                      <User className="h-3 w-3 mr-1" />
+                      批量角色 ({unlinkedCharacterCount})
+                    </Button>
+                  )}
+                  {unlinkedSceneCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // 获取当前集的所有未关联场景ID
+                        const episodeSceneIds = scriptProject?.scriptData?.scenes
+                          ?.filter(s => !s.sceneLibraryId)
+                          ?.map(s => s.id) || [];
+                        onBatchAddScenesToQueue?.(episodeSceneIds);
+                      }}
+                    >
+                      <MapPin className="h-3 w-3 mr-1" />
+                      批量场景 ({unlinkedSceneCount})
+                    </Button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

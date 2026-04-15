@@ -56,6 +56,9 @@ import {
   LayoutGrid,
   ImagePlus,
   X,
+  ListOrdered,
+  Play,
+  Trash2,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
@@ -90,7 +93,7 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
     setContactSheetTask,
   } = useSceneStore();
 
-  const { pendingSceneData, setPendingSceneData } = useMediaPanelStore();
+  const { pendingSceneData, setPendingSceneData, sceneCreationQueue, removeFromSceneQueue, clearSceneQueue, getNextSceneFromQueue } = useMediaPanelStore();
   const { addMediaFromUrl, getOrCreateCategoryFolder } = useMediaStore();
   
   // 获取当前项目的分镜数据，用于提取场景道具
@@ -113,6 +116,8 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
   const [notes, setNotes] = useState("");               // 场景备注
   const [styleId, setStyleId] = useState<string>(DEFAULT_STYLE_ID);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
+  // === 来源剧本场景ID（用于双向同步）===
+  const [sourceScriptSceneId, setSourceScriptSceneId] = useState<string | undefined>();
 
   // Preview state
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -305,6 +310,9 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
       
       // 同步表单状态，确保 UI 显示正确的风格
       setStyleId(parsedStyleId);
+      
+      // === 来源剧本场景ID（用于双向同步）===
+      setSourceScriptSceneId(data.sourceScriptSceneId);
 
       // 自动创建场景（包含专业设计字段）
       const newId = addScene({
@@ -332,6 +340,35 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
       // 选中新创建的场景
       selectScene(newId);
       onSceneCreated?.(newId);
+      
+      // === 双向同步：创建场景后自动关联回剧本 ===
+      if (data.sourceScriptSceneId && resourceProjectId) {
+        const scriptStore = useScriptStore.getState();
+        const currentScriptProject = scriptStore.projects[resourceProjectId];
+        if (currentScriptProject) {
+          // 更新剧本的场景映射：scriptSceneId -> librarySceneId
+          const updatedSceneIdMap = {
+            ...currentScriptProject.sceneIdMap,
+            [data.sourceScriptSceneId]: newId,
+          };
+          scriptStore.setMappings(resourceProjectId, { sceneIdMap: updatedSceneIdMap });
+          
+          // 同时更新剧本场景数据中的 sceneLibraryId
+          const sceneIndex = currentScriptProject.scriptData?.scenes.findIndex(
+            s => s.id === data.sourceScriptSceneId
+          );
+          if (sceneIndex !== undefined && sceneIndex >= 0) {
+            scriptStore.updateScene(resourceProjectId, data.sourceScriptSceneId, {
+              sceneLibraryId: newId,
+            });
+          }
+          
+          console.log('[SceneGen] 双向同步完成:', {
+            scriptSceneId: data.sourceScriptSceneId,
+            librarySceneId: newId,
+          });
+        }
+      }
       
       // 如果有多视角数据，直接进入联合图生成模式
       if (data.viewpoints && data.viewpoints.length > 0 &&
@@ -3147,6 +3184,59 @@ ${anchor} 的背面直视镜头。展示后部结构。背景是物体面向的�
 
   return (
     <div className="h-full flex flex-col">
+      {/* 批量队列状态 */}
+      {sceneCreationQueue.length > 0 && (
+        <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-600 text-xs">
+              <ListOrdered className="h-3 w-3" />
+              <span>批量队列: {sceneCreationQueue.length} 个场景待生成</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                onClick={() => {
+                  const next = getNextSceneFromQueue();
+                  if (next) {
+                    // 自动填充下一个场景的数据
+                    setPendingSceneData(next);
+                  }
+                }}
+              >
+                <Play className="h-3 w-3 mr-1" />
+                继续
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  clearSceneQueue();
+                  toast.info('已清空队列');
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          {/* 队列列表预览 */}
+          <div className="mt-1 flex flex-wrap gap-1">
+            {sceneCreationQueue.slice(0, 3).map((scene, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/20 rounded text-[10px] text-amber-700">
+                {scene.name || scene.location || '未命名'}
+              </span>
+            ))}
+            {sceneCreationQueue.length > 3 && (
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                +{sceneCreationQueue.length - 3} 更多
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="p-3 pb-2 border-b space-y-2">
         <h3 className="font-medium text-sm">生成控制台</h3>
         {/* 生成模式切换 */}
