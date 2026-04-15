@@ -28,7 +28,7 @@
 │   │   ├── auth/                # 认证组件
 │   │   │   └── AuthPage.tsx    # 登录/注册页面
 │   │   ├── panels/              # 面板组件
-│   │   │   └── SettingsPanel.tsx  # 设置面板（包含数据导出）
+│   │   │   └── SettingsPanel.tsx  # 设置面板（包含用户中心、API管理、AI助手、项目分享、模板市场、高级选项）
 │   │   └── ui/                  # UI 基础组件
 │   ├── lib/
 │   │   ├── data-export.ts       # 数据导出/导入工具
@@ -356,7 +356,10 @@ curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/js
 ## Phase 3: 高级功能
 
 ### 概述
-Phase 3 包含三大高级功能：AI 助手面板、项目分享系统、模板市场。这些功能位于设置面板的新增 Tab 中。
+Phase 3 包含三大高级功能：AI 助手面板、项目分享系统、模板市场。这些功能已集成到设置面板的 Tab 中，可通过以下入口访问：
+- AI 助手：设置面板 → 「AI 助手」Tab
+- 项目分享：设置面板 → 「项目分享」Tab
+- 模板市场：设置面板 → 「模板市场」Tab
 
 ### AI 助手面板 (`AIAssistant.tsx`)
 
