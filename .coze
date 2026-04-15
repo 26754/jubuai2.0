@@ -1,10 +1,15 @@
 [project]
+# Node.js 版本要求
 requires = ["nodejs-24"]
+# 入口文件（用于健康检查）
+entrypoint = "index.html"
 
 [dev]
+# 开发环境：安装依赖 + 启动开发服务器
 build = ["pnpm", "install"]
 run = ["pnpm", "run", "dev"]
 
 [deploy]
+# 部署环境：构建 + 启动生产服务器
 build = ["bash", "./scripts/build.sh"]
 run = ["node", "scripts/server.js"]

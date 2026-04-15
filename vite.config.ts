@@ -56,10 +56,6 @@ export default defineConfig({
           if (id.includes('node_modules/zustand')) {
             return 'vendor-state';
           }
-          // Supabase
-          if (id.includes('node_modules/@supabase')) {
-            return 'vendor-supabase';
-          }
           // 其他 vendor
           if (id.includes('node_modules')) {
             return 'vendor-misc';
@@ -81,8 +77,25 @@ export default defineConfig({
         drop_console: true, // 生产环境移除 console
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info'],
+        passes: 2, // 多轮压缩
+        unsafe_arrows: true, // 安全的箭头函数转换
+        unsafe_methods: true, // 安全的原型方法内联
+      },
+      mangle: {
+        safari10: true, // Safari 10 兼容
+      },
+      format: {
+        comments: false, // 移除注释
       },
     },
+    // 目标浏览器
+    target: 'es2020',
+    // 启用 CSS Tree Shaking
+    cssTarget: 'chrome80',
+    // 拆分 vendor 更好的缓存
+    preserveModules: false,
+    // 报告压缩大小
+    reportCompressedSize: true,
   },
   // 优化依赖预构建
   optimizeDeps: {

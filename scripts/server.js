@@ -5,6 +5,9 @@
  * 注意：已移除第三方 API 代理，API 调用直接通过浏览器访问
  */
 
+// 全局启动时间（用于计算启动耗时）
+global.startTime = Date.now();
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -109,12 +112,17 @@ const testDbConnection = async () => {
     const result = await pool.query('SELECT NOW() as now');
     const dbType = NEON_DATABASE_URL ? 'Neon PostgreSQL' : 'PostgreSQL';
     console.log(`[DB] Connected to ${dbType}:`, result.rows[0].now);
+    dbConnectionStatus = { connected: true, type: dbType, lastCheck: Date.now() };
     return true;
   } catch (error) {
     console.error('[DB] Connection failed:', error.message);
+    dbConnectionStatus = { connected: false, type: 'Unknown', lastCheck: Date.now(), error: error.message };
     return false;
   }
 };
+
+// 数据库连接状态（供健康检查使用）
+let dbConnectionStatus = { connected: false, type: 'Unknown', lastCheck: 0 };
 
 // 辅助函数：snake_case 转 camelCase
 const toCamelCase = (obj) => {
@@ -670,9 +678,51 @@ app.use('/api/proxy', async (req, res) => {
 
 // ==================== 健康检查 ====================
 
-// 健康检查
+// 健康检查 - 简单端点
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: Date.now(),
+    uptime: process.uptime()
+  });
+});
+
+// 详细健康检查 - 包含数据库状态
+app.get('/api/health/detailed', async (req, res) => {
+  const checks = {
+    server: { status: 'ok', uptime: process.uptime() },
+    memory: { 
+      status: 'ok',
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+      unit: 'MB'
+    },
+    database: dbConnectionStatus
+  };
+
+  const allHealthy = checks.server.status === 'ok' && checks.database.connected;
+  
+  res.status(allHealthy ? 200 : 503).json({
+    status: allHealthy ? 'healthy' : 'degraded',
+    timestamp: Date.now(),
+    checks,
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
+
+// 就绪检查 - Kubernetes/负载均衡器使用
+app.get('/ready', (req, res) => {
+  const isReady = dbConnectionStatus.connected;
+  if (isReady) {
+    res.status(200).json({ ready: true });
+  } else {
+    res.status(503).json({ ready: false, reason: 'Database not connected' });
+  }
+});
+
+// 存活检查 - Kubernetes 使用
+app.get('/live', (req, res) => {
+  res.status(200).json({ alive: true });
 });
 
 // ==================== CSP 配置 ====================
@@ -1259,6 +1309,25 @@ const initAllTables = async () => {
 
 // ==================== 启动服务器 ====================
 
+// 启动就绪状态
+let serverReady = false;
+
+// 等待服务就绪的函数
+const waitForServerReady = async (maxWaitMs = 30000) => {
+  const startTime = Date.now();
+  console.log('[Server] Waiting for server to be ready...');
+  
+  while (!serverReady && (Date.now() - startTime) < maxWaitMs) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  
+  if (serverReady) {
+    console.log('[Server] Server is ready!');
+  } else {
+    console.warn('[Server] Server ready timeout, but continuing...');
+  }
+};
+
 const server = http.createServer(app);
 
 server.listen(Number(PORT), HOST, async () => {
@@ -1266,10 +1335,19 @@ server.listen(Number(PORT), HOST, async () => {
   console.log('[Server] Serving static files from:', distPath);
 
   // 初始化数据库连接
-  await testDbConnection();
+  const dbConnected = await testDbConnection();
 
   // 初始化所有表
-  await initAllTables();
+  if (dbConnected) {
+    await initAllTables();
+  }
+
+  // 标记服务就绪
+  serverReady = true;
+  
+  const startupTime = Date.now() - global.startTime;
+  console.log(`[Server] Startup completed in ${startupTime}ms`);
+  console.log('[Server] Server is READY to accept requests');
 
   console.log('[Server] Data sync API endpoints:');
   console.log('  GET    /api/sync/projects         - 获取所有项目');
