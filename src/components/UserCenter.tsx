@@ -71,8 +71,6 @@ import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supa
 import { useProjectStore } from '@/stores/project-store';
 import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
-import { useRealtimeSync } from '@/hooks/use-realtime-sync';
-import { SyncStatusIndicator, SyncStatusPanel } from '@/components/SyncStatusIndicator';
 
 // ==================== 类型定义 ====================
 
@@ -92,6 +90,16 @@ interface SessionInfo {
   expiresAt: string;
   userAgent?: string;
   deviceType?: 'desktop' | 'mobile' | 'tablet' | 'unknown';
+}
+
+// 格式化最后同步时间
+function formatLastSync(timestamp: number | null): string {
+  if (!timestamp) return '从未同步';
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  return new Date(timestamp).toLocaleDateString('zh-CN');
 }
 
 // ==================== 用户资料卡片组件 ====================
@@ -1040,11 +1048,7 @@ export function UserCenter() {
   const { characters } = useCharacterLibraryStore();
   const { scenes } = useSceneStore();
 
-  // 实时同步状态
-  const { isConnected, isSyncing, status: syncStatus, offlineQueueCount, triggerSync } = useRealtimeSync({
-    autoStart: true,
-  });
-
+  // 简化状态 - 不依赖实时同步
   const [stats, setStats] = useState<UserStats>({
     projectCount: 0,
     characterCount: 0,
@@ -1150,16 +1154,17 @@ export function UserCenter() {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser?.id);
 
-        // 获取最后同步时间（从实时同步管理器）
-        const lastSyncTime = syncStatus.lastEventAt || 
-          (localStorage.getItem('jubuai-last-sync-time') ? parseInt(localStorage.getItem('jubuai-last-sync-time')!, 10) : null);
+        // 获取最后同步时间
+        const lastSyncTime = localStorage.getItem('jubuai-last-sync-time') 
+          ? parseInt(localStorage.getItem('jubuai-last-sync-time')!, 10) 
+          : null;
         
         setStats({
           projectCount: cloudProjectCount || projects.length,
           characterCount: characters.length,
           sceneCount: scenes.length,
           shotCount: 0,
-          cloudSynced: isConnected,
+          cloudSynced: isAuthenticated,
           lastSyncTime,
         });
       } catch (error) {
@@ -1169,7 +1174,7 @@ export function UserCenter() {
           characterCount: characters.length,
           sceneCount: scenes.length,
           shotCount: 0,
-          cloudSynced: isConnected,
+          cloudSynced: isAuthenticated,
           lastSyncTime: null,
         });
       } finally {
@@ -1178,7 +1183,7 @@ export function UserCenter() {
     };
 
     fetchCloudStats();
-  }, [isAuthenticated, isDemoUser, projects, characters, scenes, currentUser, isConnected, syncStatus.lastEventAt]);
+  }, [isAuthenticated, isDemoUser, projects, characters, scenes, currentUser]);
 
   // 处理登出
   const handleLogout = async () => {
@@ -1361,14 +1366,35 @@ export function UserCenter() {
             <StatsOverview stats={stats} isLoading={isLoading} />
           </div>
 
-          {/* 实时同步状态 */}
+          {/* 云端同步状态 */}
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              实时同步
-              <SyncStatusIndicator showText={false} showCount={true} />
+              云端同步
             </h3>
-            <SyncStatusPanel />
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'p-2 rounded-lg',
+                      stats.cloudSynced ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
+                    )}>
+                      <Globe className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">数据同步</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.cloudSynced ? `已连接 · ${formatLastSync(stats.lastSyncTime)}` : '未连接到云端'}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant={stats.cloudSynced ? 'default' : 'secondary'}>
+                    {stats.cloudSynced ? '已连接' : '未连接'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* 会话管理 */}
