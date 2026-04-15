@@ -47,6 +47,8 @@ export function DoubaoModelWindow({ onModelSelect }: DoubaoModelWindowProps) {
         { id: "doubao-seedance-1-0-pro-fast-251015", name: "Seedance 1.0 Pro Fast", description: "快速视频生成", version: "1.0", duration: "5-10s" },
         { id: "doubao-seedance-1-0-lite-t2v-250428", name: "Seedance 1.0 Lite T2V", description: "轻量级文生视频", version: "1.0", duration: "5-10s" },
         { id: "doubao-seedance-1-0-lite-i2v-250428", name: "Seedance 1.0 Lite I2V", description: "轻量级图生视频", version: "1.0", duration: "5-10s" },
+        { id: "doubao-nanobanana-2", name: "Nano Banana 2", description: "创新视频生成模型，支持多种风格和运镜", version: "2.0", duration: "3-15s" },
+        { id: "doubao-nanobanana-1", name: "Nano Banana 1", description: "基础版创新视频模型", version: "1.0", duration: "3-10s" },
       ],
     },
     {

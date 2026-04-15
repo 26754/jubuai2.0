@@ -45,7 +45,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { SeriesMeta, NamedEntity, Faction, EpisodeRawScript } from "@/types/script";
-import { getStyleName } from "@/lib/constants/visual-styles";
+import { EnhancedWorkflowGuide } from "./EnhancedWorkflowGuide";
+import type { WorkflowStep } from "./EnhancedWorkflowGuide";
 
 const OVERVIEW_WORKFLOW_SECTIONS: Array<{ id: number; title: string; steps: string[] }> = [
   {
@@ -250,41 +251,66 @@ export function OverviewPanel() {
     [projectId, updateSeriesMeta]
   );
 
+  // 工作流指引状态
+  const [showEnhancedGuide, setShowEnhancedGuide] = useState(false);
+
   if (!meta) {
     return (
       <div className="h-full p-6">
-        <div className="mx-auto w-full max-w-6xl rounded-xl border bg-panel">
-          <div className="border-b px-5 py-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-              <BookOpen className="h-3.5 w-3.5" />
-              新手引导
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-foreground">单机版爱阅真人剧基础工作流</h3>
-            <p className="mt-1 text-sm text-muted-foreground">按顺序执行，不要跳步。</p>
-          </div>
-          <div className="grid gap-4 p-4 md:grid-cols-2">
-            {OVERVIEW_WORKFLOW_SECTIONS.map((section) => (
-              <div key={section.id} className="rounded-lg border bg-background/50 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                    {section.id}
-                  </span>
-                  <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
-                </div>
-                <div className="space-y-2">
-                  {section.steps.map((step, idx) => (
-                    <div key={`${section.id}-${idx}`} className="flex items-start gap-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] text-muted-foreground">
-                        {idx + 1}
-                      </span>
-                      <p className="text-sm leading-5 text-foreground">{step}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* 切换按钮 */}
+        <div className="flex items-center justify-end mb-4">
+          <Button
+            variant={showEnhancedGuide ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowEnhancedGuide(!showEnhancedGuide)}
+          >
+            {showEnhancedGuide ? "显示简易模式" : "显示增强模式"}
+          </Button>
         </div>
+        
+        {showEnhancedGuide ? (
+          /* 增强模式：使用 EnhancedWorkflowGuide */
+          <EnhancedWorkflowGuide
+            className="max-w-2xl mx-auto"
+            onStepClick={(step) => {
+              console.log("Step clicked:", step);
+            }}
+          />
+        ) : (
+          /* 简易模式：原有工作流展示 */
+          <div className="mx-auto w-full max-w-6xl rounded-xl border bg-panel">
+            <div className="border-b px-5 py-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                新手引导
+              </div>
+              <h3 className="mt-2 text-lg font-semibold text-foreground">单机版爱阅真人剧基础工作流</h3>
+              <p className="mt-1 text-sm text-muted-foreground">按顺序执行，不要跳步。</p>
+            </div>
+            <div className="grid gap-4 p-4 md:grid-cols-2">
+              {OVERVIEW_WORKFLOW_SECTIONS.map((section) => (
+                <div key={section.id} className="rounded-lg border bg-background/50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {section.id}
+                    </span>
+                    <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {section.steps.map((step, idx) => (
+                      <div key={`${section.id}-${idx}`} className="flex items-start gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] text-muted-foreground">
+                          {idx + 1}
+                        </span>
+                        <p className="text-sm leading-5 text-foreground">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
