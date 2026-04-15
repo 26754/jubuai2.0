@@ -35,10 +35,11 @@ import { Loader2 } from "lucide-react";
 
 /**
  * 平台预设配置
- * 1. 魔因API (memefast) - 全功能中转（推荐）
- * 2. 阿里云百炼 - 通义千问/万相生图
- * 3. RunningHub - 视角切换/多角度生成
- * 4. 自定义 - OpenAI 兼容 API
+ * 1. JuBu API (memefast) - 全功能 AI 中转（推荐）
+ * 2. 火山引擎 - 豆包大模型/Seedance 视频生成
+ * 3. 阿里云百炼 - 通义千问/万相生图
+ * 4. RunningHub - 视角切换/多角度生成
+ * 5. 自定义 - OpenAI 兼容 API
  */
 const PLATFORM_PRESETS: Array<{
   platform: string;
@@ -51,7 +52,7 @@ const PLATFORM_PRESETS: Array<{
 }> = [
   {
     platform: "memefast",
-    name: "JuBu API",
+    name: "JuBu API (memefast)",
     baseUrl: "https://memefast.top",
     description: "全功能 AI 中转，支持对话/图片/视频/图片理解",
     services: ["对话", "图片生成", "视频生成", "图片理解"],
@@ -78,6 +79,32 @@ const PLATFORM_PRESETS: Array<{
     recommended: true,
   },
   {
+    platform: "volcengine",
+    name: "火山引擎",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    description: "豆包大模型，支持对话/图片生成/视频生成/Seedance",
+    services: ["对话", "图片生成", "视频生成", "图片理解"],
+    models: [
+      // 对话模型 - 豆包 Pro/Lite
+      "doubao-pro-32k",
+      "doubao-pro-128k",
+      "doubao-lite-32k",
+      "doubao-lite-128k",
+      // Seedance 2.0 系列（最新视频生成）
+      "doubao-seedance-2-0-pro-t2v-260610",
+      "doubao-seedance-2-0-pro-i2v-260610",
+      "doubao-seedance-2-0-pro-t2v-fast-260610",
+      // Seedance 1.5 系列
+      "doubao-seedance-1-5-pro-251215",
+      "doubao-seedance-1-0-pro-fast-251015",
+      // Seedream 图像生成
+      "doubao-seedream-4-5",
+      "doubao-seedream-3-0-t2i-250415",
+      // 思考模型
+      "doubao-thinking-pro-250715",
+    ],
+  },
+  {
     platform: "bailian",
     name: "阿里云百炼",
     baseUrl: "https://dashscope.aliyuncs.com/api/v1",
@@ -93,9 +120,6 @@ const PLATFORM_PRESETS: Array<{
       "qwen-turbo-0624",
       "qwen-plus-0624",
       "qwen-plus-july-2024",
-      "qwen2.5-72b-instruct",
-      "qwen2.5-32b-instruct",
-      "qwen2.5-14b-instruct",
       "qwq-32b",
       // 万相生图
       "wanx2.1-t2i-turbo",

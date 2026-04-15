@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * 自定义生产服务器
- * 同时提供静态文件和 API 代理
- * 优化版：合并冗余代理逻辑
+ * 提供静态文件服务
+ * 注意：已移除 API 代理，API 调用直接通过浏览器访问
  */
 
 import express from 'express';
@@ -26,191 +26,38 @@ const distPath = path.join(projectRoot, 'dist');
 app.use(cors());
 app.use(express.json());
 
-// ==================== 通用代理工厂函数 ====================
-
-/**
- * 创建代理处理器
- * @param {string} pattern - URL 匹配模式
- * @param {string} targetBaseUrl - 目标基础 URL
- * @param {string} logPrefix - 日志前缀
- */
-function createProxyHandler(pattern, targetBaseUrl, logPrefix) {
-  return async (req, res) => {
-    const match = req.originalUrl.match(new RegExp(pattern));
-    const targetPath = match && match[1] ? match[1] : '/';
-    const targetUrl = `${targetBaseUrl}${targetPath}`;
-    
-    try {
-      if (logPrefix) {
-        console.log(`[proxy/${logPrefix}] Forwarding: ${req.method} ${targetUrl}`);
-      }
-      
-      const response = await fetch(targetUrl, {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': req.headers.authorization || '',
-        },
-        body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-      });
-
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      console.error(`[proxy/${logPrefix}] Error:`, error.message);
-      res.status(500).json({ error: error.message });
-    }
-  };
-}
-
-// 注册固定域名的代理
-app.all(/\/__proxy\/bailian(\/.*)?/, createProxyHandler('__proxy/bailian(\\/.*)?', 'https://dashscope.aliyuncs.com', 'bailian'));
-
-// ==================== MemeFast 代理（动态目标域名）====================
-
-app.all(/\/__proxy\/memefast(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/memefast(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetHost = req.headers['x-target-host'] || req.query.host || '';
-  
-  if (!targetHost) {
-    return res.status(400).json({ error: 'Missing target host (use x-target-host header or ?host= query param)' });
-  }
-  
-  const targetUrl = `${targetHost}${targetPath}`;
-  
-  try {
-    console.log(`[proxy/memefast] Forwarding: ${req.method} ${targetUrl}`);
-    
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/memefast] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== 火山引擎 ARK 北京代理 ====================
-
-app.all(/\/__proxy\/volcengine(\/.*)?/, createProxyHandler('__proxy/volcengine(\\/.*)?', 'https://ark.cn-beijing.volces.com', 'volcengine'));
-
-// ==================== 通用外部 API 代理 ====================
-
-app.all(/\/__proxy\/external(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/external(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetHost = req.headers['x-target-host'] || req.query.host || '';
-  
-  if (!targetHost) {
-    return res.status(400).json({ error: 'Missing target host (use x-target-host header or ?host= query param)' });
-  }
-  
-  const targetUrl = `${targetHost}${targetPath}`;
-  
-  try {
-    console.log(`[proxy/external] Forwarding: ${req.method} ${targetUrl}`);
-    
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/external] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== 通用 API 代理（支持所有第三方 API） ====================
-
-// 这个路由用于代理所有第三方 API 请求，解决 CORS 问题
-// 前端通过 /__api_proxy?url=<encoded_url> 调用
-app.all('/__api_proxy', async (req, res) => {
-  const targetUrl = req.query.url;
-  
-  if (!targetUrl || typeof targetUrl !== 'string') {
-    return res.status(400).json({ error: 'Missing url parameter (use ?url=<encoded_url>)' });
-  }
-  
-  // 解码目标 URL
-  const decodedUrl = decodeURIComponent(targetUrl);
-  
-  // 安全检查：只允许 http/https
-  if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
-    return res.status(400).json({ error: 'Only http/https URLs are allowed' });
-  }
-  
-  try {
-    console.log(`[proxy/api] Forwarding: ${req.method} ${decodedUrl}`);
-    
-    // 提取原始 headers（通过 x-proxy-headers 传递）
-    let originalHeaders = {};
-    const proxyHeadersRaw = req.headers['x-proxy-headers'];
-    if (proxyHeadersRaw && typeof proxyHeadersRaw === 'string') {
-      try {
-        originalHeaders = JSON.parse(proxyHeadersRaw);
-      } catch (e) {
-        console.warn('[proxy/api] Failed to parse x-proxy-headers');
-      }
-    }
-    
-    const response = await fetch(decodedUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': originalHeaders['Content-Type'] || 'application/json',
-        'Authorization': originalHeaders['Authorization'] || req.headers.authorization || '',
-        ...originalHeaders,
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/api] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ==================== 静态文件服务 ====================
 
 // CSP 配置：使用环境变量支持动态域名
 const SITE_URL = process.env.VITE_SITE_URL || 'https://jubuguanai.coze.site';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://voorsnefrbmqgbtfdoel.supabase.co';
 
+// 允许访问的外部 API 域名
+const ALLOWED_API_DOMAINS = [
+  'memefast.top',
+  'dashscope.aliyuncs.com',
+  'ark.cn-beijing.volces.com',
+  'ark.cn-shanghai.volces.com',
+  'ark.cn-guangzhou.volces.com',
+  'www.runninghub.cn',
+  'api.deepseek.com',
+  'api.openai.com',
+  'api.anthropic.com',
+  'generativelanguage.googleapis.com',
+];
+
 const CSP_HEADER = [
   `default-src 'self' ${SITE_URL} ${SITE_URL.replace('https://', 'https://')}:`,
   `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:*`,
+  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${ALLOWED_API_DOMAINS.map(d => `https://${d}`).join(' ')} ${ALLOWED_API_DOMAINS.map(d => `wss://${d}`).join(' ')}`,
   "img-src 'self' data: blob: https:",
   "frame-src 'none'",
 ].join('; ');
 
-// 全局中间件：为所有非代理响应设置 CSP 头
+// 全局中间件：设置 CSP 头
 app.use((req, res, next) => {
-  // 跳过 API 路由和代理路由（包括 /__api_proxy）
-  if (req.path.startsWith('/__proxy') || req.path.startsWith('/__api_proxy') || req.path.startsWith('/api')) {
-    return next();
-  }
-  
-  // 设置 CSP 头
   res.setHeader('Content-Security-Policy', CSP_HEADER);
   next();
 });
@@ -231,12 +78,5 @@ const server = http.createServer(app);
 server.listen(Number(PORT), HOST, () => {
   console.log(`[Server] Production server running on http://${HOST}:${PORT}`);
   console.log('[Server] Serving static files from:', distPath);
-  console.log('[Server] Available proxy routes:');
-  console.log('  /__api_proxy/*         - 通用 API 代理（所有第三方 API）');
-  console.log('  /__proxy/memefast/*     - MemeFast API');
-  console.log('  /__proxy/volcengine/*  - 火山引擎 ARK 北京');
-  console.log('  /__proxy/volcengine-sh/* - 火山引擎 ARK 上海');
-  console.log('  /__proxy/volcengine-gz/* - 火山引擎 ARK 广州');
-  console.log('  /__proxy/bailian/*     - 阿里云百炼');
-  console.log('  /__proxy/external/*    - 通用外部 API');
+  console.log('[Server] CSP connect-src includes:', ALLOWED_API_DOMAINS.join(', '));
 });

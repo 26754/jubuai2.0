@@ -35,12 +35,14 @@ export interface IProvider {
  * 
  * 核心供应商：
  * 1. JuBu API (memefast) - 全功能 AI 中转（推荐），支持文本/图片/视频/识图
- * 2. RunningHub - 视角切换/多角度生成
+ * 2. 火山引擎 - 官方豆包 API，支持 Seedance 视频生成
+ * 3. 阿里云百炼 - 通义千问/万相生图
+ * 4. RunningHub - 视角切换/多角度生成
  */
 export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
   {
     platform: 'memefast',
-    name: 'JuBu API',
+    name: 'JuBu API (memefast)',
     baseUrl: 'https://memefast.top',
     model: [
       'deepseek-v3.2',
@@ -64,6 +66,32 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
     capabilities: ['text', 'vision', 'image_generation', 'video_generation'],
   },
   {
+    platform: 'volcengine',
+    name: '火山引擎',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: [
+      // 对话模型 - 豆包 Pro/Lite
+      'doubao-pro-32k',
+      'doubao-pro-128k',
+      'doubao-lite-32k',
+      'doubao-lite-128k',
+      // Seedance 2.0 系列（最新视频生成）
+      'doubao-seedance-2-0-pro-t2v-260610',
+      'doubao-seedance-2-0-pro-i2v-260610',
+      'doubao-seedance-2-0-pro-t2v-fast-260610',
+      // Seedance 1.5 系列
+      'doubao-seedance-1-5-pro-251215',
+      'doubao-seedance-1-0-pro-fast-251015',
+      // Seedream 图像生成
+      'doubao-seedream-4-5',
+      'doubao-seedream-3-0-t2i-250415',
+      // 思考模型
+      'doubao-thinking-pro-250715',
+    ],
+    capabilities: ['text', 'vision', 'function_calling', 'image_generation', 'video_generation'],
+    contextLimit: 128000,
+  },
+  {
     platform: 'bailian',
     name: '阿里云百炼',
     baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
@@ -77,10 +105,6 @@ export const DEFAULT_PROVIDERS: Omit<IProvider, 'id' | 'apiKey'>[] = [
       'qwen-turbo-0624',
       'qwen-plus-0624',
       'qwen-plus-july-2024',
-      'qwen2.5-72b-instruct',
-      'qwen2.5-32b-instruct',
-      'qwen2.5-14b-instruct',
-      'qwen2.5-7b-instruct',
       'qwq-32b',
       // 万相生图
       'wanx2.1-t2i-turbo',
