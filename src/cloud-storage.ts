@@ -2,10 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
  * 云端存储统一导出入口
+ * 使用自定义 JWT API 实现云端存储和同步
  */
-
-// 从 storage/database 重新导出
-export { supabase, createSupabaseClient, getCurrentSession, getCurrentUser } from './storage/database/supabase-client';
 
 // 从 lib/cloud-auth 重新导出
 export { cloudAuth, CloudAuthManager } from './lib/cloud-auth';

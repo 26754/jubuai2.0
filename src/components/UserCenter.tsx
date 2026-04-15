@@ -67,7 +67,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuthStore, type User as AppUser } from '@/stores/auth-store';
-import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
+import { cloudAuth } from '@/lib/cloud-auth';
 import { useProjectStore } from '@/stores/project-store';
 import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
@@ -512,7 +512,7 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { supabaseUser } = useAuthStore();
+  const { currentUser } = useAuthStore();
 
   // 密码强度计算
   const passwordStrength = useMemo(() => {
@@ -556,31 +556,11 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
     setIsLoading(true);
 
     try {
-      if (!isSupabaseConfigured()) {
-        toast.error('云端服务未配置');
-        return;
-      }
+      // 使用我们的 API 更新密码
+      const result = await cloudAuth.updatePassword(oldPassword, newPassword);
 
-      const supabase = getSupabaseClient();
-
-      // 先验证当前密码
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: supabaseUser?.email || '',
-        password: currentPassword,
-      });
-
-      if (signInError) {
-        setError('当前密码错误');
-        return;
-      }
-
-      // 更新密码
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        setError(updateError.message);
+      if (!result.success) {
+        setError(result.error || '修改失败');
         return;
       }
 
@@ -727,7 +707,7 @@ function SessionManager({ onRefresh }: SessionManagerProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 模拟获取会话数据（实际应该从 Supabase 获取）
+  // 获取会话数据（当前会话）
   useEffect(() => {
     const fetchSessions = async () => {
       setIsLoading(true);
@@ -1047,7 +1027,7 @@ interface UserCenterProps {
 }
 
 export function UserCenter({ onRefresh }: UserCenterProps = {}) {
-  const { currentUser, supabaseUser, isAuthenticated, isDemoUser, logout, updateUsername } = useAuthStore();
+  const { currentUser, isAuthenticated, isDemoUser, logout, updateUsername } = useAuthStore();
   const { projects } = useProjectStore();
   const { characters } = useCharacterLibraryStore();
   const { scenes } = useSceneStore();
@@ -1136,22 +1116,7 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
 
     // 从云端获取更多统计信息
     const fetchCloudStats = async () => {
-      if (!isSupabaseConfigured()) {
-        setStats({
-          projectCount: projects.length,
-          characterCount: characters.length,
-          sceneCount: scenes.length,
-          shotCount: 0,
-          cloudSynced: false,
-          lastSyncTime: null,
-        });
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const supabase = getSupabaseClient();
-        
         // 确保 currentUser 存在
         if (!currentUser?.id) {
           setStats({
@@ -1166,11 +1131,11 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
           return;
         }
         
-        // 获取云端项目数量
-        const { count: cloudProjectCount } = await supabase
-          .from('projects')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id);
+        // 使用我们的 API 获取云端项目数量
+        const headers = cloudAuth.getAuthHeader();
+        const response = await fetch('/api/sync/projects', { headers });
+        const data = await response.json();
+        const cloudProjectCount = data.success && data.data ? data.data.length : 0;
 
         // 获取最后同步时间
         const lastSyncTime = localStorage.getItem('jubuai-last-sync-time') 

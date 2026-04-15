@@ -15,7 +15,6 @@ import type { AvailableUpdateInfo } from "@/types/update";
 import { useAuthStore } from "@/stores/auth-store";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { SplashScreen } from "@/components/SplashScreen";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { GlobalSearchDialog } from "@/components/GlobalSearch";
 import { KeyboardShortcutsPanel, KeyboardShortcutIndicator } from "@/components/KeyboardShortcutsPanel";
@@ -24,7 +23,7 @@ import { shortcutExecutor, registerShortcutActions, PRESET_SHORTCUTS } from "@/l
 
 let hasTriggeredStartupUpdateCheck = false;
 
-// Auth Callback 组件
+// Auth Callback 组件 - 简化版（不再使用 Supabase OAuth）
 function AuthCallbackHandler() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -33,12 +32,11 @@ function AuthCallbackHandler() {
     const handleCallback = async () => {
       try {
         // 解析 hash 参数
-        const hash = window.location.hash.substring(1); // 去掉 #
+        const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
-        const code = params.get("code");
         const error = params.get("error");
         
-        console.log("[AuthCallback] Processing:", { hasCode: !!code, hasError: !!error });
+        console.log("[AuthCallback] Processing auth callback");
 
         if (error) {
           setStatus("error");
@@ -46,42 +44,12 @@ function AuthCallbackHandler() {
           return;
         }
 
-        if (code) {
-          // Supabase 会自动处理 URL 中的 code
-          // 尝试获取会话
-          const supabase = getSupabaseClient();
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) {
-            console.error("[AuthCallback] Session error:", sessionError);
-            setStatus("error");
-            setErrorMessage(sessionError.message);
-            return;
-          }
-
-          if (session) {
-            console.log("[AuthCallback] Auth successful:", session.user.email);
-            setStatus("success");
-            // 延迟跳转
-            setTimeout(() => {
-              window.location.hash = "";
-              window.location.reload();
-            }, 2000);
-          } else {
-            // 没有 session，可能需要等待 Supabase 处理
-            setStatus("success");
-            setTimeout(() => {
-              window.location.hash = "";
-              window.location.reload();
-            }, 3000);
-          }
-        } else {
-          // 没有 code 或 error，可能是正常访问
-          setStatus("success");
-          setTimeout(() => {
-            window.location.hash = "";
-          }, 1000);
-        }
+        // 认证回调处理完成
+        setStatus("success");
+        setTimeout(() => {
+          window.location.hash = "";
+          window.location.reload();
+        }, 2000);
       } catch (err: any) {
         console.error("[AuthCallback] Error:", err);
         setStatus("error");
