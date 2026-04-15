@@ -2,6 +2,7 @@
 /**
  * 自定义生产服务器
  * 同时提供静态文件和 API 代理
+ * 优化版：合并冗余代理逻辑
  */
 
 import express from 'express';
@@ -25,7 +26,49 @@ const distPath = path.join(projectRoot, 'dist');
 app.use(cors());
 app.use(express.json());
 
-// ==================== MemeFast 代理 ====================
+// ==================== 通用代理工厂函数 ====================
+
+/**
+ * 创建代理处理器
+ * @param {string} pattern - URL 匹配模式
+ * @param {string} targetBaseUrl - 目标基础 URL
+ * @param {string} logPrefix - 日志前缀
+ */
+function createProxyHandler(pattern, targetBaseUrl, logPrefix) {
+  return async (req, res) => {
+    const match = req.originalUrl.match(new RegExp(pattern));
+    const targetPath = match && match[1] ? match[1] : '/';
+    const targetUrl = `${targetBaseUrl}${targetPath}`;
+    
+    try {
+      if (logPrefix) {
+        console.log(`[proxy/${logPrefix}] Forwarding: ${req.method} ${targetUrl}`);
+      }
+      
+      const response = await fetch(targetUrl, {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': req.headers.authorization || '',
+        },
+        body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
+      });
+
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.error(`[proxy/${logPrefix}] Error:`, error.message);
+      res.status(500).json({ error: error.message });
+    }
+  };
+}
+
+// 注册固定域名的代理
+app.all(/\/__proxy\/volcengine-sh(\/.*)?/, createProxyHandler('__proxy/volcengine-sh(\\/.*)?', 'https://ark.cn-shanghai.volces.com', 'volcengine-sh'));
+app.all(/\/__proxy\/volcengine-gz(\/.*)?/, createProxyHandler('__proxy/volcengine-gz(\\/.*)?', 'https://ark.cn-guangzhou.volces.com', 'volcengine-gz'));
+app.all(/\/__proxy\/bailian(\/.*)?/, createProxyHandler('__proxy/bailian(\\/.*)?', 'https://dashscope.aliyuncs.com', 'bailian'));
+
+// ==================== MemeFast 代理（动态目标域名）====================
 
 app.all(/\/__proxy\/memefast(\/.*)?/, async (req, res) => {
   const match = req.originalUrl.match(/\/__proxy\/memefast(\/.*)?/);
@@ -60,105 +103,7 @@ app.all(/\/__proxy\/memefast(\/.*)?/, async (req, res) => {
 
 // ==================== 火山引擎 ARK 北京代理 ====================
 
-app.all(/\/__proxy\/volcengine(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/volcengine(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetUrl = `https://ark.cn-beijing.volces.com${targetPath}`;
-  
-  try {
-    console.log(`[proxy/volcengine] Forwarding: ${req.method} ${targetUrl}`);
-    
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/volcengine] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== 火山引擎 ARK 上海代理 ====================
-
-app.all(/\/__proxy\/volcengine-sh(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/volcengine-sh(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetUrl = `https://ark.cn-shanghai.volces.com${targetPath}`;
-  
-  try {
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/volcengine-sh] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== 火山引擎 ARK 广州代理 ====================
-
-app.all(/\/__proxy\/volcengine-gz(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/volcengine-gz(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetUrl = `https://ark.cn-guangzhou.volces.com${targetPath}`;
-  
-  try {
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/volcengine-gz] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== 阿里云百炼代理 ====================
-
-app.all(/\/__proxy\/bailian(\/.*)?/, async (req, res) => {
-  const match = req.originalUrl.match(/\/__proxy\/bailian(\/.*)?/);
-  const targetPath = match && match[1] ? match[1] : '/';
-  const targetUrl = `https://dashscope.aliyuncs.com${targetPath}`;
-  
-  try {
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined,
-    });
-
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error('[proxy/bailian] Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
+app.all(/\/__proxy\/volcengine(\/.*)?/, createProxyHandler('__proxy/volcengine(\\/.*)?', 'https://ark.cn-beijing.volces.com', 'volcengine'));
 
 // ==================== 通用外部 API 代理 ====================
 
@@ -246,13 +191,16 @@ app.all('/__api_proxy', async (req, res) => {
 
 // ==================== 静态文件服务 ====================
 
-// CSP 配置：允许 Supabase 所有必要域名
+// CSP 配置：使用环境变量支持动态域名
+const SITE_URL = process.env.VITE_SITE_URL || 'https://jubuguanai.coze.site';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://voorsnefrbmqgbtfdoel.supabase.co';
+
 const CSP_HEADER = [
-  "default-src 'self' https://jubuguanai.coze.site https://jubuguanai.coze.site:5000 http://localhost:* https://localhost:*",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com",
+  `default-src 'self' ${SITE_URL} ${SITE_URL.replace('https://', 'https://')}:`,
+  `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://voorsnefrbmqgbtfdoel.supabase.co https://*.supabase.co https://*.supabase.com wss://voorsnefrbmqgbtfdoel.supabase.co wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:*",
+  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:*`,
   "img-src 'self' data: blob: https:",
   "frame-src 'none'",
 ].join('; ');
@@ -292,5 +240,5 @@ server.listen(Number(PORT), HOST, () => {
   console.log('  /__proxy/volcengine-sh/* - 火山引擎 ARK 上海');
   console.log('  /__proxy/volcengine-gz/* - 火山引擎 ARK 广州');
   console.log('  /__proxy/bailian/*     - 阿里云百炼');
-  console.log('  /__proxy/external/*    - 通用外部 API（需指定 host）');
+  console.log('  /__proxy/external/*    - 通用外部 API');
 });
