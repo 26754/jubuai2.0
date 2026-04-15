@@ -92,7 +92,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export function ScriptView() {
-  const { activeProjectId } = useProjectStore();
+  const { activeProjectId, visualStyleId } = useProjectStore();
   const scriptProject = useActiveScriptProject();
   const {
     setActiveProjectId,
@@ -467,7 +467,7 @@ export function ScriptView() {
     }
 
     // 获取项目的视觉风格设置
-    const projectStyleId = projectStore.visualStyleId;
+    const projectStyleId = visualStyleId;
     const promptLanguage = scriptData?.promptLanguage || 'zh';
     
     // 将角色添加到批量创建队列
@@ -511,7 +511,7 @@ export function ScriptView() {
     
     // 切换到角色生成面板
     setActivePanel('characters');
-  }, [scriptData, allCharacters, projectStore, addToCharacterQueue]);
+  }, [scriptData, allCharacters, visualStyleId, addToCharacterQueue]);
 
   const handleBatchAddScenesToQueue = useCallback((sceneIds: string[]) => {
     // 获取待添加的场景数据
@@ -527,7 +527,7 @@ export function ScriptView() {
     }
 
     // 获取项目的视觉风格设置
-    const projectStyleId = projectStore.visualStyleId;
+    const projectStyleId = visualStyleId;
     const promptLanguage = scriptData?.promptLanguage || 'zh';
     
     // 将场景添加到批量创建队列
@@ -566,7 +566,7 @@ export function ScriptView() {
     
     // 切换到场景生成面板
     setActivePanel('scenes');
-  }, [scriptData, sceneLibrary, projectStore, addToSceneQueue]);
+  }, [scriptData, sceneLibrary, visualStyleId, addToSceneQueue]);
 
   // 为单集生成分镜（需要先定义，因为 handleImportFullScript 依赖它）
   const handleGenerateEpisodeShots = useCallback(async (episodeIndex: number) => {
