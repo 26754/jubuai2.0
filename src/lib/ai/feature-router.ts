@@ -58,6 +58,34 @@ const FEATURE_DEFAULT_MODEL: Partial<Record<AIFeature, Record<string, string>>> 
   },
 };
 
+/**
+ * MemeFast 模型别名映射：将旧/错误的模型名称映射到正确的模型
+ * 解决用户选择不存在模型导致 503 错误的问题
+ */
+const MEMEFAST_MODEL_ALIAS_MAP: Record<string, string> = {
+  // DeepSeek 系列
+  'deepseek-v3-0324': 'deepseek-v3.2',
+  'deepseek-v3-0327': 'deepseek-v3.2',
+  'deepseek-v3': 'deepseek-v3.2',
+  'deepseek-r1-0324': 'deepseek-r1',
+  'deepseek-r1': 'deepseek-r1',
+  // Gemini 系列
+  'gemini-2.0-flash': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'gemini-3-pro',
+};
+
+/**
+ * 解析 model 别名（如果存在）
+ */
+function resolveModelAlias(model: string, platform: string): string {
+  if (platform === 'memefast' && MEMEFAST_MODEL_ALIAS_MAP[model]) {
+    const resolved = MEMEFAST_MODEL_ALIAS_MAP[model];
+    console.log(`[ModelAlias] 映射 ${model} -> ${resolved}`);
+    return resolved;
+  }
+  return model;
+}
+
 
 /**
  * 解析 platform:model 格式
@@ -264,7 +292,7 @@ export async function callFeatureAPI(
   }
   
   // 从服务映射获取模型
-  const model = options?.modelOverride || config.model || config.models?.[0];
+  let model = options?.modelOverride || config.model || config.models?.[0];
   const baseUrl = config.baseUrl?.replace(/\/+$/, '');
   if (!baseUrl) {
     throw new Error('请先在设置中配置 Base URL');
@@ -272,6 +300,9 @@ export async function callFeatureAPI(
   if (!model) {
     throw new Error('请先在设置中配置模型');
   }
+  
+  // 应用模型别名映射（解决用户选择不存在模型的问题）
+  model = resolveModelAlias(model, config.platform);
   
   console.log(`[callFeatureAPI] 功能: ${feature}`);
   console.log(`[callFeatureAPI] 供应商: ${config.provider.name} (${config.platform})`);
