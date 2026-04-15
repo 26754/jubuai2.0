@@ -65,10 +65,8 @@ import {
   Layers,
   User,
   MessageSquare,
-  Share2,
   Palette,
   Sparkles,
-  Grid3X3,
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -80,8 +78,6 @@ import { Suspense, lazy } from "react";
 // 懒加载大型组件 - 代码分割优化
 const UserCenter = lazy(() => import("@/components/UserCenter").then(m => ({ default: m.UserCenter })));
 const AIAssistantPanel = lazy(() => import("@/components/AIAssistant").then(m => ({ default: m.AIAssistantPanel })));
-const ShareManagerPanel = lazy(() => import("@/components/ShareManager").then(m => ({ default: m.ShareManagerPanel })));
-const TemplateMarketplace = lazy(() => import("@/components/TemplateMarketplace").then(m => ({ default: m.TemplateMarketplace })));
 
 // 加载占位符
 function ComponentLoader() {
@@ -332,20 +328,6 @@ export function SettingsPanel() {
               AI 助手
             </TabsTrigger>
             <TabsTrigger 
-              value="share" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              项目分享
-            </TabsTrigger>
-            <TabsTrigger 
-              value="template" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Grid3X3 className="h-4 w-4 mr-2" />
-              模板市场
-            </TabsTrigger>
-            <TabsTrigger 
               value="advanced" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
@@ -359,20 +341,6 @@ export function SettingsPanel() {
         <TabsContent value="ai-assistant" className="flex-1 overflow-hidden mt-0">
           <Suspense fallback={<ComponentLoader />}>
             <AIAssistantPanel />
-          </Suspense>
-        </TabsContent>
-
-        {/* Share Manager Tab */}
-        <TabsContent value="share" className="flex-1 overflow-hidden mt-0">
-          <Suspense fallback={<ComponentLoader />}>
-            <ShareManagerPanel />
-          </Suspense>
-        </TabsContent>
-
-        {/* Template Marketplace Tab */}
-        <TabsContent value="template" className="flex-1 overflow-hidden mt-0">
-          <Suspense fallback={<ComponentLoader />}>
-            <TemplateMarketplace />
           </Suspense>
         </TabsContent>
 
