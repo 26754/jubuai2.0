@@ -44,6 +44,7 @@ interface ApiKeyItem {
   value: string;
   status: KeyStatus;
   editing: boolean;
+  maskedValue?: string; // 脱敏后的显示值
 }
 
 interface ApiKeyEditorDialogProps {
@@ -51,8 +52,9 @@ interface ApiKeyEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   apiKeys: string; // Comma-separated API keys
   onSave: (apiKeys: string) => void;
-  onTestKey?: (key: string) => Promise<boolean>;
+  onTestKey?: (key: string) => Promise<{ valid: boolean; message?: string }>;
   providerName?: string;
+  baseUrl?: string;
 }
 
 export function ApiKeyEditorDialog({
@@ -62,6 +64,7 @@ export function ApiKeyEditorDialog({
   onSave,
   onTestKey,
   providerName = "API",
+  baseUrl,
 }: ApiKeyEditorDialogProps) {
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
 
@@ -75,25 +78,42 @@ export function ApiKeyEditorDialog({
 
       if (keyList.length === 0) {
         setKeys([
-          { id: crypto.randomUUID(), value: "", status: "pending", editing: true },
+          { 
+            id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), 
+            value: "", 
+            status: "pending", 
+            editing: true 
+          },
         ]);
       } else {
         setKeys(
           keyList.map((k) => ({
-            id: crypto.randomUUID(),
+            id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
             value: k,
-            status: "pending",
+            status: "pending" as KeyStatus,
             editing: false,
+            maskedValue: maskKey(k),
           }))
         );
       }
     }
   }, [open, apiKeys]);
 
+  // Mask API key for display
+  const maskKey = (key: string): string => {
+    if (key.length <= 8) return key;
+    return key.slice(0, 4) + '****' + key.slice(-4);
+  };
+
   // Update single key value
   const updateKeyValue = useCallback((id: string, value: string) => {
     setKeys((prev) =>
-      prev.map((k) => (k.id === id ? { ...k, value, status: "pending" } : k))
+      prev.map((k) => (k.id === id ? { 
+        ...k, 
+        value, 
+        status: "pending" as KeyStatus,
+        maskedValue: maskKey(value)
+      } : k))
     );
   }, []);
 
@@ -110,7 +130,12 @@ export function ApiKeyEditorDialog({
       const filtered = prev.filter((k) => k.id !== id);
       if (filtered.length === 0) {
         return [
-          { id: crypto.randomUUID(), value: "", status: "pending", editing: true },
+          { 
+            id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), 
+            value: "", 
+            status: "pending" as KeyStatus, 
+            editing: true 
+          },
         ];
       }
       return filtered;
@@ -123,19 +148,22 @@ export function ApiKeyEditorDialog({
       if (!onTestKey) return;
 
       setKeys((prev) =>
-        prev.map((k) => (k.id === id ? { ...k, status: "testing" } : k))
+        prev.map((k) => (k.id === id ? { ...k, status: "testing" as KeyStatus } : k))
       );
 
       try {
-        const isValid = await onTestKey(value);
+        const result = await onTestKey(value);
         setKeys((prev) =>
           prev.map((k) =>
-            k.id === id ? { ...k, status: isValid ? "valid" : "invalid" } : k
+            k.id === id ? { 
+              ...k, 
+              status: result.valid ? "valid" as KeyStatus : "invalid" as KeyStatus 
+            } : k
           )
         );
       } catch {
         setKeys((prev) =>
-          prev.map((k) => (k.id === id ? { ...k, status: "invalid" } : k))
+          prev.map((k) => (k.id === id ? { ...k, status: "invalid" as KeyStatus } : k))
         );
       }
     },
@@ -156,7 +184,12 @@ export function ApiKeyEditorDialog({
   const addKey = useCallback(() => {
     setKeys((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), value: "", status: "pending", editing: true },
+      { 
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), 
+        value: "", 
+        status: "pending" as KeyStatus, 
+        editing: true 
+      },
     ]);
   }, []);
 
@@ -174,7 +207,12 @@ export function ApiKeyEditorDialog({
       const filtered = prev.filter((k) => k.status !== "invalid");
       if (filtered.length === 0) {
         return [
-          { id: crypto.randomUUID(), value: "", status: "pending", editing: true },
+          { 
+            id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), 
+            value: "", 
+            status: "pending" as KeyStatus, 
+            editing: true 
+          },
         ];
       }
       return filtered;
@@ -217,6 +255,11 @@ export function ApiKeyEditorDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>编辑 {providerName} Keys</DialogTitle>
+          {baseUrl && (
+            <p className="text-xs text-muted-foreground">
+              Base URL: {baseUrl}
+            </p>
+          )}
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
@@ -226,15 +269,26 @@ export function ApiKeyEditorDialog({
               {keys.map((key) => (
                 <div key={key.id} className="flex items-center gap-2">
                   <div className="flex-1">
-                    <Input
-                      type={key.editing ? "text" : "password"}
-                      value={key.value}
-                      onChange={(e) => updateKeyValue(key.id, e.target.value)}
-                      disabled={!key.editing}
-                      placeholder="输入 API Key"
-                      className="font-mono text-sm"
-                      autoComplete="off"
-                    />
+                    {key.editing ? (
+                      <Input
+                        type="text"
+                        value={key.value}
+                        onChange={(e) => updateKeyValue(key.id, e.target.value)}
+                        placeholder="输入 API Key"
+                        className="font-mono text-sm"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                        <span className="font-mono text-sm flex-1">
+                          {key.maskedValue || '****'}
+                        </span>
+                        {key.status !== "pending" && (
+                          <div className="flex items-center px-1">
+                            {getStatusIcon(key.status)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Action buttons */}
@@ -260,29 +314,24 @@ export function ApiKeyEditorDialog({
                       ) : (
                         // Not editing: show status + test + edit + delete
                         <>
-                          {/* Status icon */}
-                          {key.status !== "pending" && (
-                            <div className="flex items-center px-1">
-                              {getStatusIcon(key.status)}
-                            </div>
+                          {onTestKey && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => testKey(key.id)}
+                                    disabled={key.status === "testing"}
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>测试 Key</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => testKey(key.id)}
-                                  disabled={key.status === "testing" || !onTestKey}
-                                >
-                                  <Shield className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>测试 Key</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
 
                           <TooltipProvider>
                             <Tooltip>

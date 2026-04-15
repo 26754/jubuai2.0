@@ -87,6 +87,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
 import { UserCenter } from "@/components/UserCenter";
+import { useApiKeyTester } from "@/hooks/use-api-key-tester";
 
 // 错误边界组件，用于捕获 UserCenter 渲染错误
 interface ErrorBoundaryState {
@@ -204,6 +205,7 @@ export function SettingsPanel() {
   const { assignProjectToUnscoped: assignScenesToProject } = useSceneStore();
   const { assignProjectToUnscoped: assignMediaToProject } = useMediaStore();
   const { isAuthenticated } = useAuthStore();
+  const { testKey } = useApiKeyTester();
 
   const [activeTab, setActiveTab] = useState("usercenter");
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
@@ -834,6 +836,25 @@ export function SettingsPanel() {
                                 className="flex items-center gap-1"
                                 onClick={(e) => e.stopPropagation()}
                               >
+                                {configured && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="测试 API Keys"
+                                    onClick={async () => {
+                                      const result = await testKey(provider.apiKey, provider);
+                                      if (result.valid) {
+                                        toast.success(`API Keys 有效 (${result.responseTime}ms)`);
+                                      } else {
+                                        toast.error(result.message || 'API Keys 无效');
+                                      }
+                                    }}
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                  </Button>
+                                )}
+
                                 <Button
                                   variant="ghost"
                                   size="icon"
