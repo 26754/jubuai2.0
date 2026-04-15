@@ -440,7 +440,7 @@ export function ScriptView() {
 
   // === 未关联资源计数 ===
   const unlinkedCharacterCount = scriptData?.characters.filter(char => 
-    !char.characterId || !characterLibrary.some(c => c.id === char.characterId)
+    !char.characterId || !allCharacters.some(c => c.id === char.characterId)
   ).length || 0;
   
   const unlinkedSceneCount = scriptData?.scenes.filter(scene => 
@@ -454,7 +454,7 @@ export function ScriptView() {
     const charsToAdd = characterIds.length > 0 
       ? scriptData?.characters.filter(c => characterIds.includes(c.id)) || []
       : scriptData?.characters.filter(char => 
-          !char.characterId || !characterLibrary.some(c => c.id === char.characterId)
+          !char.characterId || !allCharacters.some(c => c.id === char.characterId)
         ) || [];
     
     if (charsToAdd.length === 0) {
