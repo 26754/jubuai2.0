@@ -23,6 +23,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { useAPIConfigStore } from "@/stores/api-config-store";
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
 import { useCharacterLibraryStore } from "@/stores/character-library-store";
+import { useSceneStore } from "@/stores/scene-store";
 import { useMediaPanelStore } from "@/stores/media-panel-store";
 import { parseScript, generateShotList, generateScriptFromIdea } from "@/lib/script/script-parser";
 import { 
@@ -139,6 +140,9 @@ export function ScriptView() {
     characters: allCharacters, 
     selectCharacter: selectLibraryCharacter,
   } = useCharacterLibraryStore();
+  const { 
+    scenes: sceneLibrary,
+  } = useSceneStore();
   const { 
     setActiveTab, 
     goToDirectorWithData, 
@@ -507,7 +511,7 @@ export function ScriptView() {
     
     // 切换到角色生成面板
     setActivePanel('characters');
-  }, [scriptData, characterLibrary, projectStore, addToCharacterQueue]);
+  }, [scriptData, allCharacters, projectStore, addToCharacterQueue]);
 
   const handleBatchAddScenesToQueue = useCallback((sceneIds: string[]) => {
     // 获取待添加的场景数据
