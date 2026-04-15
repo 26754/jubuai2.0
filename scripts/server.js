@@ -370,22 +370,35 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://voorsnefrbmqgbtfd
 
 // 允许访问的外部 API 域名
 const ALLOWED_API_DOMAINS = [
+  // MemeFast 及其所有子域名
   'memefast.top',
   'api.memefast.top',
+  '*.memefast.top',
+  // 阿里云百炼及其所有区域
   'dashscope.aliyuncs.com',
   'dashscope.cn-shanghai.aliyuncs.com',
+  '*.aliyuncs.com',
+  // 火山引擎及其所有区域
   'ark.cn-beijing.volces.com',
   'ark.cn-shanghai.volces.com',
   'ark.cn-guangzhou.volces.com',
   'ark.cn-hangzhou.volces.com',
+  '*.volces.com',
+  // RunningHub
   'www.runninghub.cn',
   'openapi.runninghub.cn',
+  // 其他 AI 提供商
   'api.deepseek.com',
   'api.openai.com',
   'api.anthropic.com',
   'generativelanguage.googleapis.com',
   'api.coze.cn',
   'api.coze.com',
+  // 图像托管服务
+  'api.imgbb.com',
+  'www.imgurl.org',
+  'img.scdn.io',
+  'catbox.moe',
 ];
 
 // 构建 CSP 指令
