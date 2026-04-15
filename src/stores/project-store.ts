@@ -243,6 +243,10 @@ export const useProjectStore = create<ProjectStore>()(
       },
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        console.log('[ProjectStore] Rehydrated, projects count:', state.projects?.length || 0);
+        if (state.projects?.length > 0) {
+          console.log('[ProjectStore] Loaded projects:', state.projects.map(p => ({ id: p.id.substring(0, 8), name: p.name })));
+        }
         const project =
           state.projects.find((p) => p.id === state.activeProjectId) ||
           state.projects[0] ||
@@ -271,18 +275,48 @@ export const useProjectStore = create<ProjectStore>()(
  * - 换电脑后指向旧数据目录，projects 列表为空
  */
 async function discoverProjectsFromDisk(): Promise<void> {
-  if (!window.fileStorage?.listDirs) return;
+  let diskProjectIds: string[] = [];
 
-  try {
-    // 列出 _p/ 下所有子目录名（每个子目录名就是一个 projectId）
-    const diskProjectIds = await window.fileStorage.listDirs('_p');
-    if (!diskProjectIds || diskProjectIds.length === 0) return;
+  // Electron 环境：使用 fileStorage.listDirs
+  if (window.fileStorage?.listDirs) {
+    try {
+      const dirs = await window.fileStorage.listDirs('_p');
+      if (dirs && dirs.length > 0) {
+        diskProjectIds = dirs;
+        console.log(`[ProjectStore] Discovered ${diskProjectIds.length} projects from disk (Electron):`, diskProjectIds.map(id => id.substring(0, 8)));
+      }
+    } catch (err) {
+      console.warn('[ProjectStore] listDirs failed:', err);
+    }
+  } else {
+    // 浏览器环境：尝试从 localStorage 扫描所有 key
+    // localStorage 的 key 格式：_p/{projectId}/script, _p/{projectId}/director, ...
+    console.log('[ProjectStore] Browser environment, scanning localStorage for projects...');
+    try {
+      const projectIdsSet = new Set<string>();
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        // 匹配 _p/{projectId}/script 或 _p/{projectId}/director 等格式
+        const match = key.match(/^_p\/([^/]+)\/(script|director|media|characters|scenes|timeline|sclass)$/);
+        if (match) {
+          projectIdsSet.add(match[1]);
+        }
+      }
+      diskProjectIds = Array.from(projectIdsSet);
+      console.log(`[ProjectStore] Found ${diskProjectIds.length} projects in localStorage:`, diskProjectIds.map(id => id.substring(0, 8)));
+    } catch (err) {
+      console.warn('[ProjectStore] localStorage scan failed:', err);
+    }
+  }
 
-    const { projects } = useProjectStore.getState();
-    const knownIds = new Set(projects.map((p) => p.id));
+  if (diskProjectIds.length === 0) return;
 
-    const missingIds = diskProjectIds.filter((id) => !knownIds.has(id));
-    if (missingIds.length === 0) return;
+  const { projects } = useProjectStore.getState();
+  const knownIds = new Set(projects.map((p) => p.id));
+
+  const missingIds = diskProjectIds.filter((id) => !knownIds.has(id));
+  if (missingIds.length === 0) return;
 
     console.log(
       `[ProjectStore] Found ${missingIds.length} projects on disk not in store:`,
@@ -295,22 +329,26 @@ async function discoverProjectsFromDisk(): Promise<void> {
       let name = `恢复的项目 (${pid.substring(0, 8)})`;
       const createdAt = Date.now();
 
-      // 尝试从 script store 获取名称
+      // 尝试从 script store 获取名称（注意：storeName 是 'script'，不是 'script-store'）
       try {
-        const scriptRaw = await window.fileStorage.getItem(`_p/${pid}/script-store`);
+        const scriptRaw = await window.fileStorage.getItem(`_p/${pid}/script`);
         if (scriptRaw) {
           const parsed = JSON.parse(scriptRaw);
           const state = parsed?.state ?? parsed;
           // script-store 的 projects 字段中可能有项目信息
           if (state?.projects?.[pid]?.title) {
             name = state.projects[pid].title;
+          } else if (state?.projectData?.title) {
+            name = state.projectData.title;
+          } else if (state?.projectData?.seriesMeta?.title) {
+            name = state.projectData.seriesMeta.title;
           }
         }
       } catch { /* ignore */ }
 
       // 尝试从 director store 获取创建时间等信息
       try {
-        const directorRaw = await window.fileStorage.getItem(`_p/${pid}/director-store`);
+        const directorRaw = await window.fileStorage.getItem(`_p/${pid}/director`);
         if (directorRaw) {
           const parsed = JSON.parse(directorRaw);
           const state = parsed?.state ?? parsed;
@@ -321,6 +359,12 @@ async function discoverProjectsFromDisk(): Promise<void> {
               // 已经有名称了，不覆盖
             } else if (screenplay) {
               // 用剧本前几个字做临时名称
+              const preview = screenplay.substring(0, 20).replace(/\n/g, ' ').trim();
+              if (preview) name = preview + '...';
+            }
+          } else if (state?.projectData?.screenplay) {
+            const screenplay = state.projectData.screenplay;
+            if (!name.includes('恢复的项目') && name.includes('恢复的项目')) {
               const preview = screenplay.substring(0, 20).replace(/\n/g, ' ').trim();
               if (preview) name = preview + '...';
             }

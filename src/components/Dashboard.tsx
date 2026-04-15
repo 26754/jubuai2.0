@@ -69,6 +69,9 @@ export function Dashboard() {
   // Sort projects by updatedAt descending
   const sortedProjects = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
 
+  // Debug: 打印项目列表到控制台
+  console.log('[Dashboard] Current projects:', projects.map(p => ({ id: p.id.substring(0, 8), name: p.name })));
+
   // ==================== Create / Open ====================
 
   const handleCreateProject = async () => {
@@ -83,8 +86,17 @@ export function Dashboard() {
 
   const handleOpenProject = async (projectId: string) => {
     if (selectionMode) return; // Don't open in selection mode
-    await switchProject(projectId);
-    setActiveTab("overview");
+    const project = projects.find(p => p.id === projectId);
+    console.log(`[Dashboard] Opening project: ${projectId.substring(0, 8)}, name: ${project?.name}`);
+    try {
+      await switchProject(projectId);
+      console.log(`[Dashboard] switchProject completed, setting activeTab to overview`);
+      setActiveTab("overview");
+      console.log(`[Dashboard] activeTab set to overview`);
+    } catch (err) {
+      console.error('[Dashboard] Failed to open project:', err);
+      toast.error(`打开项目失败: ${(err as Error).message}`);
+    }
   };
 
   // ==================== Selection ====================

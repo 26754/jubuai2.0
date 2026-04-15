@@ -40,7 +40,10 @@ export async function switchProject(newProjectId: string): Promise<void> {
   const currentId = useProjectStore.getState().activeProjectId;
   
   // No-op if same project
-  if (currentId === newProjectId) return;
+  if (currentId === newProjectId) {
+    console.log(`[ProjectSwitcher] Same project, no-op: ${newProjectId.substring(0, 8)}`);
+    return;
+  }
 
   console.log(`[ProjectSwitcher] Switching from ${currentId?.substring(0, 8) ?? 'none'} to ${newProjectId.substring(0, 8)}`);
 
@@ -53,64 +56,98 @@ export async function switchProject(newProjectId: string): Promise<void> {
   //    This controls which per-project files the storage adapters read/write.
   //    DO NOT set activeProjectId on individual stores yet — that triggers persist
   //    writes which would overwrite per-project files with empty data.
-  useProjectStore.getState().setActiveProject(newProjectId);
+  try {
+    useProjectStore.getState().setActiveProject(newProjectId);
+    console.log(`[ProjectSwitcher] setActiveProject completed, new activeProjectId: ${newProjectId.substring(0, 8)}`);
+  } catch (e) {
+    console.error('[ProjectSwitcher] Failed to set active project:', e);
+    throw e;
+  }
 
   // 3. Rehydrate all project-scoped stores FIRST
   //    The storage adapters call getActiveProjectId() → reads from project-store → newProjectId
   //    So they'll read from _p/{newProjectId}/ directory
+  const rehydrateErrors: string[] = [];
+  
   try {
+    console.log(`[ProjectSwitcher] Rehydrating script store for ${newProjectId.substring(0, 8)}...`);
     await useScriptStore.persist.rehydrate();
+    console.log(`[ProjectSwitcher] Script store rehydration complete`);
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate script store:', e);
+    rehydrateErrors.push(`script: ${e}`);
   }
 
   try {
+    console.log(`[ProjectSwitcher] Rehydrating director store...`);
     await useDirectorStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate director store:', e);
+    rehydrateErrors.push(`director: ${e}`);
   }
 
   try {
     await useMediaStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate media store:', e);
+    rehydrateErrors.push(`media: ${e}`);
   }
 
   try {
     await useCharacterLibraryStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate character library:', e);
+    rehydrateErrors.push(`characters: ${e}`);
   }
 
   try {
     await useSceneStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate scene store:', e);
+    rehydrateErrors.push(`scenes: ${e}`);
   }
 
   try {
     await useSimpleTimelineStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate timeline store:', e);
+    rehydrateErrors.push(`timeline: ${e}`);
   }
 
   try {
     await useSClassStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate sclass store:', e);
+    rehydrateErrors.push(`sclass: ${e}`);
+  }
+
+  if (rehydrateErrors.length > 0) {
+    console.warn(`[ProjectSwitcher] Rehydration errors: ${rehydrateErrors.join(', ')}`);
   }
 
   // 4. NOW sync internal activeProjectId in stores that track it.
   //    By this point, per-project data is already loaded into memory via rehydrate(),
   //    so the persist write triggered here will save the correct data (not empty defaults).
-  useScriptStore.getState().setActiveProjectId(newProjectId);
-  useDirectorStore.getState().setActiveProjectId(newProjectId);
-  useSClassStore.getState().setActiveProjectId(newProjectId);
+  try {
+    console.log(`[ProjectSwitcher] Setting activeProjectId on stores...`);
+    useScriptStore.getState().setActiveProjectId(newProjectId);
+    useDirectorStore.getState().setActiveProjectId(newProjectId);
+    useSClassStore.getState().setActiveProjectId(newProjectId);
+    console.log(`[ProjectSwitcher] activeProjectId set on stores`);
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to set activeProjectId on stores:', e);
+  }
 
   // 5. Ensure project data exists in stores that need it
-  useScriptStore.getState().ensureProject(newProjectId);
-  useDirectorStore.getState().ensureProject(newProjectId);
-  useSClassStore.getState().ensureProject(newProjectId);
+  try {
+    console.log(`[ProjectSwitcher] Ensuring project data exists...`);
+    useScriptStore.getState().ensureProject(newProjectId);
+    useDirectorStore.getState().ensureProject(newProjectId);
+    useSClassStore.getState().ensureProject(newProjectId);
+    console.log(`[ProjectSwitcher] Project data ensured`);
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to ensureProject:', e);
+  }
 
   console.log(`[ProjectSwitcher] Switch complete → ${newProjectId.substring(0, 8)}`);
 }
