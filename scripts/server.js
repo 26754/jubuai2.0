@@ -748,6 +748,505 @@ app.use((req, res, next) => {
   next();
 });
 
+// ==================== Characters API ====================
+
+// 创建 characters 表（如果不存在）
+const initCharactersTable = async () => {
+  try {
+    const pool = getDbPool();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS characters (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        project_id VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        appearance TEXT,
+        personality TEXT,
+        role VARCHAR(50),
+        age VARCHAR(50),
+        image_key VARCHAR(500),
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_characters_user_id ON characters(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_characters_project_id ON characters(project_id)`);
+    console.log('[DB] Characters table initialized');
+  } catch (error) {
+    console.error('[DB] Failed to init characters table:', error.message);
+  }
+};
+
+// 获取角色列表
+app.get('/api/sync/characters', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    const { project_id } = req.query;
+
+    let query = 'SELECT * FROM characters WHERE user_id = $1';
+    const params = [req.userId];
+
+    if (project_id) {
+      query += ' AND project_id = $2';
+      params.push(project_id);
+    }
+
+    query += ' ORDER BY created_at ASC';
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error) {
+    console.error('[API] Get characters error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新角色
+app.post('/api/sync/characters', authMiddleware, async (req, res) => {
+  try {
+    const { id, project_id, name, description, appearance, personality, role, age, image_key, metadata } = req.body;
+
+    if (!id || !project_id || !name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const pool = getDbPool();
+
+    const result = await pool.query(
+      `INSERT INTO characters (id, user_id, project_id, name, description, appearance, personality, role, age, image_key, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         description = EXCLUDED.description,
+         appearance = EXCLUDED.appearance,
+         personality = EXCLUDED.personality,
+         role = EXCLUDED.role,
+         age = EXCLUDED.age,
+         image_key = EXCLUDED.image_key,
+         metadata = EXCLUDED.metadata,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, req.userId, project_id, name, description, appearance, personality, role, age, image_key, JSON.stringify(metadata || {})]
+    );
+
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error) {
+    console.error('[API] Save character error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 删除角色
+app.delete('/api/sync/characters/:id', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    await pool.query(
+      'DELETE FROM characters WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    res.json({ success: true, deletedId: req.params.id });
+  } catch (error) {
+    console.error('[API] Delete character error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Scenes API ====================
+
+// 创建 scenes 表（如果不存在）
+const initScenesTable = async () => {
+  try {
+    const pool = getDbPool();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scenes (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        project_id VARCHAR(255) NOT NULL,
+        episode_id VARCHAR(255),
+        name VARCHAR(255) NOT NULL,
+        location VARCHAR(255),
+        time_of_day VARCHAR(50),
+        description TEXT,
+        image_key VARCHAR(500),
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_scenes_user_id ON scenes(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_scenes_project_id ON scenes(project_id)`);
+    console.log('[DB] Scenes table initialized');
+  } catch (error) {
+    console.error('[DB] Failed to init scenes table:', error.message);
+  }
+};
+
+// 获取场景列表
+app.get('/api/sync/scenes', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    const { project_id, episode_id } = req.query;
+
+    let query = 'SELECT * FROM scenes WHERE user_id = $1';
+    const params = [req.userId];
+
+    if (project_id) {
+      query += ` AND project_id = $${params.length + 1}`;
+      params.push(project_id);
+    }
+    if (episode_id) {
+      query += ` AND episode_id = $${params.length + 1}`;
+      params.push(episode_id);
+    }
+
+    query += ' ORDER BY created_at ASC';
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error) {
+    console.error('[API] Get scenes error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新场景
+app.post('/api/sync/scenes', authMiddleware, async (req, res) => {
+  try {
+    const { id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata } = req.body;
+
+    if (!id || !project_id || !name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const pool = getDbPool();
+
+    const result = await pool.query(
+      `INSERT INTO scenes (id, user_id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         episode_id = EXCLUDED.episode_id,
+         name = EXCLUDED.name,
+         location = EXCLUDED.location,
+         time_of_day = EXCLUDED.time_of_day,
+         description = EXCLUDED.description,
+         image_key = EXCLUDED.image_key,
+         metadata = EXCLUDED.metadata,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, req.userId, project_id, episode_id, name, location, time_of_day, description, image_key, JSON.stringify(metadata || {})]
+    );
+
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error) {
+    console.error('[API] Save scene error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 删除场景
+app.delete('/api/sync/scenes/:id', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    await pool.query(
+      'DELETE FROM scenes WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    res.json({ success: true, deletedId: req.params.id });
+  } catch (error) {
+    console.error('[API] Delete scene error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Scripts API ====================
+
+// 创建 scripts 表（剧本数据）
+const initScriptsTable = async () => {
+  try {
+    const pool = getDbPool();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scripts (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        project_id VARCHAR(255) NOT NULL UNIQUE,
+        raw_script TEXT,
+        script_data JSONB DEFAULT '{}',
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_scripts_user_id ON scripts(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_scripts_project_id ON scripts(project_id)`);
+    console.log('[DB] Scripts table initialized');
+  } catch (error) {
+    console.error('[DB] Failed to init scripts table:', error.message);
+  }
+};
+
+// 获取剧本
+app.get('/api/sync/scripts', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    const { project_id } = req.query;
+
+    let query = 'SELECT * FROM scripts WHERE user_id = $1';
+    const params = [req.userId];
+
+    if (project_id) {
+      query += ' AND project_id = $2';
+      params.push(project_id);
+    }
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error) {
+    console.error('[API] Get scripts error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 创建/更新剧本
+app.post('/api/sync/scripts', authMiddleware, async (req, res) => {
+  try {
+    const { id, project_id, raw_script, script_data, metadata } = req.body;
+
+    if (!id || !project_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const pool = getDbPool();
+
+    const result = await pool.query(
+      `INSERT INTO scripts (id, user_id, project_id, raw_script, script_data, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         raw_script = EXCLUDED.raw_script,
+         script_data = EXCLUDED.script_data,
+         metadata = EXCLUDED.metadata,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, req.userId, project_id, raw_script, JSON.stringify(script_data || {}), JSON.stringify(metadata || {})]
+    );
+
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error) {
+    console.error('[API] Save script error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Media API ====================
+
+// 创建 media 表（媒体文件索引）
+const initMediaTable = async () => {
+  try {
+    const pool = getDbPool();
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS media (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        project_id VARCHAR(255) NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        cloud_key VARCHAR(500) NOT NULL,
+        size BIGINT DEFAULT 0,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_user_id ON media(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_project_id ON media(project_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_media_category ON media(category)`);
+    console.log('[DB] Media table initialized');
+  } catch (error) {
+    console.error('[DB] Failed to init media table:', error.message);
+  }
+};
+
+// 上传媒体文件（使用 base64 编码）
+app.post('/api/sync/media/upload', authMiddleware, async (req, res) => {
+  try {
+    const { id, project_id, category, name, type, data, size, metadata } = req.body;
+
+    if (!id || !project_id || !category || !name || !type || !data) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    // 将 base64 转换为 buffer 并保存到文件系统
+    const buffer = Buffer.from(data, 'base64');
+    const fileName = `${req.userId}/${project_id}/${category}/${id}_${Date.now()}`;
+    const filePath = path.join(projectRoot, 'uploads', fileName);
+
+    // 确保目录存在
+    const fs = await import('fs');
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, buffer);
+
+    const pool = getDbPool();
+
+    // 保存到数据库
+    const result = await pool.query(
+      `INSERT INTO media (id, user_id, project_id, category, name, type, cloud_key, size, metadata, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         category = EXCLUDED.category,
+         name = EXCLUDED.name,
+         cloud_key = EXCLUDED.cloud_key,
+         size = EXCLUDED.size,
+         metadata = EXCLUDED.metadata,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, req.userId, project_id, category, name, type, fileName, size || buffer.length, JSON.stringify(metadata || {})]
+    );
+
+    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+  } catch (error) {
+    console.error('[API] Upload media error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取媒体列表
+app.get('/api/sync/media', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    const { project_id, category } = req.query;
+
+    let query = 'SELECT * FROM media WHERE user_id = $1';
+    const params = [req.userId];
+
+    if (project_id) {
+      query += ` AND project_id = $${params.length + 1}`;
+      params.push(project_id);
+    }
+    if (category) {
+      query += ` AND category = $${params.length + 1}`;
+      params.push(category);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: toCamelCase(result.rows) });
+  } catch (error) {
+    console.error('[API] Get media error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取媒体访问 URL
+app.get('/api/sync/media/:id/url', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+    const result = await pool.query(
+      'SELECT cloud_key FROM media WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Media not found' });
+    }
+
+    const cloudKey = result.rows[0].cloud_key;
+    const filePath = path.join(projectRoot, 'uploads', cloudKey);
+
+    // 检查文件是否存在
+    const fs = await import('fs');
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    // 返回文件内容
+    const fileBuffer = fs.readFileSync(filePath);
+    const base64 = fileBuffer.toString('base64');
+    const mediaResult = await pool.query('SELECT type FROM media WHERE id = $1', [req.params.id]);
+    const mimeType = mediaResult.rows[0]?.type === 'video' ? 'video/mp4' : 'image/jpeg';
+
+    res.json({ success: true, data: `data:${mimeType};base64,${base64}` });
+  } catch (error) {
+    console.error('[API] Get media URL error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 删除媒体
+app.delete('/api/sync/media/:id', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+
+    // 先获取文件路径
+    const result = await pool.query(
+      'SELECT cloud_key FROM media WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+
+    if (result.rows.length > 0) {
+      const cloudKey = result.rows[0].cloud_key;
+      const filePath = path.join(projectRoot, 'uploads', cloudKey);
+
+      // 删除文件
+      const fs = await import('fs');
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // 删除数据库记录
+    await pool.query(
+      'DELETE FROM media WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+
+    res.json({ success: true, deletedId: req.params.id });
+  } catch (error) {
+    console.error('[API] Delete media error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== Full Backup/Restore API ====================
+
+// 导出完整备份
+app.get('/api/sync/backup', authMiddleware, async (req, res) => {
+  try {
+    const pool = getDbPool();
+
+    const [projects, shots, characters, scenes, scripts, media, settings] = await Promise.all([
+      pool.query('SELECT * FROM projects WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM shots WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM characters WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM scenes WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM scripts WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM media WHERE user_id = $1', [req.userId]),
+      pool.query('SELECT * FROM user_settings WHERE user_id = $1', [req.userId]),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        version: '1.0.0',
+        timestamp: Date.now(),
+        userId: req.userId,
+        projects: toCamelCase(projects.rows),
+        shots: toCamelCase(shots.rows),
+        characters: toCamelCase(characters.rows),
+        scenes: toCamelCase(scenes.rows),
+        scripts: toCamelCase(scripts.rows),
+        media: toCamelCase(media.rows),
+        settings: settings.rows[0] ? toCamelCase(settings.rows[0]) : null,
+      },
+    });
+  } catch (error) {
+    console.error('[API] Backup error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==================== 静态文件服务 ====================
 
 // 静态文件服务
@@ -759,6 +1258,14 @@ app.use((req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// 初始化所有表
+const initAllTables = async () => {
+  await initCharactersTable();
+  await initScenesTable();
+  await initScriptsTable();
+  await initMediaTable();
+};
+
 // ==================== 启动服务器 ====================
 
 const server = http.createServer(app);
@@ -766,10 +1273,13 @@ const server = http.createServer(app);
 server.listen(Number(PORT), HOST, async () => {
   console.log(`[Server] Production server running on http://${HOST}:${PORT}`);
   console.log('[Server] Serving static files from:', distPath);
-  
+
   // 初始化数据库连接
   await testDbConnection();
-  
+
+  // 初始化所有表
+  await initAllTables();
+
   console.log('[Server] Data sync API endpoints:');
   console.log('  GET    /api/sync/projects         - 获取所有项目');
   console.log('  GET    /api/sync/projects/:id    - 获取单个项目');
@@ -779,6 +1289,20 @@ server.listen(Number(PORT), HOST, async () => {
   console.log('  POST   /api/sync/shots            - 创建/更新分镜');
   console.log('  POST   /api/sync/shots/batch      - 批量创建/更新分镜');
   console.log('  DELETE /api/sync/shots/:id        - 删除分镜');
+  console.log('  GET    /api/sync/characters       - 获取角色列表');
+  console.log('  POST   /api/sync/characters       - 创建/更新角色');
+  console.log('  DELETE /api/sync/characters/:id  - 删除角色');
+  console.log('  GET    /api/sync/scenes           - 获取场景列表');
+  console.log('  POST   /api/sync/scenes           - 创建/更新场景');
+  console.log('  DELETE /api/sync/scenes/:id      - 删除场景');
+  console.log('  GET    /api/sync/scripts          - 获取剧本数据');
+  console.log('  POST   /api/sync/scripts          - 创建/更新剧本');
+  console.log('  GET    /api/sync/media            - 获取媒体列表');
+  console.log('  POST   /api/sync/media/upload     - 上传媒体文件');
+  console.log('  GET    /api/sync/media/:id/url    - 获取媒体访问URL');
+  console.log('  DELETE /api/sync/media/:id        - 删除媒体文件');
   console.log('  GET    /api/sync/settings         - 获取用户设置');
   console.log('  POST   /api/sync/settings         - 创建/更新用户设置');
+  console.log('  GET    /api/sync/backup           - 导出完整备份');
 });
+
