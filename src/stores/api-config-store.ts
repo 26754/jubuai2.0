@@ -610,8 +610,7 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
           if (isMemefast) {
             // MemeFast: /api/pricing_new 获取全量元数据（公开接口）
-            // corsFetch 会自动检测 memefast.top 域名并使用正确的代理
-            const pricingUrl = `${domain}/api/pricing_new`;
+            const pricingUrl = `${baseUrl}/api/pricing_new`;
 
             const response = await corsFetch(pricingUrl);
             if (!response.ok) {
