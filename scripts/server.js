@@ -432,6 +432,8 @@ const ALLOWED_API_DOMAINS = [
   'www.imgurl.org',
   'img.scdn.io',
   'catbox.moe',
+  // 阿里云 APM 监控
+  'apm.volccdn.com',
 ];
 
 // 构建 CSP 指令
@@ -440,10 +442,10 @@ const allowedWss = ALLOWED_API_DOMAINS.map(d => `wss://${d}`).join(' ');
 
 const CSP_HEADER = [
   `default-src 'self' ${SITE_URL}`,
-  `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com`,
+  `script-src 'self' 'unsafe-eval' 'unsafe-inline' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com https://apm.volccdn.com`,
   `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
   `font-src 'self' data: https://fonts.gstatic.com`,
-  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${allowedDomainsHttps} ${allowedWss}`,
+  `connect-src 'self' ${SUPABASE_URL} https://*.supabase.co https://*.supabase.com wss://*.supabase.co wss://*.supabase.com https://localhost:* http://localhost:* ${allowedDomainsHttps} ${allowedWss} https://apm.volccdn.com`,
   `img-src 'self' data: blob: https:`,
   `frame-src 'none'`,
   `worker-src 'self' blob:`,

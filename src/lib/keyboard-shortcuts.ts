@@ -38,6 +38,9 @@ export const isMac = navigator.platform.includes('Mac');
 
 // 快捷键匹配
 export function matchShortcut(event: KeyboardEvent, keys: string[]): boolean {
+  const eventKey = event.key;
+  if (!eventKey) return false;
+  
   for (const keyCombo of keys) {
     const parts = keyCombo.toLowerCase().split('+');
     const hasCtrl = parts.includes('ctrl') || parts.includes('cmd') || parts.includes('meta');
@@ -45,7 +48,7 @@ export function matchShortcut(event: KeyboardEvent, keys: string[]): boolean {
     const hasAlt = parts.includes('alt') || parts.includes('option');
     
     const keyPart = parts[parts.length - 1];
-    const eventKey = event.key.toLowerCase();
+    const lowerEventKey = eventKey.toLowerCase();
     
     // 检查修饰键
     const ctrlMatch = hasCtrl === (event.ctrlKey || event.metaKey);
@@ -83,7 +86,7 @@ export function matchShortcut(event: KeyboardEvent, keys: string[]): boolean {
     };
     
     const validKeys = keyMap[keyPart] || [keyPart];
-    const keyMatch = validKeys.includes(eventKey);
+    const keyMatch = validKeys.includes(lowerEventKey);
     
     if (ctrlMatch && shiftMatch && altMatch && keyMatch) {
       return true;
