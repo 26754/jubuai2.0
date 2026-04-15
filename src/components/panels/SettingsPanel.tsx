@@ -83,11 +83,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { uploadToImageHost } from "@/lib/image-host";
-import { UpdateDialog } from "@/components/UpdateDialog";
-import type { AvailableUpdateInfo } from "@/types/update";
-import packageJson from "../../../package.json";
-import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { useAuthStore } from "@/stores/auth-store";
+import { downloadDataAsFile, exportForSync, importDataFromFile, applyImportedData, ExportData } from "@/lib/data-export";
 import { ShareManagerPanel, CreateShareDialog, useShareLinks, SHARE_PRESETS } from "@/components/ShareManager";
 import { UserCenter } from "@/components/UserCenter";
 
@@ -146,10 +143,6 @@ export function SettingsPanel() {
   const [cacheSize, setCacheSize] = useState(0);
   const [isCacheLoading, setIsCacheLoading] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
-  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdateInfo | null>(null);
-  const [appVersion, setAppVersion] = useState(packageJson.version);
   const visibleImageHostProviders = useMemo(
     () => imageHostProviders.filter(isVisibleImageHostProvider),
     [imageHostProviders],
@@ -215,25 +208,6 @@ export function SettingsPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providers]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const version = await window.appUpdater?.getCurrentVersion?.();
-        if (!cancelled && version) {
-          setAppVersion(version);
-        }
-      } catch (error) {
-        console.warn("[SettingsPanel] Failed to load app version:", error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Toggle provider expansion
   const toggleExpanded = (id: string) => {
     setExpandedProviders((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -293,7 +267,6 @@ export function SettingsPanel() {
 
   const [activeTab, setActiveTab] = useState<string>("api");
   const hasStorageManager = typeof window !== "undefined" && !!window.storageManager;
-  const hasAppUpdater = typeof window !== "undefined" && !!window.appUpdater;
 
   const formatBytes = useCallback((bytes: number) => {
     if (!bytes) return "0 B";
@@ -588,41 +561,6 @@ export function SettingsPanel() {
     } finally {
       setIsClearingCache(false);
     }
-  };
-
-  const handleCheckForUpdates = async () => {
-    if (!window.appUpdater) {
-      toast.error("请在桌面应用中使用此功能");
-      return;
-    }
-
-    setIsCheckingForUpdates(true);
-    try {
-      const result = await window.appUpdater.checkForUpdates();
-      if (!result.success) {
-        toast.error(`检查更新失败: ${result.error || "未知错误"}`);
-        return;
-      }
-
-      if (result.hasUpdate && result.update) {
-        setAvailableUpdate(result.update);
-        setUpdateDialogOpen(true);
-        return;
-      }
-
-      setAvailableUpdate(null);
-      toast.success(`当前已是最新版本 v${result.currentVersion}`);
-    } catch (error) {
-      console.error("[SettingsPanel] Failed to check updates:", error);
-      toast.error("检查更新失败，请稍后重试");
-    } finally {
-      setIsCheckingForUpdates(false);
-    }
-  };
-
-  const handleClearIgnoredVersion = () => {
-    setUpdateSettings({ ignoredVersion: "" });
-    toast.success("已恢复更新提醒");
   };
 
   return (
@@ -1578,67 +1516,6 @@ export function SettingsPanel() {
                 </div>
               </div>
 
-              <div className="p-6 border border-border rounded-xl bg-card space-y-5">
-                <h4 className="font-medium text-foreground flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  应用更新
-                </h4>
-
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium">当前版本</p>
-                    <p className="text-xs text-muted-foreground font-mono mt-1">v{appVersion}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCheckForUpdates}
-                    disabled={!hasAppUpdater || isCheckingForUpdates}
-                  >
-                    {isCheckingForUpdates ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                    )}
-                    检查更新
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium">启动时自动检查更新</p>
-                    <p className="text-xs text-muted-foreground">
-                      开启后，桌面版启动时会自动检查远程版本清单并提示新版本
-                    </p>
-                  </div>
-                  <Switch
-                    checked={updateSettings.autoCheckEnabled}
-                    onCheckedChange={(checked) => setUpdateSettings({ autoCheckEnabled: checked })}
-                    disabled={!hasAppUpdater}
-                  />
-                </div>
-
-                {updateSettings.ignoredVersion && (
-                  <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium">已忽略版本</p>
-                      <p className="text-xs text-muted-foreground font-mono mt-1">
-                        v{updateSettings.ignoredVersion}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={handleClearIgnoredVersion}>
-                      恢复提醒
-                    </Button>
-                  </div>
-                )}
-
-                {!hasAppUpdater && (
-                  <p className="text-xs text-muted-foreground">
-                    此功能仅在桌面打包版中可用。
-                  </p>
-                )}
-              </div>
-
               {/* About */}
               <div className="text-center py-8 text-muted-foreground border-t border-border">
                 <p className="text-sm font-medium">JuBu AI</p>
@@ -1797,15 +1674,6 @@ export function SettingsPanel() {
         onOpenChange={setImageHostEditOpen}
         provider={editingImageHost}
         onSave={updateImageHostProvider}
-      />
-      <UpdateDialog
-        open={updateDialogOpen}
-        onOpenChange={setUpdateDialogOpen}
-        updateInfo={availableUpdate}
-        onIgnoreVersion={(version) => {
-          setUpdateSettings({ ignoredVersion: version });
-          setAvailableUpdate(null);
-        }}
       />
     </div>
   );
