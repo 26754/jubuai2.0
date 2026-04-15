@@ -367,16 +367,7 @@ class RealtimeSyncManager {
           async (payload) => {
             await this.handleProjectChange(payload);
           }
-        )
-        .subscribe((status) => {
-          console.log('[RealtimeSync] Project channel status:', status);
-          if (status === 'SUBSCRIBED') {
-            this.updateStatus({ isSubscribed: true, isConnected: true, error: null });
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            this.updateStatus({ isSubscribed: false, isConnected: false });
-            this.scheduleReconnect();
-          }
-        });
+        );
 
       this.subscriptions.push(projectChannel);
 
@@ -394,10 +385,22 @@ class RealtimeSyncManager {
           async (payload) => {
             await this.handleShotChange(payload);
           }
-        )
-        .subscribe();
+        );
 
       this.subscriptions.push(shotsChannel);
+
+      // 统一订阅所有频道
+      projectChannel.subscribe((status) => {
+        console.log('[RealtimeSync] Project channel status:', status);
+        if (status === 'SUBSCRIBED') {
+          this.updateStatus({ isSubscribed: true, isConnected: true, error: null });
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          this.updateStatus({ isSubscribed: false, isConnected: false });
+          this.scheduleReconnect();
+        }
+      });
+
+      shotsChannel.subscribe();
 
       console.log('[RealtimeSync] Connected successfully');
       this.updateStatus({ isConnected: true, error: null });
