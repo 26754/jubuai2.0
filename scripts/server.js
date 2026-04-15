@@ -64,8 +64,6 @@ function createProxyHandler(pattern, targetBaseUrl, logPrefix) {
 }
 
 // 注册固定域名的代理
-app.all(/\/__proxy\/volcengine-sh(\/.*)?/, createProxyHandler('__proxy/volcengine-sh(\\/.*)?', 'https://ark.cn-shanghai.volces.com', 'volcengine-sh'));
-app.all(/\/__proxy\/volcengine-gz(\/.*)?/, createProxyHandler('__proxy/volcengine-gz(\\/.*)?', 'https://ark.cn-guangzhou.volces.com', 'volcengine-gz'));
 app.all(/\/__proxy\/bailian(\/.*)?/, createProxyHandler('__proxy/bailian(\\/.*)?', 'https://dashscope.aliyuncs.com', 'bailian'));
 
 // ==================== MemeFast 代理（动态目标域名）====================

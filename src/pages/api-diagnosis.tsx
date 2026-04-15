@@ -198,7 +198,6 @@ export default function APIDiagnosisPage() {
             <h3 className="font-semibold mb-2">3. Base URL 配置错误</h3>
             <p className="text-sm text-muted-foreground">
               确保使用正确的区域端点，例如：
-              <br />- 火山引擎北京: https://ark.cn-beijing.volces.com/api/v3
               <br />- 阿里云百炼: https://dashscope.aliyuncs.com/api/v1
             </p>
           </div>

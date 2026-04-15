@@ -31,13 +31,12 @@ import {
 import { toast } from "sonner";
 import type { IProvider } from "@/lib/api-key-manager";
 import { DoubaoModelWindow } from "./DoubaoModelWindow";
-import { Loader2, CheckCircle2, XCircle, Globe } from "lucide-react";
-import { corsFetch } from "@/lib/cors-fetch";
+import { Loader2 } from "lucide-react";
 
 /**
  * 平台预设配置
  * 1. 魔因API (memefast) - 全功能中转（推荐）
- * 2. 火山引擎豆包 - 官方豆包 API，支持 Seedance 2.0
+ * 2. 阿里云百炼 - 通义千问/万相生图
  * 3. RunningHub - 视角切换/多角度生成
  * 4. 自定义 - OpenAI 兼容 API
  */
@@ -107,48 +106,6 @@ const PLATFORM_PRESETS: Array<{
     ],
   },
   {
-    platform: "volcengine",
-    name: "火山引擎",
-    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    description: "豆包大模型，支持对话/图片生成/视频生成",
-    services: ["对话", "图片生成", "视频生成", "图片理解"],
-    models: [
-      // 对话模型 - 豆包 Pro/Lite
-      "doubao-pro-32k",
-      "doubao-pro-128k",
-      "doubao-lite-32k",
-      "doubao-lite-128k",
-      // Seedance 2.0 系列（最新视频生成）
-      "doubao-seedance-2-0-pro-t2v-260610",
-      "doubao-seedance-2-0-pro-i2v-260610",
-      "doubao-seedance-2-0-pro-t2v-fast-260610",
-      // Seedance 1.5 系列
-      "doubao-seedance-1-5-pro-251215",
-      "doubao-seedance-1-0-pro-fast-251015",
-      // Seedream 图像生成
-      "doubao-seedream-4-5",
-      "doubao-seedream-3-0-t2i-250415",
-      // 思考模型
-      "doubao-thinking-pro-250715",
-    ],
-  },
-  {
-    platform: "doubao",
-    name: "豆包",
-    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-    description: "豆包 AI 对话助手，支持图片理解",
-    services: ["对话", "图片理解"],
-    models: [
-      // 对话模型 - 豆包 Pro/Lite
-      "doubao-pro-32k",
-      "doubao-pro-128k",
-      "doubao-lite-32k",
-      "doubao-lite-128k",
-      // 思考模型
-      "doubao-thinking-pro-250715",
-    ],
-  },
-  {
     platform: "runninghub",
     name: "RunningHub",
     baseUrl: "https://www.runninghub.cn/openapi/v2",
@@ -184,13 +141,6 @@ export function AddProviderDialog({
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [testResult, setTestResult] = useState<{
-    status: 'success' | 'error';
-    statusCode?: number;
-    responseTime?: number;
-    errorMessage?: string;
-  } | null>(null);
 
   // Get selected preset
   const selectedPreset = PLATFORM_PRESETS.find((p) => p.platform === platform);
@@ -204,8 +154,6 @@ export function AddProviderDialog({
       setBaseUrl("");
       setApiKey("");
       setModel("");
-      setTestStatus('idle');
-      setTestResult(null);
     }
   }, [open]);
 
@@ -218,86 +166,8 @@ export function AddProviderDialog({
       if (selectedPreset.models && selectedPreset.models.length > 0) {
         setModel(selectedPreset.models[0]);
       }
-      setTestStatus('idle');
-      setTestResult(null);
     }
   }, [platform, selectedPreset, isCustom]);
-
-  // 测试链接连通性
-  const handleTestConnection = async () => {
-    if (!baseUrl.trim()) {
-      toast.error("请输入 Base URL");
-      return;
-    }
-
-    setTestStatus('testing');
-    setTestResult(null);
-    const startTime = Date.now();
-
-    try {
-      // 清理 URL
-      let testUrl = baseUrl.trim();
-      if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
-        testUrl = 'https://' + testUrl;
-      }
-      // 移除末尾斜杠并添加 /v1/models
-      testUrl = testUrl.replace(/\/$/, '') + '/v1/models';
-
-      // 使用 corsFetch 测试连接（支持跨域）
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await corsFetch(testUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey.trim() ? { 'Authorization': `Bearer ${apiKey.split(/[,\n]/)[0].trim()}` } : {}),
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const responseTime = Date.now() - startTime;
-
-      if (response.ok || response.status === 401 || response.status === 403) {
-        setTestStatus('success');
-        setTestResult({
-          status: 'success',
-          statusCode: response.status,
-          responseTime,
-        });
-        toast.success(`连接成功 (${response.status}) - ${responseTime}ms`);
-      } else {
-        setTestStatus('error');
-        setTestResult({
-          status: 'error',
-          statusCode: response.status,
-          responseTime,
-          errorMessage: `HTTP ${response.status}`,
-        });
-        toast.error(`连接失败: HTTP ${response.status}`);
-      }
-    } catch (error: any) {
-      const responseTime = Date.now() - startTime;
-      setTestStatus('error');
-      
-      let errorMessage = '无法连接到服务器';
-      if (error.name === 'AbortError') {
-        errorMessage = '连接超时 (10秒)';
-      } else if (error.message.includes('Failed to fetch')) {
-        errorMessage = '网络错误或 CORS 限制';
-      } else {
-        errorMessage = error.message;
-      }
-      
-      setTestResult({
-        status: 'error',
-        responseTime,
-        errorMessage,
-      });
-      toast.error(errorMessage);
-    }
-  };
 
   const handleSubmit = () => {
     if (!platform) {
@@ -388,55 +258,13 @@ export function AddProviderDialog({
           {/* Base URL (only for custom or editable) */}
           {(isCustom || platform) && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Base URL {!isCustom && "(可选修改)"}</Label>
-                {testResult && (
-                  <div className={cn(
-                    "flex items-center gap-1 text-xs",
-                    testResult.status === 'success' ? "text-green-500" : "text-red-500"
-                  )}>
-                    {testResult.status === 'success' ? (
-                      <>
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>{testResult.statusCode} · {testResult.responseTime}ms</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-3 h-3" />
-                        <span>{testResult.errorMessage}</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => {
-                    setBaseUrl(e.target.value);
-                    setTestStatus('idle');
-                    setTestResult(null);
-                  }}
-                  placeholder={isCustom ? "https://api.example.com/v1" : ""}
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleTestConnection}
-                  disabled={testStatus === 'testing' || !baseUrl.trim()}
-                  title="检测连接"
-                >
-                  {testStatus === 'testing' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Globe className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                点击检测按钮验证 API 地址是否可访问
-              </p>
+              <Label>Base URL {!isCustom && "(可选修改)"}</Label>
+              <Input
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder={isCustom ? "https://api.example.com/v1" : ""}
+                className="flex-1"
+              />
             </div>
           )}
 
