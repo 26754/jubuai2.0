@@ -2,29 +2,26 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
  * 云端项目存储模块
- * 使用 Express API Server 直连 Supabase PostgreSQL 实现项目数据的云端同步
+ * 使用自定义 JWT 认证实现项目数据的云端同步
  */
 
-import { getSupabaseClient } from './supabase-client';
+import { cloudAuth } from '@/lib/cloud-auth';
 import type { Project } from '@/stores/project-store';
 import type { ScriptData } from '@/types/script';
 
 // ==================== API 基础 URL ====================
 
 const getApiBaseUrl = (): string => {
-  // 在开发环境中使用代理，在生产环境中使用相对路径
-  if (import.meta.env.DEV) {
-    return 'http://localhost:3001';
-  }
+  // 使用相对路径，由服务器处理
   return '';
 };
 
 // ==================== 认证头 ====================
 
-const getAuthHeaders = (userId: string): HeadersInit => {
+const getAuthHeaders = (): HeadersInit => {
   return {
     'Content-Type': 'application/json',
-    'X-User-Id': userId,
+    ...cloudAuth.getAuthHeader(),
   };
 };
 
@@ -32,25 +29,24 @@ const getAuthHeaders = (userId: string): HeadersInit => {
 
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {},
-  userId: string
+  options: RequestInit = {}
 ): Promise<T> {
   const url = `${getApiBaseUrl()}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
-      ...getAuthHeaders(userId),
+      ...getAuthHeaders(),
       ...options.headers,
     },
   });
-  
+
   const data = await response.json();
-  
+
   if (!response.ok || !data.success) {
     throw new Error(data.error || `API request failed: ${response.status}`);
   }
-  
+
   return data.data;
 }
 
@@ -60,17 +56,8 @@ async function apiRequest<T>(
  * 获取用户的云端项目列表
  */
 export async function getCloudProjects(): Promise<Project[]> {
-  const supabase = getSupabaseClient();
-  
-  // 获取当前登录用户的 ID
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    console.warn('[CloudStorage] User not logged in, skipping cloud fetch');
-    return [];
-  }
-  
   try {
-    const projects = await apiRequest<any[]>('/api/sync/projects', {}, user.id);
+    const projects = await apiRequest<any[]>('/api/sync/projects', {});
     return projects.map(mapCloudProjectToProject);
   } catch (error) {
     console.error('[CloudStorage] Failed to get projects:', error);
@@ -82,15 +69,8 @@ export async function getCloudProjects(): Promise<Project[]> {
  * 获取单个云端项目
  */
 export async function getCloudProject(projectId: string): Promise<Project | null> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录');
-  }
-  
   try {
-    const project = await apiRequest<any>(`/api/sync/projects/${projectId}`, {}, user.id);
+    const project = await apiRequest<any>(`/api/sync/projects/${projectId}`, {});
     return project ? mapCloudProjectToProject(project) : null;
   } catch (error) {
     console.error('[CloudStorage] Failed to get project:', error);
@@ -110,13 +90,6 @@ export async function getCloudScriptData(projectId: string): Promise<ScriptData 
  * 创建云端项目
  */
 export async function createCloudProject(project: Project, scriptData?: ScriptData): Promise<Project> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录，无法创建云端项目');
-  }
-  
   const cloudProject = {
     id: project.id,
     name: project.name,
@@ -124,12 +97,12 @@ export async function createCloudProject(project: Project, scriptData?: ScriptDa
     created_at: project.createdAt || new Date().toISOString(),
     updated_at: project.updatedAt || new Date().toISOString(),
   };
-  
+
   const result = await apiRequest<any>('/api/sync/projects', {
     method: 'POST',
     body: JSON.stringify(cloudProject),
-  }, user.id);
-  
+  });
+
   return mapCloudProjectToProject(result);
 }
 
@@ -144,16 +117,9 @@ export async function updateCloudProject(project: Project, scriptData?: ScriptDa
  * 删除云端项目
  */
 export async function deleteCloudProject(projectId: string): Promise<void> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录');
-  }
-  
   await apiRequest(`/api/sync/projects/${projectId}`, {
     method: 'DELETE',
-  }, user.id);
+  });
 }
 
 // ==================== 数据映射 ====================
@@ -184,30 +150,23 @@ export async function syncAllToCloud(
   localShots: any[],
   localSettings: any
 ): Promise<SyncResult> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录');
-  }
-  
   const result: SyncResult = {
     projects: { uploaded: 0, downloaded: 0 },
     shots: { uploaded: 0, downloaded: 0 },
     settings: { uploaded: false },
   };
-  
+
   // 同步设置
   try {
     await apiRequest('/api/sync/settings', {
       method: 'POST',
       body: JSON.stringify(localSettings),
-    }, user.id);
+    });
     result.settings.uploaded = true;
   } catch (error) {
     console.error('[CloudStorage] Failed to sync settings:', error);
   }
-  
+
   // 同步项目
   for (const project of localProjects) {
     try {
@@ -217,20 +176,20 @@ export async function syncAllToCloud(
       console.error('[CloudStorage] Failed to sync project:', project.id, error);
     }
   }
-  
+
   // 同步分镜
   for (const shot of localShots) {
     try {
       await apiRequest('/api/sync/shots', {
         method: 'POST',
         body: JSON.stringify(shot),
-      }, user.id);
+      });
       result.shots.uploaded++;
     } catch (error) {
       console.error('[CloudStorage] Failed to sync shot:', shot.id, error);
     }
   }
-  
+
   return result;
 }
 
@@ -242,45 +201,15 @@ export async function downloadAllFromCloud(): Promise<{
   shots: any[];
   settings: any;
 }> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录');
-  }
-  
   const [projects, shots, settings] = await Promise.all([
     getCloudProjects(),
-    apiRequest<any[]>('/api/sync/shots', {}, user.id),
-    apiRequest<any>('/api/sync/settings', {}, user.id).catch(() => null),
+    apiRequest<any[]>('/api/sync/shots', {}).catch(() => []),
+    apiRequest<any>('/api/sync/settings', {}).catch(() => null),
   ]);
-  
-  return { projects, shots, settings };
-}
 
-/**
- * 同步单个项目到云端
- */
-export async function syncProjectToCloud(project: Project): Promise<Project | null> {
-  const supabase = getSupabaseClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('用户未登录');
-  }
-  
-  try {
-    const result = await createCloudProject(project);
-    return result;
-  } catch (error) {
-    console.error('[CloudStorage] Failed to sync project to cloud:', project.id, error);
-    return null;
-  }
-}
-
-/**
- * 从云端恢复项目
- */
-export async function restoreProjectFromCloud(projectId: string): Promise<Project | null> {
-  return getCloudProject(projectId);
+  return {
+    projects,
+    shots,
+    settings,
+  };
 }

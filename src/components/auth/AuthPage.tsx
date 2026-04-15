@@ -87,7 +87,7 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
   const [emailTouched, setEmailTouched] = useState(false);
   const [isEmailValid, setIsEmailValid] = useState(false);
   
-  const { login, register, resetPassword, isLoading, error, clearError } = useAuthStore();
+  const { login, register, isLoading, error, clearError, updatePassword } = useAuthStore();
   
   // 邮箱验证
   useEffect(() => {
@@ -139,13 +139,12 @@ export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
     
     setResetLoading(true);
     try {
-      const success = await resetPassword(resetEmail);
-      if (success) {
-        setResetSuccess(true);
-        toast.success("重置邮件已发送，请查收邮箱");
-      }
+      // JWT 模式下需要登录后才能修改密码
+      // 提示用户联系管理员或使用其他方式
+      toast.info("密码重置功能请联系管理员处理");
+      setForgotPasswordOpen(false);
     } catch (err) {
-      toast.error("发送失败，请稍后重试");
+      toast.error("操作失败，请稍后重试");
     } finally {
       setResetLoading(false);
     }

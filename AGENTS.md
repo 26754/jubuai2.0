@@ -284,12 +284,32 @@ proxy: {
    - 服务端使用用户 ID 进行 RLS 策略验证
 
 ### 开发环境配置
+开发环境中，数据同步 API 和认证 API 都通过 Express 服务器直接访问：
 ```bash
-# 启动 API 服务器（端口 3001）
-npx tsx server/api-server.ts
+# 启动生产服务器（端口 5000，包含静态文件服务和 API）
+node scripts/server.js
+```
 
-# 启动 Vite 开发服务器（端口 5000，代理 /api/sync/* 到 3001）
-pnpm dev
+### 前端认证模块
+位置: `src/lib/cloud-auth.ts`
+
+```typescript
+// 使用示例
+import { cloudAuth } from '@/lib/cloud-auth';
+
+// 登录
+const result = await cloudAuth.login(email, password);
+if (result.success) {
+  console.log('用户:', result.user);
+  console.log('Token:', result.token);
+}
+
+// 获取当前用户
+const user = await cloudAuth.getCurrentUser();
+
+// 获取认证头
+const headers = cloudAuth.getAuthHeader();
+// { Authorization: 'Bearer <token>' }
 ```
 
 ### 测试认证 API

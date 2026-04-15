@@ -4,14 +4,13 @@
 
 /**
  * 认证状态管理
- * 使用 Supabase Auth 管理用户账户和登录状态
+ * 使用自定义 JWT 认证 API 管理用户账户和登录状态
  */
 
 import { create } from 'zustand';
-import { getSupabaseClient, isSupabaseConfigured as checkSupabaseConfigured } from '@/storage/database/supabase-client';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { cloudAuth, type CloudUser } from '@/lib/cloud-auth';
 import { cloudSyncManager } from '@/storage/database/cloud-sync-manager';
-import { getCloudProjects, isCloudStorageAvailable } from '@/storage/database/cloud-storage';
+import { isCloudStorageAvailable } from '@/storage/database/cloud-storage';
 
 export interface User {
   id: string;
@@ -23,20 +22,19 @@ export interface User {
 interface AuthState {
   isAuthenticated: boolean;
   currentUser: User | null;
-  supabaseUser: SupabaseUser | null;
   isLoading: boolean;
   error: string | null;
   isDemoUser: boolean;
-  isSupabaseConfigured: boolean;
+  isCloudConfigured: boolean;
 
   // Actions
   initialize: () => Promise<void>;
-  checkSession: () => Promise<boolean>;  // 检查并刷新 session
+  checkSession: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
-  resetPassword: (email: string) => Promise<boolean>;
+  updatePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
   updateUsername: (username: string) => void;
 }
 
@@ -173,120 +171,51 @@ export const DEMO_PROJECT = {
   visualStyleId: 'sci-fi'
 };
 
-// 检查 Supabase 是否配置
-// 直接调用 supabase-client 的检查函数
-function checkSupabase(): boolean {
-  return checkSupabaseConfigured();
+// 检查云端认证是否可用
+function checkCloudAuth(): boolean {
+  return cloudAuth.isLoggedIn();
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   currentUser: null,
-  supabaseUser: null,
   isLoading: false,
   error: null,
   isDemoUser: false,
-  isSupabaseConfigured: checkSupabase(), // 检查 Supabase 配置
+  isCloudConfigured: true, // JWT 认证始终可用
 
   initialize: async () => {
-    // 每次初始化时动态检查配置
-    console.log('[Auth] Initializing, checking Supabase config...');
-    const configured = checkSupabase();
-    console.log('[Auth] Supabase configured:', configured);
-    
-    if (!configured) {
-      console.log('[Auth] Supabase not configured, skipping initialization');
-      set({ isSupabaseConfigured: false });
-      return;
-    }
-    
-    set({ isSupabaseConfigured: true });
-    
-    if (!checkSupabase()) {
-      console.log('[Auth] Supabase not configured, skipping initialization');
-      return;
-    }
+    console.log('[Auth] Initializing with JWT authentication...');
 
     try {
-      const supabase = getSupabaseClient();
-      
-      // 获取当前会话
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[Auth] Failed to get session:', error);
-        return;
-      }
+      // 检查是否有保存的登录状态
+      const user = await cloudAuth.getCurrentUser();
 
-      if (session?.user) {
-        const user = session.user;
+      if (user) {
         set({
           isAuthenticated: true,
-          supabaseUser: user,
-          currentUser: {
-            id: user.id,
-            email: user.email || '',
-            username: user.user_metadata?.username || user.user_metadata?.full_name || undefined,
-            createdAt: new Date(user.created_at).getTime(),
-          },
+          currentUser: user,
+          isCloudConfigured: true,
         });
         console.log('[Auth] Restored session for:', user.email);
-      }
 
-      // 监听 Auth 状态变化
-      supabase.auth.onAuthStateChange((event, session) => {
-        console.log('[Auth] Auth state changed:', event, session ? 'with session' : 'no session');
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          const user = session.user;
-          set({
-            isAuthenticated: true,
-            supabaseUser: user,
-            currentUser: {
-              id: user.id,
-              email: user.email || '',
-              username: user.user_metadata?.username || user.user_metadata?.full_name || undefined,
-              createdAt: new Date(user.created_at).getTime(),
-            },
-            isDemoUser: false,
-            error: null,
-          });
-          
-          // 登录成功后自动触发云端同步
-          triggerAutoSync();
-          
-        } else if (event === 'SIGNED_OUT') {
-          set({
-            isAuthenticated: false,
-            supabaseUser: null,
-            currentUser: null,
-            isDemoUser: false,
-          });
-          console.log('[Auth] User signed out');
-          
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Token 刷新成功
-          console.log('[Auth] Token refreshed successfully');
-          set({
-            supabaseUser: session.user,
-          });
-          
-        } else if (event === 'USER_UPDATED' && session?.user) {
-          // 用户信息更新
-          console.log('[Auth] User updated');
-          set({
-            supabaseUser: session.user,
-            currentUser: {
-              id: session.user.id,
-              email: session.user.email || '',
-              username: session.user.user_metadata?.username || session.user.user_metadata?.full_name || undefined,
-              createdAt: new Date(session.user.created_at).getTime(),
-            },
-          });
-        }
-      });
+        // 登录成功后自动触发云端同步
+        triggerAutoSync();
+      } else {
+        set({
+          isAuthenticated: false,
+          currentUser: null,
+          isCloudConfigured: true,
+        });
+        console.log('[Auth] No saved session found');
+      }
     } catch (err) {
       console.error('[Auth] Initialize error:', err);
+      set({
+        isAuthenticated: false,
+        currentUser: null,
+        isCloudConfigured: true,
+      });
     }
   },
 
@@ -295,49 +224,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   checkSession: async (): Promise<boolean> => {
     try {
-      const supabase = getSupabaseClient();
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[Auth] Session check failed:', error);
-        return false;
-      }
-      
-      if (!session) {
-        console.log('[Auth] No active session');
+      const user = await cloudAuth.getCurrentUser();
+
+      if (!user) {
         set({
           isAuthenticated: false,
-          supabaseUser: null,
           currentUser: null,
         });
         return false;
       }
-      
-      // 检查 token 过期时间
-      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
-      const now = Date.now();
-      const timeUntilExpiry = expiresAt - now;
-      
-      if (timeUntilExpiry < 0) {
-        console.log('[Auth] Session expired');
-        set({
-          isAuthenticated: false,
-          supabaseUser: null,
-          currentUser: null,
-        });
-        return false;
-      }
-      
-      // Token 在 5 分钟内即将过期，尝试刷新
-      if (timeUntilExpiry < 5 * 60 * 1000) {
-        console.log('[Auth] Session expiring soon, refreshing...');
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.error('[Auth] Token refresh failed:', refreshError);
-          return false;
-        }
-      }
-      
+
+      set({
+        isAuthenticated: true,
+        currentUser: user,
+      });
+
       return true;
     } catch (err) {
       console.error('[Auth] Session check error:', err);
@@ -346,55 +247,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email: string, password: string): Promise<boolean> => {
-    // 动态检查 Supabase 配置
-    if (!checkSupabase()) {
-      set({ error: 'Supabase 未配置，请联系管理员' });
-      return false;
-    }
-
     set({ isLoading: true, error: null });
 
     try {
-      const supabase = getSupabaseClient();
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const result = await cloudAuth.login(email, password);
 
-      if (error) {
-        console.error('[Auth] Login failed:', error);
+      if (!result.success || !result.user) {
+        console.error('[Auth] Login failed:', result.error);
         set({
           isLoading: false,
-          error: error.message === 'Invalid login credentials'
-            ? '邮箱或密码错误'
-            : error.message,
+          error: result.error || '登录失败',
         });
         return false;
       }
 
-      if (data.user) {
-        set({
-          isAuthenticated: true,
-          supabaseUser: data.user,
-          currentUser: {
-            id: data.user.id,
-            email: data.user.email || '',
-            username: data.user.user_metadata?.username || data.user.user_metadata?.full_name || undefined,
-            createdAt: new Date(data.user.created_at).getTime(),
-          },
-          isLoading: false,
-          error: null,
-        });
-        console.log('[Auth] User logged in:', email);
-        
-        // 登录成功后自动触发云端同步
-        triggerAutoSync();
-        
-        return true;
-      }
+      const user: User = {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        createdAt: result.user.createdAt,
+      };
 
-      return false;
+      set({
+        isAuthenticated: true,
+        currentUser: user,
+        isLoading: false,
+        error: null,
+      });
+      console.log('[Auth] User logged in:', email);
+
+      // 登录成功后自动触发云端同步
+      triggerAutoSync();
+
+      return true;
     } catch (err: any) {
       console.error('[Auth] Login error:', err);
       set({
@@ -406,82 +291,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (email: string, password: string, username?: string): Promise<boolean> => {
-    // 动态检查 Supabase 配置
-    if (!checkSupabase()) {
-      set({ error: 'Supabase 未配置，请联系管理员' });
-      return false;
-    }
-
     set({ isLoading: true, error: null });
 
     try {
-      const supabase = getSupabaseClient();
-      
-      // 获取重定向 URL
-      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
-      const redirectTo = `${siteUrl}/auth/callback`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectTo,
-          data: {
-            username: username || email.split('@')[0],
-            full_name: username || email.split('@')[0],
-          },
-        },
-      });
+      const result = await cloudAuth.register(email, password, username);
 
-      if (error) {
-        console.error('[Auth] Registration failed:', error);
-        
-        // 处理常见的注册错误
-        let errorMessage = error.message;
-        if (error.message.includes('already registered')) {
-          errorMessage = '该邮箱已被注册';
-        } else if (error.message.includes('Password should be at least')) {
-          errorMessage = '密码长度至少为6个字符';
-        }
-        
+      if (!result.success || !result.user) {
+        console.error('[Auth] Registration failed:', result.error);
         set({
           isLoading: false,
-          error: errorMessage,
+          error: result.error || '注册失败',
         });
         return false;
       }
 
-      if (data.user) {
-        set({
-          isAuthenticated: true,
-          supabaseUser: data.user,
-          currentUser: {
-            id: data.user.id,
-            email: data.user.email || '',
-            username: data.user.user_metadata?.username || username || email.split('@')[0],
-            createdAt: new Date(data.user.created_at).getTime(),
-          },
-          isLoading: false,
-          error: null,
-        });
-        console.log('[Auth] User registered:', email);
-        
-        // 注册成功后自动触发云端同步
-        triggerAutoSync();
-        
-        return true;
-      }
+      const user: User = {
+        id: result.user.id,
+        email: result.user.email,
+        username: username || email.split('@')[0],
+        createdAt: result.user.createdAt,
+      };
 
-      // 注册成功但需要邮箱验证
-      if (data.needsEmailVerification) {
-        set({
-          isLoading: false,
-          error: '注册成功，请查收验证邮件并点击链接完成验证',
-        });
-        return true;
-      }
+      set({
+        isAuthenticated: true,
+        currentUser: user,
+        isLoading: false,
+        error: null,
+      });
+      console.log('[Auth] User registered:', email);
 
-      return false;
+      // 注册成功后自动触发云端同步
+      triggerAutoSync();
+
+      return true;
     } catch (err: any) {
       console.error('[Auth] Registration error:', err);
       set({
@@ -493,16 +335,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    const { isSupabaseConfigured } = get();
-    
     // 停止自动同步
     cloudSyncManager.reset();
-    
+
     try {
-      if (isSupabaseConfigured) {
-        const supabase = getSupabaseClient();
-        await supabase.auth.signOut();
-      }
+      await cloudAuth.logout();
     } catch (err) {
       console.error('[Auth] Logout error:', err);
     }
@@ -510,7 +347,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       isAuthenticated: false,
       currentUser: null,
-      supabaseUser: null,
       isDemoUser: false,
       error: null,
     });
@@ -521,28 +357,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ error: null });
   },
 
-  resetPassword: async (email: string): Promise<boolean> => {
-    const { isSupabaseConfigured } = get();
-    
-    if (!isSupabaseConfigured) {
-      set({ error: 'Supabase 未配置，请联系管理员' });
-      return false;
-    }
-
+  updatePassword: async (oldPassword: string, newPassword: string): Promise<boolean> => {
     set({ isLoading: true, error: null });
 
     try {
-      const supabase = getSupabaseClient();
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      });
+      const result = await cloudAuth.updatePassword(oldPassword, newPassword);
 
-      if (error) {
-        console.error('[Auth] Password reset failed:', error);
+      if (!result.success) {
+        console.error('[Auth] Update password failed:', result.error);
         set({
           isLoading: false,
-          error: error.message,
+          error: result.error || '更新密码失败',
         });
         return false;
       }
@@ -551,13 +376,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
-      console.log('[Auth] Password reset email sent to:', email);
+      console.log('[Auth] Password updated successfully');
+
       return true;
     } catch (err: any) {
-      console.error('[Auth] Password reset error:', err);
+      console.error('[Auth] Update password error:', err);
       set({
         isLoading: false,
-        error: err.message || '密码重置失败，请稍后重试',
+        error: err.message || '更新密码失败，请稍后重试',
       });
       return false;
     }
@@ -580,13 +406,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 /**
  * 自动云端同步（改进版）
  * 登录成功后自动触发，处理本地与云端数据同步
- * 采用智能合并策略：
- * - 云端有数据，本地没有 → 从云端恢复
- * - 本地有数据，云端没有 → 上传到云端
- * - 都有数据 → 比较更新时间，保留较新的数据
  */
 async function triggerAutoSync() {
-  // 延迟执行，确保 UI 已经渲染完成
   setTimeout(async () => {
     try {
       if (!isCloudStorageAvailable()) {
@@ -596,18 +417,15 @@ async function triggerAutoSync() {
 
       console.log('[AutoSync] Starting automatic cloud sync...');
 
-      // 获取本地项目数量
       const { useProjectStore } = await import('@/stores/project-store');
       const localProjects = useProjectStore.getState().projects;
-      
-      // 过滤掉默认项目（只有默认项目时不认为是有本地数据）
+
       const hasLocalData = localProjects.some(p => p.id !== 'default-project' && p.name !== 'JuBu AI项目');
-      
-      // 获取云端项目数量
-      let cloudProjects: any[] = [];
+
       let cloudProjectCount = 0;
       try {
-        cloudProjects = await getCloudProjects();
+        const { getCloudProjects } = await import('@/storage/database/cloud-storage');
+        const cloudProjects = await getCloudProjects();
         cloudProjectCount = cloudProjects.length;
       } catch (e) {
         console.warn('[AutoSync] Failed to get cloud projects:', e);
@@ -616,69 +434,27 @@ async function triggerAutoSync() {
       console.log(`[AutoSync] Local projects: ${localProjects.length} (has data: ${hasLocalData}), Cloud projects: ${cloudProjectCount}`);
 
       if (cloudProjectCount > 0 && !hasLocalData) {
-        // 场景1: 云端有数据，本地没有 → 从云端恢复
-        console.log('[AutoSync] Case 1: Restoring from cloud (cloud has data, local is empty)...');
+        console.log('[AutoSync] Restoring from cloud...');
         await cloudSyncManager.restoreFromCloud();
-        console.log('[AutoSync] Restored from cloud successfully');
-        
-        // 恢复后启动自动同步
         cloudSyncManager.startAutoSync();
-        
+
       } else if (hasLocalData && cloudProjectCount === 0) {
-        // 场景2: 本地有数据，云端没有 → 上传到云端
-        console.log('[AutoSync] Case 2: Uploading to cloud (local has data, cloud is empty)...');
+        console.log('[AutoSync] Uploading to cloud...');
         await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
-        console.log('[AutoSync] Uploaded to cloud successfully');
-        
-        // 上传后启动自动同步
         cloudSyncManager.startAutoSync();
-        
+
       } else if (hasLocalData && cloudProjectCount > 0) {
-        // 场景3: 都有数据 → 智能合并（保留较新的数据）
-        console.log('[AutoSync] Case 3: Both have data, smart merge (keeping newer data)...');
-        
-        // 构建云端项目的更新时间映射
-        const cloudProjectMap = new Map(cloudProjects.map(p => [p.id, p]));
-        
-        // 找出需要从云端恢复的项目（云端更新较新）
-        const needsRestore: string[] = [];
-        for (const localProject of localProjects) {
-          if (localProject.id === 'default-project' && localProject.name === 'JuBu AI项目') continue;
-          
-          const cloudProject = cloudProjectMap.get(localProject.id);
-          if (cloudProject) {
-            const cloudUpdatedAt = cloudProject.updated_at ? new Date(cloudProject.updated_at).getTime() : 0;
-            const localUpdatedAt = localProject.updatedAt;
-            
-            if (cloudUpdatedAt > localUpdatedAt) {
-              needsRestore.push(localProject.id);
-            }
-          }
-        }
-        
-        // 如果有需要从云端恢复的项目，则执行恢复
-        if (needsRestore.length > 0) {
-          console.log('[AutoSync] Some projects need restore from cloud:', needsRestore.length);
-          await cloudSyncManager.restoreFromCloud();
-        }
-        
-        // 同步本地更新到云端
-        console.log('[AutoSync] Syncing local changes to cloud...');
+        console.log('[AutoSync] Both have data, syncing...');
         await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
-        console.log('[AutoSync] Sync completed');
-        
-        // 同步后启动自动同步
         cloudSyncManager.startAutoSync();
-        
+
       } else {
-        // 场景4: 都没有有意义的数据（只有默认项目）→ 启动自动同步等待用户创建数据
-        console.log('[AutoSync] Case 4: No meaningful data to sync (only default project)');
+        console.log('[AutoSync] No meaningful data to sync');
         cloudSyncManager.startAutoSync();
       }
 
     } catch (error) {
-      console.error('[AutoSync] Sync failed:', error);
-      // 同步失败不影响用户体验，静默处理
+      console.error('[AutoSync] Sync error:', error);
     }
-  }, 1000); // 延迟1秒执行，确保应用已完全加载
+  }, 1000);
 }

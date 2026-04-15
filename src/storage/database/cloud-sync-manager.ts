@@ -158,8 +158,8 @@ class CloudSyncManager {
    * 检查是否可以进行同步
    */
   canSync(): boolean {
-    const { isAuthenticated, isSupabaseConfigured } = useAuthStore.getState();
-    return isAuthenticated && isSupabaseConfigured && isCloudStorageAvailable() && navigator.onLine;
+    const { isAuthenticated } = useAuthStore.getState();
+    return isAuthenticated && isCloudStorageAvailable() && navigator.onLine;
   }
   
   /**
