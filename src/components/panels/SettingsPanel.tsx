@@ -760,8 +760,8 @@ export function SettingsPanel() {
                         )}
                       >
                         {/* Header */}
-                        <CollapsibleTrigger className="w-full">
-                          <div className="flex items-center justify-between p-4 hover:bg-muted/30 rounded-t-xl transition-colors">
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-4 hover:bg-muted/30 rounded-t-xl transition-colors cursor-pointer">
                             <div className="flex items-center gap-3">
                               <div
                                 className={cn(
