@@ -182,6 +182,8 @@ export function SettingsPanel() {
     syncProviderModels,
     setFeatureBindings,
     getFeatureBindings,
+    addProvider,
+    updateProvider,
   } = useAPIConfigStore();
   const { isAuthenticated } = useAuthStore();
   const { testKey } = useApiKeyTester();
