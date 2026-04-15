@@ -26,7 +26,40 @@ const projectRoot = path.join(__dirname, '..');
 const distPath = path.join(projectRoot, 'dist');
 
 // Middleware
-app.use(cors());
+// 增强 CORS 配置，明确指定允许的来源
+const ALLOWED_ORIGINS = [
+  'https://jubuguanai.coze.site',
+  'http://localhost:*', // 开发环境
+  'http://127.0.0.1:*', // 开发环境
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // 允许没有 origin 的请求（如 curl、Postman）
+    if (!origin) {
+      return callback(null, true);
+    }
+    // 检查 origin 是否在白名单中
+    const isAllowed = ALLOWED_ORIGINS.some(pattern => {
+      if (pattern.includes('*')) {
+        // 处理通配符模式
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        return regex.test(origin);
+      }
+      return origin === pattern;
+    });
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+}));
 app.use(express.json());
 
 // ==================== 数据库连接 ====================
