@@ -38,10 +38,14 @@ import {
   StickyNote,
   Plus,
   Box,
+  Sparkles,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ImagePreviewModal } from "@/components/panels/director/media-preview-modal";
+import { SceneViewpointOptimizer } from "./scene-viewpoint-optimizer";
+import type { SceneViewpoint } from "@/lib/script/scene-viewpoint-generator";
 
 interface SceneDetailProps {
   scene: Scene | null;
@@ -60,6 +64,7 @@ export function SceneDetail({ scene }: SceneDetailProps) {
   const [editVisualPrompt, setEditVisualPrompt] = useState("");
   const [newTag, setNewTag] = useState("");
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showViewpointOptimizer, setShowViewpointOptimizer] = useState(false);
   
   const resolvedImage = useResolvedImageUrl(scene?.referenceImage);
 
@@ -149,6 +154,37 @@ export function SceneDetail({ scene }: SceneDetailProps) {
       console.error('Export failed:', error);
       toast.error("导出失败");
     }
+  };
+
+  // 处理多视角建议应用
+  const handleApplyViewpointSuggestions = (
+    viewpoints: SceneViewpoint[],
+    gridLayout: { rows: number; cols: number }
+  ) => {
+    if (!scene) return;
+    
+    // 更新场景的视角数据（使用类型断言扩展 Scene 类型）
+    const sceneWithViewpoints = scene as Scene & { viewpoints?: SceneViewpoint[]; gridLayout?: { rows: number; cols: number } };
+    updateScene(scene.id, {
+      ...sceneWithViewpoints,
+      viewpoints: viewpoints.map((vp, index) => ({
+        id: vp.id || `vp-${Date.now()}-${index}`,
+        name: vp.name,
+        nameEn: vp.nameEn,
+        description: vp.description,
+        gridIndex: vp.gridIndex || { row: Math.floor(index / gridLayout.cols), col: index % gridLayout.cols },
+        keyProps: vp.keyProps,
+        prompt: vp.prompt || '',
+        imageUrl: vp.imageUrl || '',
+        stylePreset: vp.stylePreset || '',
+        lightingPreset: vp.lightingPreset || '',
+        cameraPreset: vp.cameraPreset || '',
+      })),
+      gridLayout,
+    } as any);
+    
+    toast.success(`已应用 ${viewpoints.length} 个视角建议`);
+    setShowViewpointOptimizer(false);
   };
 
   const timeLabel = TIME_PRESETS.find(t => t.id === scene.time)?.label || scene.time;
@@ -430,6 +466,17 @@ export function SceneDetail({ scene }: SceneDetailProps) {
 
           {/* Actions */}
           <div className="space-y-2">
+            {/* 多视角优化按钮 */}
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              size="sm"
+              onClick={() => setShowViewpointOptimizer(true)}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              多视角优化
+            </Button>
+
             {scene.referenceImage && (
               <Button
                 variant="outline"
@@ -483,6 +530,25 @@ export function SceneDetail({ scene }: SceneDetailProps) {
         isOpen={!!previewImageUrl}
         onClose={() => setPreviewImageUrl(null)}
       />
+
+      {/* Scene Viewpoint Optimizer */}
+      {scene && (
+        <SceneViewpointOptimizer
+          scene={{
+            id: scene.id,
+            name: scene.name || '未命名场景',
+            location: scene.location || '',
+            time: scene.time || '',
+            atmosphere: scene.atmosphere || '',
+            keyProps: scene.keyProps || [],
+          }}
+          viewpoints={(scene as any).viewpoints || []}
+          gridLayout={(scene as any).gridLayout || { rows: 2, cols: 3 }}
+          open={showViewpointOptimizer}
+          onClose={() => setShowViewpointOptimizer(false)}
+          onApplySuggestions={handleApplyViewpointSuggestions}
+        />
+      )}
     </div>
   );
 }
