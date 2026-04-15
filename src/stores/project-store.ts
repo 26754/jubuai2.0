@@ -312,11 +312,12 @@ async function discoverProjectsFromDisk(): Promise<void> {
 
   if (diskProjectIds.length === 0) return;
 
-  const { projects } = useProjectStore.getState();
-  const knownIds = new Set(projects.map((p) => p.id));
+  try {
+    const { projects } = useProjectStore.getState();
+    const knownIds = new Set(projects.map((p) => p.id));
 
-  const missingIds = diskProjectIds.filter((id) => !knownIds.has(id));
-  if (missingIds.length === 0) return;
+    const missingIds = diskProjectIds.filter((id) => !knownIds.has(id));
+    if (missingIds.length === 0) return;
 
     console.log(
       `[ProjectStore] Found ${missingIds.length} projects on disk not in store:`,
