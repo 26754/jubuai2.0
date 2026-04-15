@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 export type SaveStatus = "saved" | "saving" | "unsaved";
 
@@ -110,10 +109,9 @@ export function ProjectHeader() {
         )}
       </div>
 
-      {/* Right: Save Status + Sync Status + User Menu */}
+      {/* Right: Save Status + User Menu */}
       <div className="flex items-center gap-3">
         <SaveStatusIndicator status={saveStatus} />
-        <SyncStatusIndicator />
         
         {/* User Menu */}
         <DropdownMenu>

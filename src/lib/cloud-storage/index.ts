@@ -6,9 +6,3 @@
 
 export { cloudAuth, type CloudUser, type AuthResult } from '@/lib/cloud-auth';
 export { cloudProjectManager, type CloudProject, type ProjectData } from '@/lib/cloud-project-manager';
-export { 
-  useCloudAuth, 
-  useCloudProjects, 
-  type UseCloudAuthReturn, 
-  type UseCloudProjectsReturn 
-} from '@/hooks/use-cloud-sync';

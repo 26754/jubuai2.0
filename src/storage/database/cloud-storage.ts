@@ -6,16 +6,7 @@
  */
 
 import { cloudAuth } from '@/lib/cloud-auth';
-
-// 导出子模块
-export * from './cloud-project-storage';
-export * from './cloud-settings-storage';
-
-// 导出别名函数（用于兼容）
-export {
-  createCloudProject as syncProjectToCloud,
-  getCloudProject as restoreProjectFromCloud,
-} from './cloud-project-storage';
+import { cloudProjectManager } from '@/lib/cloud-project-manager';
 
 /**
  * 检查云端存储是否可用
@@ -50,10 +41,17 @@ export async function testCloudConnection(): Promise<{
     }
 
     return { connected: true };
-  } catch (err: any) {
+  } catch (error: any) {
+    console.error('[CloudStorage] 测试连接失败:', error);
     return {
       connected: false,
-      error: err.message || '未知错误',
+      error: error.message || '连接失败',
     };
   }
 }
+
+/**
+ * 导出子模块
+ */
+export { cloudAuth } from '@/lib/cloud-auth';
+export { cloudProjectManager } from '@/lib/cloud-project-manager';

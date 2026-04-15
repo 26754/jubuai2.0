@@ -8,9 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { cloudAuth, type CloudUser } from '@/lib/cloud-auth';
-import { cloudSyncManager } from '@/storage/database/cloud-sync-manager';
-import { isCloudStorageAvailable } from '@/storage/database/cloud-storage';
+import { cloudAuth } from '@/lib/cloud-auth';
 
 export interface User {
   id: string;
@@ -171,11 +169,6 @@ export const DEMO_PROJECT = {
   visualStyleId: 'sci-fi'
 };
 
-// 检查云端认证是否可用
-function checkCloudAuth(): boolean {
-  return cloudAuth.isLoggedIn();
-}
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   currentUser: null,
@@ -198,9 +191,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isCloudConfigured: true,
         });
         console.log('[Auth] Restored session for:', user.email);
-
-        // 登录成功后自动触发云端同步
-        triggerAutoSync();
       } else {
         set({
           isAuthenticated: false,
@@ -276,9 +266,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       console.log('[Auth] User logged in:', email);
 
-      // 登录成功后自动触发云端同步
-      triggerAutoSync();
-
       return true;
     } catch (err: any) {
       console.error('[Auth] Login error:', err);
@@ -320,9 +307,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       console.log('[Auth] User registered:', email);
 
-      // 注册成功后自动触发云端同步
-      triggerAutoSync();
-
       return true;
     } catch (err: any) {
       console.error('[Auth] Registration error:', err);
@@ -335,9 +319,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    // 停止自动同步
-    cloudSyncManager.reset();
-
     try {
       await cloudAuth.logout();
     } catch (err) {
@@ -402,59 +383,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
-
-/**
- * 自动云端同步（改进版）
- * 登录成功后自动触发，处理本地与云端数据同步
- */
-async function triggerAutoSync() {
-  setTimeout(async () => {
-    try {
-      if (!isCloudStorageAvailable()) {
-        console.log('[AutoSync] Cloud storage not available, skipping sync');
-        return;
-      }
-
-      console.log('[AutoSync] Starting automatic cloud sync...');
-
-      const { useProjectStore } = await import('@/stores/project-store');
-      const localProjects = useProjectStore.getState().projects;
-
-      const hasLocalData = localProjects.some(p => p.id !== 'default-project' && p.name !== 'JuBu AI项目');
-
-      let cloudProjectCount = 0;
-      try {
-        const { getCloudProjects } = await import('@/storage/database/cloud-storage');
-        const cloudProjects = await getCloudProjects();
-        cloudProjectCount = cloudProjects.length;
-      } catch (e) {
-        console.warn('[AutoSync] Failed to get cloud projects:', e);
-      }
-
-      console.log(`[AutoSync] Local projects: ${localProjects.length} (has data: ${hasLocalData}), Cloud projects: ${cloudProjectCount}`);
-
-      if (cloudProjectCount > 0 && !hasLocalData) {
-        console.log('[AutoSync] Restoring from cloud...');
-        await cloudSyncManager.restoreFromCloud();
-        cloudSyncManager.startAutoSync();
-
-      } else if (hasLocalData && cloudProjectCount === 0) {
-        console.log('[AutoSync] Uploading to cloud...');
-        await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
-        cloudSyncManager.startAutoSync();
-
-      } else if (hasLocalData && cloudProjectCount > 0) {
-        console.log('[AutoSync] Both have data, syncing...');
-        await cloudSyncManager.syncAllToCloud({ syncProjects: true, syncSettings: true, forceUpload: true });
-        cloudSyncManager.startAutoSync();
-
-      } else {
-        console.log('[AutoSync] No meaningful data to sync');
-        cloudSyncManager.startAutoSync();
-      }
-
-    } catch (error) {
-      console.error('[AutoSync] Sync error:', error);
-    }
-  }, 1000);
-}
