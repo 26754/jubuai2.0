@@ -5,7 +5,7 @@
  * 实现用户项目的云端存储和同步
  */
 
-import { createSupabaseClient } from './database/supabase-client';
+import { createSupabaseClient } from '@/storage/database/supabase-client';
 import type { User } from '@supabase/supabase-js';
 
 export interface CloudProject {

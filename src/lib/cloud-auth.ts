@@ -5,7 +5,7 @@
  * 使用 Supabase Auth 实现用户认证
  */
 
-import { createSupabaseClient } from './database/supabase-client';
+import { createSupabaseClient } from '@/storage/database/supabase-client';
 import type { User } from '@supabase/supabase-js';
 
 export interface CloudUser {
