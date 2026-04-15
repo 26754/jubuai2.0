@@ -285,10 +285,10 @@ app.get('/api/auth/me', jwtAuthMiddleware, async (req, res) => {
 
 // 更新密码
 app.post('/api/auth/update-password', jwtAuthMiddleware, async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
+  const { newPassword } = req.body;
 
-  if (!oldPassword || !newPassword) {
-    return res.status(400).json({ success: false, error: '请输入旧密码和新密码' });
+  if (!newPassword) {
+    return res.status(400).json({ success: false, error: '请输入新密码' });
   }
 
   if (newPassword.length < 6) {
@@ -297,18 +297,6 @@ app.post('/api/auth/update-password', jwtAuthMiddleware, async (req, res) => {
 
   try {
     const pool = getDbPool();
-
-    // 获取当前密码
-    const result = await pool.query(
-      'SELECT password_hash FROM users WHERE id = $1',
-      [req.userId]
-    );
-
-    // 验证旧密码
-    const valid = await bcrypt.compare(oldPassword, result.rows[0].password_hash);
-    if (!valid) {
-      return res.status(401).json({ success: false, error: '旧密码错误' });
-    }
 
     // 更新密码
     const newHash = await bcrypt.hash(newPassword, 10);

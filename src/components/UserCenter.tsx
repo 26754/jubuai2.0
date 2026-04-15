@@ -500,7 +500,6 @@ interface ChangePasswordDialogProps {
 }
 
 function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordDialogProps) {
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -531,10 +530,6 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
     setError('');
 
     // 验证
-    if (!currentPassword) {
-      setError('请输入当前密码');
-      return;
-    }
     if (!newPassword) {
       setError('请输入新密码');
       return;
@@ -552,7 +547,7 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
 
     try {
       // 使用我们的 API 更新密码
-      const result = await cloudAuth.updatePassword(oldPassword, newPassword);
+      const result = await cloudAuth.updatePassword(newPassword);
 
       if (!result.success) {
         setError(result.error || '修改失败');
@@ -564,7 +559,6 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
       onOpenChange(false);
       
       // 清空表单
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
@@ -580,26 +574,11 @@ function ChangePasswordDialog({ open, onOpenChange, onSuccess }: ChangePasswordD
         <DialogHeader>
           <DialogTitle>修改密码</DialogTitle>
           <DialogDescription>
-            请输入当前密码和新密码来更新您的账户密码
+            请输入新密码来更新您的账户密码
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* 当前密码 */}
-          <div className="space-y-2">
-            <Label htmlFor="current-password">当前密码</Label>
-            <div className="relative">
-              <Input
-                id="current-password"
-                type={showPassword ? 'text' : 'password'}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="输入当前密码"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
           {/* 新密码 */}
           <div className="space-y-2">
             <Label htmlFor="new-password">新密码</Label>

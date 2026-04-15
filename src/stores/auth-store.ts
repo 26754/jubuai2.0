@@ -32,7 +32,7 @@ interface AuthState {
   register: (email: string, password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
-  updatePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
+  updatePassword: (newPassword: string) => Promise<boolean>;
   updateUsername: (username: string) => void;
 }
 
@@ -338,11 +338,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ error: null });
   },
 
-  updatePassword: async (oldPassword: string, newPassword: string): Promise<boolean> => {
+  updatePassword: async (newPassword: string): Promise<boolean> => {
     set({ isLoading: true, error: null });
 
     try {
-      const result = await cloudAuth.updatePassword(oldPassword, newPassword);
+      const result = await cloudAuth.updatePassword(newPassword);
 
       if (!result.success) {
         console.error('[Auth] Update password failed:', result.error);

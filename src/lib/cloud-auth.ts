@@ -255,7 +255,7 @@ export class CloudAuthManager {
   /**
    * 更新密码
    */
-  async updatePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  async updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
     const token = this.getToken();
     if (!token) {
       return { success: false, error: '未登录' };
@@ -268,7 +268,7 @@ export class CloudAuthManager {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ oldPassword, newPassword }),
+        body: JSON.stringify({ newPassword }),
       });
 
       const data = await response.json();
