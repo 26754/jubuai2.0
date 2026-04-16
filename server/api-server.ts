@@ -67,14 +67,23 @@ const testDbConnection = async () => {
 
 // ==================== 数据同步 API 路由 ====================
 
-// 数据同步 API 中间件 - 验证用户身份
+// 数据同步 API 中间件 - 从 JWT Token 验证用户身份
 const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(401).json({ error: 'Missing X-User-Id header' });
+  const authHeader = req.headers['authorization'];
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
   }
-  (req as any).userId = userId;
-  next();
+  
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    (req as any).userId = decoded.userId;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 };
 
 // 辅助函数：将 snake_case 转换为 camelCase
