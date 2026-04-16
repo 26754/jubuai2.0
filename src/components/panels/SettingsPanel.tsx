@@ -66,11 +66,13 @@ import {
   Sparkles,
   RefreshCw,
   Cloud,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useApiKeyTester } from "@/hooks/use-api-key-tester";
 import { CloudSyncSettingsPanel } from "./cloud-sync/CloudSyncSettingsPanel";
+import { DataBackupPanel } from "@/components/DataBackupPanel";
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -242,12 +244,28 @@ export function SettingsPanel() {
               <Cloud className="h-4 w-4 mr-2" />
               云端同步
             </TabsTrigger>
+            <TabsTrigger 
+              value="backup" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              数据备份
+            </TabsTrigger>
           </TabsList>
         </div>
 
         {/* Cloud Sync Tab */}
         <TabsContent value="cloud-sync" className="flex-1 overflow-hidden mt-0">
           <CloudSyncSettingsPanel />
+        </TabsContent>
+
+        {/* Data Backup Tab */}
+        <TabsContent value="backup" className="flex-1 overflow-hidden mt-0">
+          <ScrollArea className="h-full">
+            <div className="p-6 max-w-4xl mx-auto">
+              <DataBackupPanel />
+            </div>
+          </ScrollArea>
         </TabsContent>
 
         {/* API Management Tab */}
