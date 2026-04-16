@@ -169,10 +169,14 @@ class CloudSyncEngine {
   private isProcessing = false;
 
   private constructor() {
-    this.loadSettings();
-    this.loadStats();
-    this.loadQueue();
-    this.loadConflicts();
+    try {
+      this.loadSettings();
+      this.loadStats();
+      this.loadQueue();
+      this.loadConflicts();
+    } catch (e) {
+      console.error('[CloudSyncEngine] Initialization error:', e);
+    }
   }
 
   public static getInstance(): CloudSyncEngine {
@@ -779,13 +783,49 @@ class CloudSyncEngine {
         
         switch (dataType) {
           case 'projects':
-            useProjectStore.getState().upsertProject?.(itemObj);
+            try {
+              const projectStore = useProjectStore.getState();
+              if ('createProject' in projectStore) {
+                // 创建新项目
+                const name = String(itemObj.name || '云端项目');
+                const newProject = projectStore.createProject(name);
+                // 如果需要更新其他属性，可以在这里处理
+              }
+            } catch (e) {
+              console.warn('[CloudSync] Failed to apply project:', e);
+            }
             break;
           case 'characters':
-            useCharacterLibraryStore.getState().upsertCharacter?.(itemObj);
+            try {
+              const charStore = useCharacterLibraryStore.getState();
+              if ('addCharacter' in charStore) {
+                charStore.addCharacter({
+                  name: String(itemObj.name || '云端角色'),
+                  identityAnchors: (itemObj.identityAnchors || {}) as any,
+                  negativePrompt: String(itemObj.negativePrompt || ''),
+                  styleId: String(itemObj.styleId || ''),
+                  gender: String(itemObj.gender || 'unknown') as any,
+                });
+              }
+            } catch (e) {
+              console.warn('[CloudSync] Failed to apply character:', e);
+            }
             break;
           case 'scenes':
-            useSceneStore.getState().upsertScene?.(itemObj);
+            try {
+              const sceneStore = useSceneStore.getState();
+              if ('addScene' in sceneStore) {
+                sceneStore.addScene({
+                  name: String(itemObj.name || '云端场景'),
+                  description: String(itemObj.description || ''),
+                  location: String(itemObj.location || ''),
+                  timeOfDay: String(itemObj.timeOfDay || 'day') as any,
+                  styleId: String(itemObj.styleId || ''),
+                });
+              }
+            } catch (e) {
+              console.warn('[CloudSync] Failed to apply scene:', e);
+            }
             break;
           case 'settings':
             if (itemObj.key && itemObj.value) {

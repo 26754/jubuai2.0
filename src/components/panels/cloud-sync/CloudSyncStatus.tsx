@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCloudSyncV2, useSyncStatusV2, useSyncStatsV2 } from "@/hooks/use-cloud-sync-v2";
+import { useCloudSyncV2, useSyncStatusV2, useSyncStatsV2, useSyncLogsV2 } from "@/hooks/use-cloud-sync-v2";
 import { cloudSyncEngine, type SyncStatus } from "@/lib/cloud-sync-engine";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
@@ -371,7 +371,7 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
 // ==================== 同步历史组件 ====================
 
 export function CloudSyncHistory({ limit = 5 }: { limit?: number }) {
-  const { logs, clear } = useSyncLogsV2?.() || { logs: [], clear: () => {} };
+  const { logs, clear } = useSyncLogsV2(limit);
   const [showLogs, setShowLogs] = useState(false);
 
   if (logs.length === 0) {
