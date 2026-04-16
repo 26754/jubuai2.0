@@ -271,6 +271,141 @@ export class CloudAuthManager {
   }
 
   /**
+   * Validate token and check if session is still valid
+   */
+  async validateSession(): Promise<{ valid: boolean; user?: CloudUser | null; expired?: boolean }> {
+    const token = this.getToken();
+    if (!token) {
+      return { valid: false };
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        // Token expired or invalid
+        this.clearToken();
+        return { valid: false, expired: true };
+      }
+
+      if (!response.ok) {
+        return { valid: false };
+      }
+
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        return { valid: false };
+      }
+
+      let data: AuthResponse;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return { valid: false };
+      }
+
+      if (!data.success || !data.user) {
+        return { valid: false };
+      }
+
+      const cloudUser: CloudUser = {
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.email.split('@')[0],
+        createdAt: new Date(data.user.createdAt).getTime(),
+      };
+
+      this.saveUser(cloudUser);
+      return { valid: true, user: cloudUser };
+    } catch (error) {
+      console.error('[CloudAuth] Session validation failed:', error);
+      // Network error - assume session is still valid
+      return { valid: true, user: this.getSavedUser() };
+    }
+  }
+
+  /**
+   * Check if token is expired (local check without API call)
+   */
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+
+    try {
+      // Decode JWT payload (without signature verification)
+      const payload = token.split('.')[1];
+      if (!payload) return true;
+
+      const decoded = JSON.parse(atob(payload));
+      const now = Math.floor(Date.now() / 1000);
+
+      // Check exp claim
+      if (decoded.exp) {
+        return decoded.exp < now;
+      }
+    } catch {
+      // If decode fails, assume expired
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Update user profile locally and optionally sync to cloud
+   */
+  updateUserProfile(username: string, syncToCloud: boolean = true): void {
+    const user = this.getSavedUser();
+    if (user) {
+      const updatedUser = { ...user, username };
+      this.saveUser(updatedUser);
+      
+      // Optionally sync to cloud
+      if (syncToCloud) {
+        this.syncProfileToCloud({ email: user.email, username });
+      }
+    }
+  }
+
+  /**
+   * Sync profile to cloud
+   */
+  private async syncProfileToCloud(profile: { email: string; username?: string }): Promise<boolean> {
+    const token = this.getToken();
+    if (!token) return false;
+
+    try {
+      const response = await fetch('/api/sync/user-profile', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ profile }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      // Also save to local storage for sync service
+      localStorage.setItem('jubuai_user_profile', JSON.stringify({
+        ...profile,
+        syncedAt: Date.now(),
+      }));
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * 监听认证状态变化
    * 注意：JWT 模式下使用轮询或本地事件
    */

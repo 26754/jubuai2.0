@@ -29,6 +29,7 @@ const SYNCABLE_SETTINGS_KEYS = [
   'i18nextLng',              // Language preference
   'jubuai_visual_style_id',  // Last selected visual style
   'jubuai_last_selected_style',
+  'jubuai_user_profile',     // User profile (email, username)
 ];
 
 // Sync interval constants (in milliseconds)
@@ -926,6 +927,79 @@ class SmartSyncService {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Sync user profile to cloud
+   */
+  public async syncUserProfile(profile: { email: string; username?: string }): Promise<boolean> {
+    const headers = this.getAuthHeader();
+    if (!headers) {
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/sync/user-profile', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ profile }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      // Update local cache
+      localStorage.setItem('jubuai_user_profile', JSON.stringify({
+        ...profile,
+        syncedAt: Date.now(),
+      }));
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Fetch user profile from cloud
+   */
+  public async fetchUserProfileFromCloud(): Promise<{ email: string; username?: string } | null> {
+    const headers = this.getAuthHeader();
+    if (!headers) {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/api/sync/user-profile', {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      return data.profile || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get cached user profile
+   */
+  public getCachedUserProfile(): { email: string; username?: string; syncedAt?: number } | null {
+    const stored = localStorage.getItem('jubuai_user_profile');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 
   /**

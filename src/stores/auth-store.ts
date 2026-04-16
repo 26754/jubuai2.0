@@ -186,19 +186,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await cloudAuth.getCurrentUser();
 
       if (user) {
-        set({
-          isAuthenticated: true,
-          currentUser: user,
-          isCloudConfigured: true,
-        });
-        console.log('[Auth] Restored session for:', user.email);
+        // 验证 session 是否仍然有效
+        const sessionValidation = await cloudAuth.validateSession();
         
-        // 🚀 自动静默同步：用户有有效Token，自动同步数据
-        const autoSyncEnabled = localStorage.getItem('jubuai_auto_sync_enabled') !== 'false'; // 默认开启
-        if (autoSyncEnabled) {
-          console.log('[Auth] Auto-syncing data silently...');
-          smartSyncService.performFullSync().catch(err => {
-            console.warn('[Auth] Silent sync failed (non-blocking):', err);
+        if (sessionValidation.valid && sessionValidation.user) {
+          set({
+            isAuthenticated: true,
+            currentUser: sessionValidation.user,
+            isCloudConfigured: true,
+          });
+          console.log('[Auth] Session valid, restored session for:', user.email);
+          
+          // 🚀 自动静默同步：用户有有效Token，自动同步数据
+          const settings = smartSyncService.getSyncSettingsBundle();
+          if (settings.autoSync) {
+            if (settings.syncOnStartup) {
+              console.log('[Auth] Auto-syncing data on startup...');
+              smartSyncService.performFullSync().catch(err => {
+                console.warn('[Auth] Startup sync failed (non-blocking):', err);
+              });
+            }
+            // 启动自动同步定时器
+            smartSyncService.startAutoSync();
+          }
+        } else if (sessionValidation.expired) {
+          console.log('[Auth] Session expired, clearing credentials');
+          set({
+            isAuthenticated: false,
+            currentUser: null,
+            isCloudConfigured: true,
+          });
+        } else {
+          set({
+            isAuthenticated: false,
+            currentUser: null,
+            isCloudConfigured: true,
           });
         }
       } else {
@@ -277,7 +299,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('[Auth] User logged in:', email);
 
       // 🚀 静默自动同步：登录后自动后台同步，不打扰用户
-      smartSyncService.silentSync();
+      const settings = smartSyncService.getSyncSettingsBundle();
+      if (settings.autoSync) {
+        smartSyncService.silentSync(false); // Show notification if enabled
+        smartSyncService.startAutoSync();
+      }
 
       return true;
     } catch (err: any) {
@@ -321,7 +347,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('[Auth] User registered:', email);
 
       // 🚀 静默自动同步：注册后自动后台同步，不打扰用户
-      smartSyncService.silentSync();
+      const settings = smartSyncService.getSyncSettingsBundle();
+      if (settings.autoSync) {
+        smartSyncService.silentSync(false); // Show notification if enabled
+        smartSyncService.startAutoSync();
+      }
 
       return true;
     } catch (err: any) {
@@ -335,6 +365,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // 停止自动同步
+    smartSyncService.stopAutoSync();
+    
     try {
       await cloudAuth.logout();
     } catch (err) {
@@ -389,12 +422,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateUsername: (username: string) => {
     const { currentUser } = get();
     if (currentUser) {
+      const updatedUser = {
+        ...currentUser,
+        username,
+      };
       set({
-        currentUser: {
-          ...currentUser,
-          username,
-        },
+        currentUser: updatedUser,
       });
+      
+      // Sync to cloud
+      cloudAuth.updateUserProfile(username, true);
+      
+      // Trigger data sync if auto-sync is enabled
+      if (smartSyncService.isAutoSyncEnabled() && smartSyncService.shouldSyncOnChange()) {
+        smartSyncService.debouncedSilentSync(2000);
+      }
+      
       console.log('[Auth] Username updated to:', username);
     }
   },
