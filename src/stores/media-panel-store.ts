@@ -40,6 +40,7 @@ export const mainNavItems: NavItem[] = [
   { id: "media", label: "素材", icon: VideoIcon },
   { id: "export", label: "导出", icon: FilmIcon, phase: "04" },
   { id: "freedom", label: "自由", icon: PaletteIcon, phase: "02" },
+  { id: "ai-assistant", label: "AI助手", icon: SparklesIcon },
 ];
 
 // Bottom navigation items
@@ -76,6 +77,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   media: { icon: VideoIcon, label: "素材" },
   export: { icon: FilmIcon, label: "导出", stage: "export" },
   settings: { icon: SettingsIcon, label: "设置" },
+  "ai-assistant": { icon: SparklesIcon, label: "AI助手" },
 };
 
 // Data passed from script panel to director

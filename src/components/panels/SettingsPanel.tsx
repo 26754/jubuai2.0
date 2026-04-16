@@ -74,20 +74,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
 import { useApiKeyTester } from "@/hooks/use-api-key-tester";
-import { Suspense, lazy } from "react";
 import { CloudSyncTab } from "./cloud-sync/CloudSyncTab";
-
-// 懒加载大型组件 - 代码分割优化
-const AIAssistantPanel = lazy(() => import("@/components/AIAssistant").then(m => ({ default: m.AIAssistantPanel })));
-
-// 加载占位符
-function ComponentLoader() {
-  return (
-    <div className="flex items-center justify-center py-12">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  );
-}
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -117,7 +104,7 @@ export function SettingsPanel() {
   const { isAuthenticated, user, login, logout } = useAuthStore();
   const { testKey } = useApiKeyTester();
 
-  const [activeTab, setActiveTab] = useState("ai-assistant");
+  const [activeTab, setActiveTab] = useState("api");
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -295,13 +282,6 @@ export function SettingsPanel() {
         <div className="border-b border-border px-6">
           <TabsList className="h-12 bg-transparent p-0 gap-4">
             <TabsTrigger 
-              value="ai-assistant" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI 助手
-            </TabsTrigger>
-            <TabsTrigger 
               value="api" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
@@ -324,13 +304,6 @@ export function SettingsPanel() {
             </TabsTrigger>
           </TabsList>
         </div>
-
-        {/* AI Assistant Tab */}
-        <TabsContent value="ai-assistant" className="flex-1 overflow-hidden mt-0">
-          <Suspense fallback={<ComponentLoader />}>
-            <AIAssistantPanel />
-          </Suspense>
-        </TabsContent>
 
         {/* Cloud Sync Tab */}
         <TabsContent value="cloud-sync" className="flex-1 overflow-hidden mt-0">

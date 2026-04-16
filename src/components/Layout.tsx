@@ -27,6 +27,7 @@ import { MediaView } from "@/components/panels/media";
 import { ExportView } from "@/components/panels/export";
 import { OverviewPanel } from "@/components/panels/overview";
 import { AssetsView } from "@/components/panels/assets";
+import { AIAssistantPanel } from "./AIAssistant";
 
 // 大型组件懒加载 - 代码分割优化
 const SettingsPanel = lazy(() => import("@/components/panels/SettingsPanel").then(m => ({ default: m.SettingsPanel })));
@@ -66,7 +67,7 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "script", "characters", "scenes", "freedom", "assets"];
+  const fullScreenTabs = ["export", "settings", "overview", "script", "characters", "scenes", "freedom", "assets", "ai-assistant"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <div className="h-full flex bg-background">
@@ -85,6 +86,11 @@ export function Layout() {
           {activeTab === "scenes" && <ScenesView />}
           {activeTab === "freedom" && <FreedomView />}
           {activeTab === "assets" && <AssetsView />}
+          {activeTab === "ai-assistant" && (
+            <Suspense fallback={<PanelLoader />}>
+              <AIAssistantPanel />
+            </Suspense>
+          )}
         </div>
       </div>
     );
