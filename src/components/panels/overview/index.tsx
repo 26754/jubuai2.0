@@ -47,6 +47,7 @@ import {
 import type { SeriesMeta, NamedEntity, Faction, EpisodeRawScript } from "@/types/script";
 import { EnhancedWorkflowGuide } from "./EnhancedWorkflowGuide";
 import type { WorkflowStep } from "./EnhancedWorkflowGuide";
+import { getStyleName } from "@/lib/constants/visual-styles";
 
 const OVERVIEW_WORKFLOW_SECTIONS: Array<{ id: number; title: string; steps: string[] }> = [
   {
