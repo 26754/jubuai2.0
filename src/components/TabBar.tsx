@@ -3,6 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { mainNavItems, bottomNavItems, Tab, useMediaPanelStore } from "@/stores/media-panel-store";
 import { useThemeStore } from "@/stores/theme-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -10,11 +11,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronLeft, LayoutDashboard, Settings, Sun, Moon } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Settings, Sun, Moon, User } from "lucide-react";
 
 export function TabBar() {
   const { activeTab, inProject, setActiveTab, setInProject } = useMediaPanelStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   // Dashboard mode
   if (!inProject) {
@@ -47,8 +49,28 @@ export function TabBar() {
             </Tooltip>
           </TooltipProvider>
         </nav>
-        {/* Bottom: Settings + Theme */}
+        {/* Bottom: User Info + Settings + Theme */}
         <div className="mt-auto border-t border-border py-1">
+          {/* User Info */}
+          {isAuthenticated && user && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveTab("settings")}
+                    className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mb-0.5">
+                      <User className="h-3 w-3" />
+                    </div>
+                    <span className="text-[8px] truncate max-w-full px-1">{user.email?.split('@')[0] || '用户'}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{user.email || '未登录'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {/* Settings */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -143,8 +165,27 @@ export function TabBar() {
         })}
       </nav>
 
-      {/* Bottom: Settings + Theme */}
+      {/* Bottom: User Info + Settings + Theme */}
       <div className="mt-auto border-t border-border py-1">
+        {/* User Info */}
+        {isAuthenticated && user && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setActiveTab("settings")}
+                  className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mb-0.5">
+                    <User className="h-3 w-3" />
+                  </div>
+                  <span className="text-[8px] truncate max-w-full px-1">{user.email?.split('@')[0] || '用户'}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{user.email || '未登录'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {bottomNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;

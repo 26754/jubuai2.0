@@ -9,7 +9,7 @@
  * Based on AionUi's ModelModalContent pattern
  */
 
-import { useState, useMemo, useEffect, useCallback, Component, type ReactNode } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   isVisibleImageHostProvider,
   useAPIConfigStore,
@@ -63,9 +63,6 @@ import {
   Play,
   ShieldAlert,
   Layers,
-  User,
-  MessageSquare,
-  Palette,
   Sparkles,
   RefreshCw,
   Cloud,
@@ -78,7 +75,6 @@ import { Suspense, lazy } from "react";
 import { CloudSyncTab } from "./cloud-sync/CloudSyncTab";
 
 // 懒加载大型组件 - 代码分割优化
-const UserCenter = lazy(() => import("@/components/UserCenter").then(m => ({ default: m.UserCenter })));
 const AIAssistantPanel = lazy(() => import("@/components/AIAssistant").then(m => ({ default: m.AIAssistantPanel })));
 
 // 加载占位符
@@ -87,79 +83,6 @@ function ComponentLoader() {
     <div className="flex items-center justify-center py-12">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
     </div>
-  );
-}
-
-// 错误边界组件，用于捕获 UserCenter 渲染错误
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-class UserCenterErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[SettingsPanel] UserCenter render error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col h-full bg-background overflow-hidden">
-          <div className="h-16 border-b border-border bg-panel px-6 flex items-center shrink-0">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-3">
-              <User className="w-5 h-5 text-primary" />
-              用户中心
-            </h2>
-          </div>
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="max-w-md text-center">
-              <div className="text-destructive text-lg font-semibold mb-2">
-                用户中心加载失败
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                {this.state.error?.message || '发生了未知错误'}
-              </p>
-              <Button
-                onClick={() => {
-                  this.setState({ hasError: false, error: null });
-                  window.location.reload();
-                }}
-              >
-                刷新页面
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// UserCenter 包装组件
-function UserCenterWrapper() {
-  const [key, setKey] = useState(0);
-
-  // 当 key 变化时，组件会重新挂载
-  const handleRefresh = useCallback(() => {
-    setKey(k => k + 1);
-  }, []);
-
-  return (
-    <UserCenterErrorBoundary key={key}>
-      <Suspense fallback={<ComponentLoader />}>
-        <UserCenter onRefresh={handleRefresh} />
-      </Suspense>
-    </UserCenterErrorBoundary>
   );
 }
 
@@ -186,11 +109,12 @@ export function SettingsPanel() {
     getFeatureBindings,
     addProvider,
     updateProvider,
+    removeProvider,
   } = useAPIConfigStore();
   const { isAuthenticated } = useAuthStore();
   const { testKey } = useApiKeyTester();
 
-  const [activeTab, setActiveTab] = useState("api");
+  const [activeTab, setActiveTab] = useState("ai-assistant");
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -311,32 +235,18 @@ export function SettingsPanel() {
         <div className="border-b border-border px-6">
           <TabsList className="h-12 bg-transparent p-0 gap-4">
             <TabsTrigger 
-              value="usercenter" 
+              value="ai-assistant" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
-              <User className="h-4 w-4 mr-2" />
-              用户中心
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI 助手
             </TabsTrigger>
             <TabsTrigger 
               value="api" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
               <Key className="h-4 w-4 mr-2" />
-              API 管理
-            </TabsTrigger>
-            <TabsTrigger 
-              value="ai-assistant" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              AI 助手
-            </TabsTrigger>
-            <TabsTrigger 
-              value="advanced" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Layers className="h-4 w-4 mr-2" />
-              高级选项
+              API 供应商
             </TabsTrigger>
             <TabsTrigger 
               value="cloud-sync" 
@@ -344,6 +254,13 @@ export function SettingsPanel() {
             >
               <Cloud className="h-4 w-4 mr-2" />
               云端同步
+            </TabsTrigger>
+            <TabsTrigger 
+              value="advanced" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              高级设置
             </TabsTrigger>
           </TabsList>
         </div>
@@ -814,11 +731,6 @@ export function SettingsPanel() {
               </div>
             </div>
           </ScrollArea>
-        </TabsContent>
-
-        {/* User Center Tab */}
-        <TabsContent value="usercenter" className="flex-1 overflow-hidden mt-0">
-          <UserCenterWrapper />
         </TabsContent>
       </Tabs>
 
