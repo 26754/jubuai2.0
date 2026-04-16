@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCloudSync, useSyncStatus, useSyncHistory } from "@/hooks/use-cloud-sync";
-import { smartSyncService, type SyncFrequency } from "@/lib/smart-sync-service";
+import { smartSyncService } from "@/lib/smart-sync-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -152,11 +152,9 @@ export function CloudSyncTab() {
     isSyncing,
     lastSyncTime,
     isAutoSyncEnabled,
-    syncFrequency,
     performSync,
     fetchFromCloud,
     setAutoSyncEnabled,
-    setSyncFrequency,
     syncProgress,
     syncMessage,
     lastResult,
@@ -171,7 +169,6 @@ export function CloudSyncTab() {
 
   // Local sync settings
   const [localAutoSync, setLocalAutoSync] = useState(isAutoSyncEnabled);
-  const [localFrequency, setLocalFrequency] = useState<SyncFrequency>(syncFrequency);
   const [syncOnStartup, setSyncOnStartup] = useState(true);
   const [syncOnChange, setSyncOnChange] = useState(true);
   const [notifyOnSync, setNotifyOnSync] = useState(true);
@@ -180,12 +177,11 @@ export function CloudSyncTab() {
   useEffect(() => {
     localStorage.setItem('jubuai_sync_settings', JSON.stringify({
       autoSync: localAutoSync,
-      frequency: localFrequency,
       syncOnStartup,
       syncOnChange,
       notifyOnSync,
     }));
-  }, [localAutoSync, localFrequency, syncOnStartup, syncOnChange, notifyOnSync]);
+  }, [localAutoSync, syncOnStartup, syncOnChange, notifyOnSync]);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -194,14 +190,12 @@ export function CloudSyncTab() {
       try {
         const settings = JSON.parse(saved);
         setLocalAutoSync(settings.autoSync ?? true);
-        setLocalFrequency(settings.frequency ?? '15min');
         setSyncOnStartup(settings.syncOnStartup ?? true);
         setSyncOnChange(settings.syncOnChange ?? true);
         setNotifyOnSync(settings.notifyOnSync ?? true);
         
-        // Apply settings to service
+        // Apply auto-sync setting to service
         smartSyncService.setAutoSyncEnabled(settings.autoSync ?? true);
-        smartSyncService.setSyncFrequency(settings.frequency ?? '15min');
       } catch (e) {
         console.error('[CloudSync] Failed to load settings:', e);
       }
@@ -218,13 +212,6 @@ export function CloudSyncTab() {
       toast.info('已关闭自动同步');
     }
   }, [setAutoSyncEnabled]);
-
-  // Handle frequency change
-  const handleFrequencyChange = useCallback((frequency: SyncFrequency) => {
-    setLocalFrequency(frequency);
-    setSyncFrequency(frequency);
-    toast.success('同步频率已更新');
-  }, [setSyncFrequency]);
 
   // Handle manual sync
   const handleManualSync = useCallback(async () => {
@@ -377,41 +364,15 @@ export function CloudSyncTab() {
               <>
                 <Separator />
                 
-                {/* Sync Frequency */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">同步频率</Label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {[
-                      { value: 'realtime', label: '实时', icon: Radio },
-                      { value: '5min', label: '5分钟' },
-                      { value: '15min', label: '15分钟' },
-                      { value: '30min', label: '30分钟' },
-                      { value: '1hour', label: '1小时' },
-                    ].map((option) => {
-                      const IconComponent = 'icon' in option ? option.icon : undefined;
-                      return (
-                        <Button
-                          key={option.value}
-                          variant={localFrequency === option.value ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleFrequencyChange(option.value as SyncFrequency)}
-                          className={cn(
-                            localFrequency === option.value && 'pointer-events-none',
-                            option.value === 'realtime' && 'border-primary/50'
-                          )}
-                        >
-                          {IconComponent && <IconComponent className="h-3 w-3 mr-1" />}
-                          {option.label}
-                        </Button>
-                      );
-                    })}
+                {/* Sync Frequency Info */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <Radio className="h-5 w-5 text-primary animate-pulse" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-primary">实时同步已启用</p>
+                      <p className="text-xs text-muted-foreground">每 10 秒自动检查并同步数据</p>
+                    </div>
                   </div>
-                  {localFrequency === 'realtime' && (
-                    <p className="text-xs text-primary flex items-center gap-1">
-                      <Zap className="h-3 w-3" />
-                      实时同步：每 10 秒自动检查并同步数据
-                    </p>
-                  )}
                 </div>
                 
                 <Separator />
