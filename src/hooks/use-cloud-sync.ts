@@ -185,7 +185,7 @@ export function useSyncStatus() {
   const [message, setMessage] = useState<string>('');
 
   useEffect(() => {
-    // Subscribe to real-time sync status events
+    // Subscribe to real-time sync status events only (no polling)
     const unsubscribe = smartSyncService.addSyncStatusListener((event: SyncStatusEvent) => {
       switch (event.type) {
         case 'syncing':
@@ -216,26 +216,8 @@ export function useSyncStatus() {
       }
     });
 
-    // Also poll for sync state changes as backup
-    const interval = setInterval(() => {
-      const result = smartSyncService.getLastSyncResult();
-      const isSyncing = smartSyncService.getIsSyncing();
-      
-      if (isSyncing && status !== 'syncing') {
-        setStatus('syncing');
-      }
-      
-      if (result && !isSyncing) {
-        setStatus(result.success ? 'success' : 'error');
-        setLastError(result.error || null);
-        setProgress(100);
-        setMessage('');
-      }
-    }, 500);
-
     return () => {
       unsubscribe();
-      clearInterval(interval);
     };
   }, []);
 
