@@ -68,12 +68,14 @@ import {
   Palette,
   Sparkles,
   RefreshCw,
+  Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
 import { useApiKeyTester } from "@/hooks/use-api-key-tester";
 import { Suspense, lazy } from "react";
+import { CloudSyncTab } from "./cloud-sync/CloudSyncTab";
 
 // 懒加载大型组件 - 代码分割优化
 const UserCenter = lazy(() => import("@/components/UserCenter").then(m => ({ default: m.UserCenter })));
@@ -336,6 +338,13 @@ export function SettingsPanel() {
               <Layers className="h-4 w-4 mr-2" />
               高级选项
             </TabsTrigger>
+            <TabsTrigger 
+              value="cloud-sync" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Cloud className="h-4 w-4 mr-2" />
+              云端同步
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -344,6 +353,11 @@ export function SettingsPanel() {
           <Suspense fallback={<ComponentLoader />}>
             <AIAssistantPanel />
           </Suspense>
+        </TabsContent>
+
+        {/* Cloud Sync Tab */}
+        <TabsContent value="cloud-sync" className="flex-1 overflow-hidden mt-0">
+          <CloudSyncTab />
         </TabsContent>
 
         {/* API Management Tab */}
