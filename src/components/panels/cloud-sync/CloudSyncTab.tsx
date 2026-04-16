@@ -3,10 +3,13 @@
 /**
  * Cloud Sync Tab Component
  * Manages cloud synchronization settings and manual sync operations
+ * Enhanced with auto-sync support
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useCloudSync, useSyncStatus } from "@/hooks/use-cloud-sync";
+import { cloudSyncService, type SyncFrequency } from "@/lib/cloud-sync-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -25,235 +28,145 @@ import {
   User,
   Shield,
   Upload,
-  Settings2,
+  Download,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// Sync status types
-type SyncStatus = "idle" | "syncing" | "success" | "error";
+// Sync status component
+function SyncStatusBadge({ status }: { status: 'idle' | 'syncing' | 'success' | 'error' }) {
+  const config = {
+    idle: { icon: Clock, color: 'text-muted-foreground', label: '未同步', bg: 'bg-muted' },
+    syncing: { icon: Loader2, color: 'text-primary animate-spin', label: '同步中...', bg: 'bg-primary/10' },
+    success: { icon: CheckCircle2, color: 'text-green-500', label: '已同步', bg: 'bg-green-500/10' },
+    error: { icon: XCircle, color: 'text-destructive', label: '同步失败', bg: 'bg-destructive/10' },
+  };
 
-interface SyncState {
-  status: SyncStatus;
-  lastSyncTime: number | null;
-  projectsCount: number;
-  settingsCount: number;
-  error?: string;
+  const { icon: Icon, color, label, bg } = config[status];
+
+  return (
+    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full", bg)}>
+      <Icon className={cn("h-4 w-4", color)} />
+      <span className={cn("text-sm font-medium", color)}>{label}</span>
+    </div>
+  );
 }
-
-interface CloudSyncSettings {
-  autoSync: boolean;
-  syncProjects: boolean;
-  syncSettings: boolean;
-  syncFrequency: "manual" | "5min" | "15min" | "30min" | "1hour";
-  syncOnStartup: boolean;
-  syncOnChange: boolean;
-  notifyOnSync: boolean;
-}
-
-const DEFAULT_SETTINGS: CloudSyncSettings = {
-  autoSync: false,
-  syncProjects: true,
-  syncSettings: true,
-  syncFrequency: "manual",
-  syncOnStartup: false,
-  syncOnChange: true,
-  notifyOnSync: true,
-};
-
-const STORAGE_KEY = "jubuai_cloud_sync_settings";
 
 export function CloudSyncTab() {
-  const { user, isAuthenticated, token } = useAuthStore();
-  
-  // Sync state
-  const [syncState, setSyncState] = useState<SyncState>({
-    status: "idle",
-    lastSyncTime: null,
-    projectsCount: 0,
-    settingsCount: 0,
-  });
-  
-  // Settings
-  const [settings, setSettings] = useState<CloudSyncSettings>(DEFAULT_SETTINGS);
-  
+  const { user, isAuthenticated } = useAuthStore();
+  const {
+    isSyncing,
+    lastSyncTime,
+    isAutoSyncEnabled,
+    syncFrequency,
+    performSync,
+    fetchFromCloud,
+    setAutoSyncEnabled,
+    setSyncFrequency,
+  } = useCloudSync();
+
+  const { status, lastError } = useSyncStatus();
+
+  // Local sync settings
+  const [localAutoSync, setLocalAutoSync] = useState(isAutoSyncEnabled);
+  const [localFrequency, setLocalFrequency] = useState<SyncFrequency>(syncFrequency);
+  const [syncOnStartup, setSyncOnStartup] = useState(true);
+  const [syncOnChange, setSyncOnChange] = useState(true);
+  const [notifyOnSync, setNotifyOnSync] = useState(true);
+
+  // Sync settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('jubuai_sync_settings', JSON.stringify({
+      autoSync: localAutoSync,
+      frequency: localFrequency,
+      syncOnStartup,
+      syncOnChange,
+      notifyOnSync,
+    }));
+  }, [localAutoSync, localFrequency, syncOnStartup, syncOnChange, notifyOnSync]);
+
   // Load settings from localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+    const saved = localStorage.getItem('jubuai_sync_settings');
+    if (saved) {
+      try {
+        const settings = JSON.parse(saved);
+        setLocalAutoSync(settings.autoSync ?? true);
+        setLocalFrequency(settings.frequency ?? '15min');
+        setSyncOnStartup(settings.syncOnStartup ?? true);
+        setSyncOnChange(settings.syncOnChange ?? true);
+        setNotifyOnSync(settings.notifyOnSync ?? true);
+        
+        // Apply settings to service
+        cloudSyncService.setAutoSyncEnabled(settings.autoSync ?? true);
+        cloudSyncService.setSyncFrequency(settings.frequency ?? '15min');
+      } catch (e) {
+        console.error('[CloudSync] Failed to load settings:', e);
       }
-    } catch (e) {
-      console.error("[CloudSync] Failed to load settings:", e);
     }
   }, []);
-  
-  // Save settings to localStorage
-  const saveSettings = useCallback((newSettings: CloudSyncSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-    toast.success("设置已保存");
-  }, []);
-  
-  // Sync projects to cloud
-  const syncProjectsToCloud = useCallback(async () => {
-    if (!isAuthenticated || !token) {
-      toast.error("请先登录");
+
+  // Handle auto-sync toggle
+  const handleAutoSyncToggle = useCallback((checked: boolean) => {
+    setLocalAutoSync(checked);
+    setAutoSyncEnabled(checked);
+    if (checked) {
+      toast.success('已启用自动同步');
+    } else {
+      toast.info('已关闭自动同步');
+    }
+  }, [setAutoSyncEnabled]);
+
+  // Handle frequency change
+  const handleFrequencyChange = useCallback((frequency: SyncFrequency) => {
+    setLocalFrequency(frequency);
+    setSyncFrequency(frequency);
+    toast.success('同步频率已更新');
+  }, [setSyncFrequency]);
+
+  // Handle manual sync
+  const handleManualSync = useCallback(async () => {
+    if (isSyncing) {
+      toast.warning('同步进行中，请稍候');
       return;
     }
     
-    setSyncState(prev => ({ ...prev, status: "syncing" }));
-    
-    try {
-      const response = await fetch("/api/sync/projects", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+    const result = await performSync();
+    if (result.success) {
+      toast.success('同步成功', {
+        description: `已同步 ${result.projectsSynced || 0} 个项目`,
       });
-      
-      if (!response.ok) {
-        throw new Error(`服务器错误: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      setSyncState(prev => ({
-        ...prev,
-        status: "success",
-        lastSyncTime: Date.now(),
-        projectsCount: Array.isArray(data) ? data.length : 0,
-        error: undefined,
-      }));
-      
-      toast.success("项目同步成功");
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "同步失败";
-      setSyncState(prev => ({
-        ...prev,
-        status: "error",
-        error: errorMessage,
-      }));
-      toast.error("项目同步失败", { description: errorMessage });
-    }
-  }, [isAuthenticated, token]);
-  
-  // Sync settings to cloud
-  const syncSettingsToCloud = useCallback(async () => {
-    if (!isAuthenticated || !token) {
-      toast.error("请先登录");
-      return;
-    }
-    
-    setSyncState(prev => ({ ...prev, status: "syncing" }));
-    
-    try {
-      const response = await fetch("/api/sync/settings", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+    } else {
+      toast.error('同步失败', {
+        description: result.error,
       });
-      
-      if (!response.ok) {
-        throw new Error(`服务器错误: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      setSyncState(prev => ({
-        ...prev,
-        status: "success",
-        lastSyncTime: Date.now(),
-        settingsCount: data ? 1 : 0,
-        error: undefined,
-      }));
-      
-      toast.success("设置同步成功");
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "同步失败";
-      setSyncState(prev => ({
-        ...prev,
-        status: "error",
-        error: errorMessage,
-      }));
-      toast.error("设置同步失败", { description: errorMessage });
     }
-  }, [isAuthenticated, token]);
-  
-  // Manual full sync
-  const performFullSync = useCallback(async () => {
-    if (!isAuthenticated || !token) {
-      toast.error("请先登录");
-      return;
-    }
+  }, [isSyncing, performSync]);
+
+  // Handle download from cloud
+  const handleDownloadFromCloud = useCallback(async () => {
+    if (isSyncing) return;
     
-    setSyncState(prev => ({ ...prev, status: "syncing" }));
-    
-    try {
-      // Sync projects
-      const projectsRes = await fetch("/api/sync/projects", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      
-      // Sync settings
-      const settingsRes = await fetch("/api/sync/settings", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (!projectsRes.ok || !settingsRes.ok) {
-        throw new Error("部分同步失败");
-      }
-      
-      const projectsData = await projectsRes.json();
-      const settingsData = await settingsRes.json();
-      
-      setSyncState(prev => ({
-        ...prev,
-        status: "success",
-        lastSyncTime: Date.now(),
-        projectsCount: Array.isArray(projectsData) ? projectsData.length : 0,
-        settingsCount: settingsData ? 1 : 0,
-        error: undefined,
-      }));
-      
-      toast.success("全量同步完成");
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "同步失败";
-      setSyncState(prev => ({
-        ...prev,
-        status: "error",
-        error: errorMessage,
-      }));
-      toast.error("同步失败", { description: errorMessage });
+    const result = await fetchFromCloud();
+    if (result.success && result.projects) {
+      toast.success(`从云端获取了 ${result.projects.length} 个项目`);
+    } else {
+      toast.error('获取失败', { description: result.error });
     }
-  }, [isAuthenticated, token]);
-  
+  }, [isSyncing, fetchFromCloud]);
+
   // Format last sync time
   const formatLastSyncTime = (timestamp: number | null): string => {
-    if (!timestamp) return "从未同步";
-    
+    if (!timestamp) return '从未同步';
     const now = Date.now();
     const diff = now - timestamp;
-    
-    if (diff < 60000) return "刚刚";
+    if (diff < 60000) return '刚刚';
     if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-    return new Date(timestamp).toLocaleString("zh-CN");
+    return new Date(timestamp).toLocaleString('zh-CN');
   };
-  
+
   // Not authenticated state
   if (!isAuthenticated) {
     return (
@@ -268,16 +181,11 @@ export function CloudSyncTab() {
               请先在「用户中心」登录账号，然后才能使用云端同步功能
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button className="w-full" variant="outline" disabled>
-              前往登录
-            </Button>
-          </CardContent>
         </Card>
       </div>
     );
   }
-  
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6 max-w-3xl mx-auto">
@@ -296,7 +204,9 @@ export function CloudSyncTab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">用户邮箱</Label>
-                <p className="text-sm font-medium">{user?.email || "未知"}</p>
+                <p className="text-sm font-medium truncate" title={user?.email}>
+                  {user?.email || '未知'}
+                </p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">用户 ID</Label>
@@ -307,34 +217,12 @@ export function CloudSyncTab() {
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">注册时间</Label>
                 <p className="text-sm font-medium">
-                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("zh-CN") : "未知"}
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('zh-CN') : '未知'}
                 </p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">同步状态</Label>
-                <div className="flex items-center gap-2">
-                  {syncState.status === "success" ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-green-500">已同步</span>
-                    </>
-                  ) : syncState.status === "syncing" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      <span className="text-sm text-primary">同步中...</span>
-                    </>
-                  ) : syncState.status === "error" ? (
-                    <>
-                      <XCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-sm text-destructive">同步失败</span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">未同步</span>
-                    </>
-                  )}
-                </div>
+                <SyncStatusBadge status={status} />
               </div>
             </div>
             
@@ -345,22 +233,109 @@ export function CloudSyncTab() {
                 <span className="text-sm text-muted-foreground">上次同步</span>
               </div>
               <span className="text-sm font-medium">
-                {formatLastSyncTime(syncState.lastSyncTime)}
+                {formatLastSyncTime(lastSyncTime)}
               </span>
             </div>
-            
-            {/* Sync Stats */}
-            {(syncState.projectsCount > 0 || syncState.settingsCount > 0) && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-primary">{syncState.projectsCount}</p>
-                  <p className="text-xs text-muted-foreground">已同步项目</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-primary">{syncState.settingsCount}</p>
-                  <p className="text-xs text-muted-foreground">已同步设置</p>
-                </div>
+          </CardContent>
+        </Card>
+        
+        {/* Auto Sync Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              自动同步
+            </CardTitle>
+            <CardDescription>
+              启用后，登录或数据变更时自动同步到云端
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Enable Auto Sync */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>启用自动同步</Label>
+                <p className="text-sm text-muted-foreground">
+                  自动将数据同步到云端，无需手动操作
+                </p>
               </div>
+              <Switch
+                checked={localAutoSync}
+                onCheckedChange={handleAutoSyncToggle}
+              />
+            </div>
+            
+            {localAutoSync && (
+              <>
+                <Separator />
+                
+                {/* Sync Frequency */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">同步频率</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { value: '5min', label: '5分钟' },
+                      { value: '15min', label: '15分钟' },
+                      { value: '30min', label: '30分钟' },
+                      { value: '1hour', label: '1小时' },
+                    ].map((option) => (
+                      <Button
+                        key={option.value}
+                        variant={localFrequency === option.value ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleFrequencyChange(option.value as SyncFrequency)}
+                        className={cn(localFrequency === option.value && 'pointer-events-none')}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Additional Options */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm">启动时同步</Label>
+                      <p className="text-xs text-muted-foreground">
+                        打开应用时自动同步云端数据
+                      </p>
+                    </div>
+                    <Switch
+                      checked={syncOnStartup}
+                      onCheckedChange={setSyncOnStartup}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm">变更时同步</Label>
+                      <p className="text-xs text-muted-foreground">
+                        数据变更时自动同步到云端
+                      </p>
+                    </div>
+                    <Switch
+                      checked={syncOnChange}
+                      onCheckedChange={setSyncOnChange}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm">同步通知</Label>
+                      <p className="text-xs text-muted-foreground">
+                        同步完成后显示通知
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifyOnSync}
+                      onCheckedChange={setNotifyOnSync}
+                    />
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -373,37 +348,41 @@ export function CloudSyncTab() {
               手动同步
             </CardTitle>
             <CardDescription>
-              点击按钮立即同步数据到云端
+              手动将本地数据上传或从云端下载
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="flex-1"
-                onClick={syncProjectsToCloud}
-                disabled={syncState.status === "syncing"}
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="h-auto py-4 flex-col gap-2"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                同步项目
+                {isSyncing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Upload className="h-5 w-5" />
+                )}
+                <span className="text-sm">上传到云端</span>
               </Button>
               <Button
                 variant="outline"
-                className="flex-1"
-                onClick={syncSettingsToCloud}
-                disabled={syncState.status === "syncing"}
+                onClick={handleDownloadFromCloud}
+                disabled={isSyncing}
+                className="h-auto py-4 flex-col gap-2"
               >
-                <Settings2 className="h-4 w-4 mr-2" />
-                同步设置
+                <Download className="h-5 w-5" />
+                <span className="text-sm">从云端下载</span>
               </Button>
             </div>
             
             <Button
               className="w-full"
-              onClick={performFullSync}
-              disabled={syncState.status === "syncing"}
+              onClick={handleManualSync}
+              disabled={isSyncing}
             >
-              {syncState.status === "syncing" ? (
+              {isSyncing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   同步中...
@@ -416,148 +395,12 @@ export function CloudSyncTab() {
               )}
             </Button>
             
-            {syncState.error && (
+            {lastError && (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                <p className="text-sm text-destructive">{syncState.error}</p>
+                <p className="text-sm text-destructive">{lastError}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-        
-        {/* Sync Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
-              同步偏好设置
-            </CardTitle>
-            <CardDescription>
-              配置自动同步行为和通知选项
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Auto Sync Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>启用自动同步</Label>
-                <p className="text-sm text-muted-foreground">
-                  自动将数据同步到云端
-                </p>
-              </div>
-              <Switch
-                checked={settings.autoSync}
-                onCheckedChange={(checked) => saveSettings({ ...settings, autoSync: checked })}
-              />
-            </div>
-            
-            <Separator />
-            
-            {/* Sync Options */}
-            <div className="space-y-4">
-              <Label className="text-sm font-medium">同步内容</Label>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm">同步项目</Label>
-                  <p className="text-xs text-muted-foreground">
-                    包括剧本、角色、场景、分镜等
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.syncProjects}
-                  onCheckedChange={(checked) => saveSettings({ ...settings, syncProjects: checked })}
-                  disabled={!settings.autoSync}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm">同步设置</Label>
-                  <p className="text-xs text-muted-foreground">
-                    包括 API 配置、界面偏好等
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.syncSettings}
-                  onCheckedChange={(checked) => saveSettings({ ...settings, syncSettings: checked })}
-                  disabled={!settings.autoSync}
-                />
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {/* Sync Frequency */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">同步频率</Label>
-              <div className="grid grid-cols-5 gap-2">
-                {[
-                  { value: "manual", label: "手动" },
-                  { value: "5min", label: "5分钟" },
-                  { value: "15min", label: "15分钟" },
-                  { value: "30min", label: "30分钟" },
-                  { value: "1hour", label: "1小时" },
-                ].map((option) => (
-                  <Button
-                    key={option.value}
-                    variant={settings.syncFrequency === option.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => saveSettings({ ...settings, syncFrequency: option.value })}
-                    disabled={!settings.autoSync}
-                    className={cn(settings.syncFrequency === option.value && "pointer-events-none")}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {/* Additional Options */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm">启动时同步</Label>
-                  <p className="text-xs text-muted-foreground">
-                    打开应用时自动同步云端数据
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.syncOnStartup}
-                  onCheckedChange={(checked) => saveSettings({ ...settings, syncOnStartup: checked })}
-                  disabled={!settings.autoSync}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm">变更时同步</Label>
-                  <p className="text-xs text-muted-foreground">
-                    数据变更时自动同步到云端
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.syncOnChange}
-                  onCheckedChange={(checked) => saveSettings({ ...settings, syncOnChange: checked })}
-                  disabled={!settings.autoSync}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm">同步通知</Label>
-                  <p className="text-xs text-muted-foreground">
-                    同步完成后显示通知
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.notifyOnSync}
-                  onCheckedChange={(checked) => saveSettings({ ...settings, notifyOnSync: checked })}
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
         

@@ -9,6 +9,7 @@
 
 import { create } from 'zustand';
 import { cloudAuth } from '@/lib/cloud-auth';
+import { cloudSyncService } from '@/lib/cloud-sync-service';
 
 export interface User {
   id: string;
@@ -266,6 +267,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       console.log('[Auth] User logged in:', email);
 
+      // Auto-sync to cloud after successful login
+      if (cloudSyncService.isAutoSyncEnabled()) {
+        console.log('[Auth] Triggering auto-sync after login...');
+        cloudSyncService.performFullSync();
+      }
+
       return true;
     } catch (err: any) {
       console.error('[Auth] Login error:', err);
@@ -306,6 +313,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
       console.log('[Auth] User registered:', email);
+
+      // Auto-sync to cloud after successful registration
+      console.log('[Auth] Triggering initial sync after registration...');
+      cloudSyncService.performFullSync();
 
       return true;
     } catch (err: any) {
