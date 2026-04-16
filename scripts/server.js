@@ -140,6 +140,27 @@ const toCamelCase = (obj) => {
   return obj;
 };
 
+// 辅助函数：将时间戳转换为 ISO 8601 格式字符串
+const normalizeTimestamp = (value, fallback) => {
+  if (!value) return fallback;
+  if (typeof value === 'number') {
+    // 毫秒时间戳
+    if (value > 1e12) {
+      return new Date(value).toISOString();
+    }
+    // 秒时间戳
+    return new Date(value * 1000).toISOString();
+  }
+  if (typeof value === 'string') {
+    // 已经是 ISO 格式或可解析的字符串
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+  return fallback;
+};
+
 // ==================== JWT 认证 ====================
 
 // JWT 验证中间件
@@ -371,30 +392,47 @@ app.get('/api/sync/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// 创建/更新项目
+// 创建/更新项目（支持单个或数组）
 app.post('/api/sync/projects', authMiddleware, async (req, res) => {
   try {
-    const { id, name, script_data, created_at, updated_at } = req.body;
+    const body = req.body;
     
-    if (!id || !name) {
-      return res.status(400).json({ success: false, error: 'Missing required fields: id, name' });
+    // 支持单个项目或项目数组
+    const projects = Array.isArray(body) ? body : (body.projects || [body]);
+    
+    if (projects.length === 0) {
+      return res.status(400).json({ success: false, error: 'No projects provided' });
     }
     
     const pool = getDbPool();
     const now = new Date().toISOString();
+    const results = [];
     
-    const result = await pool.query(
-      `INSERT INTO projects (id, user_id, name, script_data, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         script_data = EXCLUDED.script_data,
-         updated_at = EXCLUDED.updated_at
-       RETURNING *`,
-      [id, req.userId, name, JSON.stringify(script_data || {}), created_at || now, updated_at || now]
-    );
+    for (const item of projects) {
+      const { id, name, script_data, created_at, updated_at } = item;
+      
+      if (!id || !name) {
+        console.warn('[API] Skipping project without id or name');
+        continue;
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO projects (id, user_id, name, script_data, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           script_data = EXCLUDED.script_data,
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [id, req.userId, name, JSON.stringify(script_data || {}), normalizeTimestamp(created_at, now), normalizeTimestamp(updated_at, now)]
+      );
+      
+      if (result.rows.length > 0) {
+        results.push(toCamelCase(result.rows[0]));
+      }
+    }
     
-    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+    res.json({ success: true, data: results.length === 1 ? results[0] : results });
   } catch (error) {
     console.error('[API] Upsert project error:', error.message);
     res.status(500).json({ success: false, error: error.message });
@@ -844,35 +882,53 @@ app.get('/api/sync/characters', authMiddleware, async (req, res) => {
   }
 });
 
-// 创建/更新角色
+// 创建/更新角色（支持单个或数组）
 app.post('/api/sync/characters', authMiddleware, async (req, res) => {
   try {
-    const { id, project_id, name, description, appearance, personality, role, age, image_key, metadata } = req.body;
-
-    if (!id || !project_id || !name) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    const body = req.body;
+    
+    // 支持单个角色或角色数组
+    const characters = Array.isArray(body) ? body : (body.characters || [body]);
+    
+    if (characters.length === 0) {
+      return res.json({ success: true, data: null });
     }
-
+    
     const pool = getDbPool();
-
-    const result = await pool.query(
-      `INSERT INTO characters (id, user_id, project_id, name, description, appearance, personality, role, age, image_key, metadata, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
-       ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         description = EXCLUDED.description,
-         appearance = EXCLUDED.appearance,
-         personality = EXCLUDED.personality,
-         role = EXCLUDED.role,
-         age = EXCLUDED.age,
-         image_key = EXCLUDED.image_key,
-         metadata = EXCLUDED.metadata,
-         updated_at = NOW()
-       RETURNING *`,
-      [id, req.userId, project_id, name, description, appearance, personality, role, age, image_key, JSON.stringify(metadata || {})]
-    );
-
-    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+    const now = new Date().toISOString();
+    const results = [];
+    
+    for (const item of characters) {
+      const { id, project_id, name, description, appearance, personality, role, age, image_key, metadata, created_at, updated_at } = item;
+      
+      if (!id || !project_id || !name) {
+        console.warn('[API] Skipping character without required fields');
+        continue;
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO characters (id, user_id, project_id, name, description, appearance, personality, role, age, image_key, metadata, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           description = EXCLUDED.description,
+           appearance = EXCLUDED.appearance,
+           personality = EXCLUDED.personality,
+           role = EXCLUDED.role,
+           age = EXCLUDED.age,
+           image_key = EXCLUDED.image_key,
+           metadata = EXCLUDED.metadata,
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [id, req.userId, project_id, name, description, appearance, personality, role, age, image_key, JSON.stringify(metadata || {}), normalizeTimestamp(created_at, now), normalizeTimestamp(updated_at, now)]
+      );
+      
+      if (result.rows.length > 0) {
+        results.push(toCamelCase(result.rows[0]));
+      }
+    }
+    
+    res.json({ success: true, data: results.length === 1 ? results[0] : results });
   } catch (error) {
     console.error('[API] Save character error:', error.message);
     res.status(500).json({ success: false, error: error.message });
@@ -952,34 +1008,52 @@ app.get('/api/sync/scenes', authMiddleware, async (req, res) => {
   }
 });
 
-// 创建/更新场景
+// 创建/更新场景（支持单个或数组）
 app.post('/api/sync/scenes', authMiddleware, async (req, res) => {
   try {
-    const { id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata } = req.body;
-
-    if (!id || !project_id || !name) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    const body = req.body;
+    
+    // 支持单个场景或场景数组
+    const scenes = Array.isArray(body) ? body : (body.scenes || [body]);
+    
+    if (scenes.length === 0) {
+      return res.json({ success: true, data: null });
     }
-
+    
     const pool = getDbPool();
-
-    const result = await pool.query(
-      `INSERT INTO scenes (id, user_id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-       ON CONFLICT (id) DO UPDATE SET
-         episode_id = EXCLUDED.episode_id,
-         name = EXCLUDED.name,
-         location = EXCLUDED.location,
-         time_of_day = EXCLUDED.time_of_day,
-         description = EXCLUDED.description,
-         image_key = EXCLUDED.image_key,
-         metadata = EXCLUDED.metadata,
-         updated_at = NOW()
-       RETURNING *`,
-      [id, req.userId, project_id, episode_id, name, location, time_of_day, description, image_key, JSON.stringify(metadata || {})]
-    );
-
-    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+    const now = new Date().toISOString();
+    const results = [];
+    
+    for (const item of scenes) {
+      const { id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata, created_at, updated_at } = item;
+      
+      if (!id || !project_id || !name) {
+        console.warn('[API] Skipping scene without required fields');
+        continue;
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO scenes (id, user_id, project_id, episode_id, name, location, time_of_day, description, image_key, metadata, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (id) DO UPDATE SET
+           episode_id = EXCLUDED.episode_id,
+           name = EXCLUDED.name,
+           location = EXCLUDED.location,
+           time_of_day = EXCLUDED.time_of_day,
+           description = EXCLUDED.description,
+           image_key = EXCLUDED.image_key,
+           metadata = EXCLUDED.metadata,
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [id, req.userId, project_id, episode_id, name, location, time_of_day, description, image_key, JSON.stringify(metadata || {}), normalizeTimestamp(created_at, now), normalizeTimestamp(updated_at, now)]
+      );
+      
+      if (result.rows.length > 0) {
+        results.push(toCamelCase(result.rows[0]));
+      }
+    }
+    
+    res.json({ success: true, data: results.length === 1 ? results[0] : results });
   } catch (error) {
     console.error('[API] Save scene error:', error.message);
     res.status(500).json({ success: false, error: error.message });
