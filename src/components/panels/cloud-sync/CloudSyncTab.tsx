@@ -159,7 +159,6 @@ export function CloudSyncTab() {
   const {
     isSyncing,
     lastSyncTime,
-    isAutoSyncEnabled,
     setAutoSyncEnabled,
     syncProgress,
     syncMessage,
@@ -173,8 +172,8 @@ export function CloudSyncTab() {
   const currentProgress = realtimeProgress || syncProgress;
   const currentMessage = realtimeMessage || syncMessage;
 
-  // Local sync settings
-  const [localAutoSync, setLocalAutoSync] = useState(isAutoSyncEnabled);
+  // Local sync settings - initialize directly from smartSyncService to avoid race condition
+  const [localAutoSync, setLocalAutoSync] = useState(() => smartSyncService.isAutoSyncEnabled());
   const [syncOnStartup, setSyncOnStartup] = useState(true);
   const [syncOnChange, setSyncOnChange] = useState(true);
   const [notifyOnSync, setNotifyOnSync] = useState(true);
@@ -189,7 +188,7 @@ export function CloudSyncTab() {
     }));
   }, [localAutoSync, syncOnStartup, syncOnChange, notifyOnSync]);
 
-  // Load settings from localStorage
+  // Load settings from localStorage and sync with service
   useEffect(() => {
     const saved = localStorage.getItem('jubuai_sync_settings');
     if (saved) {
@@ -281,13 +280,17 @@ export function CloudSyncTab() {
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">用户 ID</Label>
                 <p className="text-sm font-medium font-mono truncate" title={user?.id}>
-                  {user?.id?.slice(0, 12)}...
+                  {user?.id ? `${user.id.slice(0, 8)}...` : '未知'}
                 </p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">注册时间</Label>
                 <p className="text-sm font-medium">
-                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('zh-CN') : '未知'}
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  }) : '未知'}
                 </p>
               </div>
               <div className="space-y-1">
