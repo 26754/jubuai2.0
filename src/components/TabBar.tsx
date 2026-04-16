@@ -3,7 +3,6 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { mainNavItems, bottomNavItems, useMediaPanelStore } from "@/stores/media-panel-store";
 import { useThemeStore } from "@/stores/theme-store";
-import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -11,57 +10,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronLeft, LayoutDashboard, Sun, Moon, LogIn, LogOut } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ChevronLeft, LayoutDashboard, Sun, Moon } from "lucide-react";
 
 export function TabBar() {
   const { activeTab, inProject, setActiveTab, setInProject } = useMediaPanelStore();
   const { theme, toggleTheme } = useThemeStore();
-  const { isAuthenticated, login, logout, isLoading } = useAuthStore();
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isRegister, setIsRegister] = useState(false);
-
-  // Handle login
-  const handleLogin = async () => {
-    if (!email || !password) {
-      toast.error("请填写邮箱和密码");
-      return;
-    }
-    
-    const success = isRegister 
-      ? await login(email, password)
-      : await login(email, password);
-    
-    if (success) {
-      toast.success(isRegister ? "注册成功" : "登录成功");
-      setLoginDialogOpen(false);
-      setEmail("");
-      setPassword("");
-    } else {
-      toast.error(isRegister ? "注册失败" : "登录失败，请检查邮箱和密码");
-    }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    await logout();
-    toast.success("已退出登录");
-  };
 
   // Dashboard mode
   if (!inProject) {
@@ -94,76 +47,8 @@ export function TabBar() {
             </Tooltip>
           </TooltipProvider>
         </nav>
-        {/* Bottom: User Info + Settings + Theme */}
+        {/* Bottom: Theme Toggle */}
         <div className="mt-auto border-t border-border py-1">
-          {/* User Login/Logout - Below Theme Toggle */}
-          {isAuthenticated ? (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="text-[8px]">退出</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">退出登录</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
-              <DialogTrigger asChild>
-                <button className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-primary transition-colors">
-                  <LogIn className="h-4 w-4" />
-                  <span className="text-[8px]">登录</span>
-                </button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{isRegister ? "注册账号" : "登录账号"}</DialogTitle>
-                  <DialogDescription>
-                    {isRegister ? "创建一个新账号来使用云端同步功能" : "登录以使用云端同步功能"}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">邮箱</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">密码</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter className="flex flex-col gap-2">
-                  <Button onClick={handleLogin} disabled={isLoading}>
-                    {isLoading ? "处理中..." : (isRegister ? "注册" : "登录")}
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setIsRegister(!isRegister)}
-                    className="text-xs"
-                  >
-                    {isRegister ? "已有账号？登录" : "没有账号？注册"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
           {/* Theme Toggle */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -241,76 +126,8 @@ export function TabBar() {
         })}
       </nav>
 
-      {/* Bottom: User Info + Settings + Theme */}
+      {/* Bottom: Theme Toggle */}
       <div className="mt-auto border-t border-border py-1">
-        {/* User Login/Logout - Below Theme Toggle */}
-        {isAuthenticated ? (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="text-[8px]">退出</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">退出登录</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
-            <DialogTrigger asChild>
-              <button className="w-full flex flex-col items-center py-2 text-muted-foreground hover:text-primary transition-colors">
-                <LogIn className="h-4 w-4" />
-                <span className="text-[8px]">登录</span>
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{isRegister ? "注册账号" : "登录账号"}</DialogTitle>
-                <DialogDescription>
-                  {isRegister ? "创建一个新账号来使用云端同步功能" : "登录以使用云端同步功能"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email-project">邮箱</Label>
-                  <Input
-                    id="email-project"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-project">密码</Label>
-                  <Input
-                    id="password-project"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="flex flex-col gap-2">
-                <Button onClick={handleLogin} disabled={isLoading}>
-                  {isLoading ? "处理中..." : (isRegister ? "注册" : "登录")}
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setIsRegister(!isRegister)}
-                  className="text-xs"
-                >
-                  {isRegister ? "已有账号？登录" : "没有账号？注册"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
         {bottomNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
