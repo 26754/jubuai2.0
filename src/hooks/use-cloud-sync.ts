@@ -8,10 +8,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import { 
-  cloudSyncService, 
+  smartSyncService, 
   type SyncResult, 
   type SyncFrequency 
-} from '@/lib/cloud-sync-service';
+} from '@/lib/smart-sync-service';
 
 /**
  * Hook for using cloud sync service in components
@@ -26,20 +26,20 @@ export function useCloudSync() {
 
   // Load initial state
   useEffect(() => {
-    setLastSyncTime(cloudSyncService.getLastSyncTime());
-    setIsAutoSyncEnabled(cloudSyncService.isAutoSyncEnabled());
-    setSyncFrequencyState(cloudSyncService.getSyncFrequency());
+    setLastSyncTime(smartSyncService.getLastSyncTime());
+    setIsAutoSyncEnabled(smartSyncService.isAutoSyncEnabled());
+    setSyncFrequencyState(smartSyncService.getSyncFrequency());
   }, []);
 
   // Update state when sync completes
   useEffect(() => {
     const interval = setInterval(() => {
-      const result = cloudSyncService.getLastSyncResult();
+      const result = smartSyncService.getLastSyncResult();
       if (result) {
         setLastResult(result);
         setLastSyncTime(result.timestamp);
       }
-      setIsSyncing(cloudSyncService.getIsSyncing());
+      setIsSyncing(smartSyncService.getIsSyncing());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -49,7 +49,7 @@ export function useCloudSync() {
   const performSync = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const result = await cloudSyncService.performFullSync();
+      const result = await smartSyncService.performFullSync();
       setLastResult(result);
       setLastSyncTime(result.timestamp);
       return result;
@@ -60,13 +60,13 @@ export function useCloudSync() {
 
   // Enable/disable auto-sync
   const setAutoSyncEnabled = useCallback((enabled: boolean) => {
-    cloudSyncService.setAutoSyncEnabled(enabled);
+    smartSyncService.setAutoSyncEnabled(enabled);
     setIsAutoSyncEnabled(enabled);
   }, []);
 
   // Set sync frequency
   const setSyncFrequency = useCallback((frequency: SyncFrequency) => {
-    cloudSyncService.setSyncFrequency(frequency);
+    smartSyncService.setSyncFrequency(frequency);
     setSyncFrequencyState(frequency);
   }, []);
 
@@ -74,7 +74,7 @@ export function useCloudSync() {
   const syncProjects = useCallback(async () => {
     setIsSyncing(true);
     try {
-      return await cloudSyncService.syncProjects();
+      return await smartSyncService.syncProjects();
     } finally {
       setIsSyncing(false);
     }
@@ -84,7 +84,7 @@ export function useCloudSync() {
   const fetchFromCloud = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const projects = await cloudSyncService.fetchProjectsFromCloud();
+      const projects = await smartSyncService.fetchProjectsFromCloud();
       return projects;
     } finally {
       setIsSyncing(false);
@@ -130,7 +130,7 @@ export function useAutoSyncOnChange(
     // Debounce the sync
     const timer = setTimeout(() => {
       console.log(`[AutoSync] Data changed: ${dataKey}, triggering sync...`);
-      cloudSyncService.performFullSync();
+      smartSyncService.performFullSync();
       setPendingSync(false);
     }, debounceMs);
 
@@ -152,12 +152,12 @@ export function useSyncStatus() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const result = cloudSyncService.getLastSyncResult();
+      const result = smartSyncService.getLastSyncResult();
       if (result) {
         setStatus(result.success ? 'success' : 'error');
         setLastError(result.error || null);
       }
-      if (cloudSyncService.getIsSyncing()) {
+      if (smartSyncService.getIsSyncing()) {
         setStatus('syncing');
       }
     }, 500);

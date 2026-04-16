@@ -44,6 +44,8 @@ interface ProjectStore {
   setRememberLastStyle: (enabled: boolean) => void;
   // 从模板创建/应用模板
   setProjectFromTemplate: (template: any) => void;
+  // 同步项目列表（用于云端同步后更新本地）
+  syncProjects: (projects: Project[]) => void;
 }
 
 // Default project for desktop app
@@ -219,6 +221,38 @@ export const useProjectStore = create<ProjectStore>()(
         }));
         
         console.log('[ProjectStore] Applied template:', template.name);
+      },
+
+      // 同步项目列表（用于云端同步后更新本地）
+      syncProjects: (projects: Project[]) => {
+        const currentState = get();
+        const activeProjectId = currentState.activeProjectId;
+        
+        // 合并项目，保留当前活跃项目和视觉风格设置
+        const mergedProjects = projects.map(p => {
+          const existing = currentState.projects.find(ep => ep.id === p.id);
+          if (existing) {
+            // 保留本地视觉风格设置
+            return {
+              ...p,
+              visualStyleId: existing.visualStyleId || p.visualStyleId,
+            };
+          }
+          return p;
+        });
+
+        // 确保有活跃项目
+        const activeProject = mergedProjects.find(p => p.id === activeProjectId) 
+          || mergedProjects[0] 
+          || null;
+
+        set({
+          projects: mergedProjects,
+          activeProjectId: activeProject?.id || null,
+          activeProject: activeProject,
+        });
+
+        console.log('[ProjectStore] Synced projects:', mergedProjects.length);
       },
     }),
     {

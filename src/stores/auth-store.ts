@@ -9,7 +9,7 @@
 
 import { create } from 'zustand';
 import { cloudAuth } from '@/lib/cloud-auth';
-import { cloudSyncService } from '@/lib/cloud-sync-service';
+import { smartSyncService } from '@/lib/smart-sync-service';
 
 export interface User {
   id: string;
@@ -197,7 +197,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const autoSyncEnabled = localStorage.getItem('jubuai_auto_sync_enabled') !== 'false'; // 默认开启
         if (autoSyncEnabled) {
           console.log('[Auth] Auto-syncing data silently...');
-          cloudSyncService.performFullSync().catch(err => {
+          smartSyncService.performFullSync().catch(err => {
             console.warn('[Auth] Silent sync failed (non-blocking):', err);
           });
         }
@@ -277,7 +277,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('[Auth] User logged in:', email);
 
       // 🚀 静默自动同步：登录后自动后台同步，不打扰用户
-      cloudSyncService.silentSync();
+      smartSyncService.silentSync();
 
       return true;
     } catch (err: any) {
@@ -321,7 +321,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('[Auth] User registered:', email);
 
       // 🚀 静默自动同步：注册后自动后台同步，不打扰用户
-      cloudSyncService.silentSync();
+      smartSyncService.silentSync();
 
       return true;
     } catch (err: any) {

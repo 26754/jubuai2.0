@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCloudSync, useSyncStatus } from "@/hooks/use-cloud-sync";
-import { cloudSyncService, type SyncFrequency } from "@/lib/cloud-sync-service";
+import { smartSyncService, type SyncFrequency } from "@/lib/smart-sync-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -99,8 +99,8 @@ export function CloudSyncTab() {
         setNotifyOnSync(settings.notifyOnSync ?? true);
         
         // Apply settings to service
-        cloudSyncService.setAutoSyncEnabled(settings.autoSync ?? true);
-        cloudSyncService.setSyncFrequency(settings.frequency ?? '15min');
+        smartSyncService.setAutoSyncEnabled(settings.autoSync ?? true);
+        smartSyncService.setSyncFrequency(settings.frequency ?? '15min');
       } catch (e) {
         console.error('[CloudSync] Failed to load settings:', e);
       }
