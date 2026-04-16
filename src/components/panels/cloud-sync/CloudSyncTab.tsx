@@ -172,40 +172,21 @@ export function CloudSyncTab() {
   const currentProgress = realtimeProgress || syncProgress;
   const currentMessage = realtimeMessage || syncMessage;
 
-  // Local sync settings - initialize directly from smartSyncService to avoid race condition
+  // Local sync settings - initialize from smartSyncService
   const [localAutoSync, setLocalAutoSync] = useState(() => smartSyncService.isAutoSyncEnabled());
-  const [syncOnStartup, setSyncOnStartup] = useState(true);
-  const [syncOnChange, setSyncOnChange] = useState(true);
-  const [notifyOnSync, setNotifyOnSync] = useState(true);
+  const [syncOnStartup, setSyncOnStartup] = useState(() => smartSyncService.getSyncSettingsBundle().syncOnStartup);
+  const [syncOnChange, setSyncOnChange] = useState(() => smartSyncService.getSyncSettingsBundle().syncOnChange);
+  const [notifyOnSync, setNotifyOnSync] = useState(() => smartSyncService.getSyncSettingsBundle().notifyOnSync);
 
-  // Sync settings to localStorage
+  // Update settings bundle when any setting changes
   useEffect(() => {
-    localStorage.setItem('jubuai_sync_settings', JSON.stringify({
+    smartSyncService.updateSyncSettingsBundle({
       autoSync: localAutoSync,
       syncOnStartup,
       syncOnChange,
       notifyOnSync,
-    }));
+    });
   }, [localAutoSync, syncOnStartup, syncOnChange, notifyOnSync]);
-
-  // Load settings from localStorage and sync with service
-  useEffect(() => {
-    const saved = localStorage.getItem('jubuai_sync_settings');
-    if (saved) {
-      try {
-        const settings = JSON.parse(saved);
-        setLocalAutoSync(settings.autoSync ?? true);
-        setSyncOnStartup(settings.syncOnStartup ?? true);
-        setSyncOnChange(settings.syncOnChange ?? true);
-        setNotifyOnSync(settings.notifyOnSync ?? true);
-        
-        // Apply auto-sync setting to service
-        smartSyncService.setAutoSyncEnabled(settings.autoSync ?? true);
-      } catch (e) {
-        console.error('[CloudSync] Failed to load settings:', e);
-      }
-    }
-  }, []);
 
   // Handle auto-sync toggle
   const handleAutoSyncToggle = useCallback((checked: boolean) => {

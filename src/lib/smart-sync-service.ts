@@ -11,7 +11,16 @@ import { useProjectStore, type Project } from '@/stores/project-store';
 // Storage keys
 const SYNC_SETTINGS_KEY = 'jubuai_auto_sync_enabled';
 const SYNC_FREQUENCY_KEY = 'jubuai_sync_frequency';
+const SYNC_SETTINGS_BUNDLE_KEY = 'jubuai_sync_settings_bundle';
 const LOCAL_SYNC_INDEX = 'jubuai_sync_index';
+
+// Sync settings bundle
+interface SyncSettingsBundle {
+  autoSync: boolean;
+  syncOnStartup: boolean;
+  syncOnChange: boolean;
+  notifyOnSync: boolean;
+}
 
 // Settings to sync (keys in localStorage)
 const SYNCABLE_SETTINGS_KEYS = [
@@ -142,9 +151,38 @@ class SmartSyncService {
    * Check if auto-sync is enabled
    */
   public isAutoSyncEnabled(): boolean {
-    const stored = localStorage.getItem(SYNC_SETTINGS_KEY);
-    if (stored === null) return true; // Default: enabled
-    return stored === 'true';
+    const bundle = this.getSyncSettingsBundle();
+    return bundle.autoSync;
+  }
+
+  /**
+   * Get full sync settings bundle
+   */
+  public getSyncSettingsBundle(): SyncSettingsBundle {
+    const stored = localStorage.getItem(SYNC_SETTINGS_BUNDLE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // Fall through to default
+      }
+    }
+    // Default settings
+    return {
+      autoSync: true,
+      syncOnStartup: true,
+      syncOnChange: true,
+      notifyOnSync: true,
+    };
+  }
+
+  /**
+   * Update sync settings bundle
+   */
+  public updateSyncSettingsBundle(settings: Partial<SyncSettingsBundle>): void {
+    const bundle = this.getSyncSettingsBundle();
+    const updated = { ...bundle, ...settings };
+    localStorage.setItem(SYNC_SETTINGS_BUNDLE_KEY, JSON.stringify(updated));
   }
 
   /**
@@ -163,6 +201,20 @@ class SmartSyncService {
     if (this.isAutoSyncEnabled()) {
       this.restartAutoSync();
     }
+  }
+
+  /**
+   * Check if should sync on change
+   */
+  public shouldSyncOnChange(): boolean {
+    return this.getSyncSettingsBundle().syncOnChange;
+  }
+
+  /**
+   * Check if should notify on sync
+   */
+  public shouldNotifyOnSync(): boolean {
+    return this.getSyncSettingsBundle().notifyOnSync;
   }
 
   /**
@@ -229,7 +281,7 @@ class SmartSyncService {
         throw new Error(`服务器错误: ${response.status}`);
       }
 
-      // Update sync index
+      // Update sync index after successful upload
       const now = Date.now();
       for (const project of projectsToUpload) {
         if (!this.syncIndex.projects[project.id]) {
@@ -240,6 +292,7 @@ class SmartSyncService {
           };
         }
         this.syncIndex.projects[project.id].localUpdatedAt = project.updatedAt;
+        // Mark as synced - use the project's updatedAt as the sync point
         this.syncIndex.projects[project.id].syncedAt = now;
       }
       this.syncIndex.lastSyncAt = now;
@@ -434,7 +487,9 @@ class SmartSyncService {
   } {
     const merged: Project[] = [...localProjects];
     const cloudMap = new Map(cloudProjects.map(p => [p.id, p]));
+    const localMap = new Map(localProjects.map(p => [p.id, p]));
     let conflicts = 0;
+    const now = Date.now();
 
     for (const cloudProject of cloudProjects) {
       const localIndex = merged.findIndex(p => p.id === cloudProject.id);
@@ -442,6 +497,7 @@ class SmartSyncService {
       if (localIndex === -1) {
         // Project exists only in cloud - add to local
         merged.push(this.cloudProjectToLocal(cloudProject));
+        conflicts++; // Count as conflict resolution
       } else {
         // Project exists in both - check which is newer
         const localProject = merged[localIndex];
@@ -457,14 +513,11 @@ class SmartSyncService {
             visualStyleLocked: localProject.visualStyleLocked,
           };
           conflicts++;
-        } else if (cloudUpdatedAt === localUpdatedAt) {
-          // Same timestamp - keep local (could merge other fields)
-          conflicts++;
         }
-        // If local is newer, keep local version
+        // If local is newer or same timestamp, keep local version (no conflict)
       }
 
-      // Update sync index
+      // Update sync index for all cloud projects
       if (!this.syncIndex.projects[cloudProject.id]) {
         this.syncIndex.projects[cloudProject.id] = {
           localUpdatedAt: 0,
@@ -473,7 +526,8 @@ class SmartSyncService {
         };
       }
       this.syncIndex.projects[cloudProject.id].cloudUpdatedAt = cloudProject.updated_at;
-      this.syncIndex.projects[cloudProject.id].syncedAt = Date.now();
+      // Mark as synced to prevent re-upload
+      this.syncIndex.projects[cloudProject.id].syncedAt = now;
     }
 
     // Mark local-only projects as needing sync
@@ -487,8 +541,13 @@ class SmartSyncService {
           };
         }
         this.syncIndex.projects[localProject.id].localUpdatedAt = localProject.updatedAt;
+        // Local-only projects are already in the merge result, mark synced
+        this.syncIndex.projects[localProject.id].syncedAt = now;
       }
     }
+
+    // Save sync index after merge
+    this.saveSyncIndex();
 
     return { merged, conflicts };
   }
@@ -709,29 +768,55 @@ class SmartSyncService {
   /**
    * Silent sync - for background automatic sync
    */
-  public async silentSync(): Promise<void> {
+  public async silentSync(silent: boolean = true): Promise<void> {
     if (!this.isAutoSyncEnabled()) return;
     if (!localStorage.getItem('jubuai_jwt_token')) return; // Not logged in
     
     try {
-      await this.performSmartSync();
+      const result = await this.performSmartSync();
+      
+      // Show notification if enabled and sync was successful
+      if (!silent && this.shouldNotifyOnSync() && result.success) {
+        this.showSyncNotification(result);
+      }
     } catch {
       // Silent fail
     }
   }
 
   /**
-   * Debounced silent sync
+   * Show sync notification
+   */
+  private showSyncNotification(result: SyncResult): void {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    
+    const totalChanges = result.uploaded + result.downloaded;
+    const body = totalChanges > 0 
+      ? `上传 ${result.uploaded} 个项目，下载 ${result.downloaded} 个项目`
+      : '数据已同步，无需更新';
+    
+    new Notification('云端同步', {
+      body,
+      icon: '/favicon.ico',
+    });
+  }
+
+  /**
+   * Debounced silent sync - for change-triggered sync
    */
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   public debouncedSilentSync(delayMs: number = 3000): void {
+    // Only trigger if syncOnChange is enabled
+    if (!this.shouldSyncOnChange()) return;
+    
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
     
     this.debounceTimer = setTimeout(() => {
-      this.silentSync();
+      this.silentSync(false); // Not silent for user-initiated changes
       this.debounceTimer = null;
     }, delayMs);
   }
@@ -777,8 +862,13 @@ class SmartSyncService {
   public initialize(): void {
     const token = localStorage.getItem('jubuai_jwt_token');
     if (token && this.isAutoSyncEnabled()) {
-      // Perform initial sync
-      this.silentSync();
+      const settings = this.getSyncSettingsBundle();
+      
+      // Perform initial sync if syncOnStartup is enabled
+      if (settings.syncOnStartup) {
+        this.silentSync();
+      }
+      
       // Start auto-sync timer
       this.startAutoSync();
     }
@@ -802,7 +892,9 @@ class SmartSyncService {
    * Set auto sync enabled/disabled
    */
   public setAutoSyncEnabled(enabled: boolean): void {
+    // Update both legacy key and new bundle
     localStorage.setItem(SYNC_SETTINGS_KEY, String(enabled));
+    this.updateSyncSettingsBundle({ autoSync: enabled });
     if (enabled) {
       this.startAutoSync();
     } else {

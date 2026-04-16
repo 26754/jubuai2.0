@@ -96,13 +96,14 @@ export function useCloudSync() {
     setSyncFrequencyState(frequency);
   }, []);
 
-  // Sync projects only
+  // Sync projects only - uses performFullSync which handles both upload and download
   const syncProjects = useCallback(async () => {
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncMessage('同步项目中...');
     try {
-      return await smartSyncService.syncProjects();
+      const result = await smartSyncService.performFullSync();
+      return result;
     } finally {
       setIsSyncing(false);
     }
