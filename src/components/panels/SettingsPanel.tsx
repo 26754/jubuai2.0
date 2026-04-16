@@ -9,7 +9,7 @@
  * Based on AionUi's ModelModalContent pattern
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   isVisibleImageHostProvider,
   useAPIConfigStore,
@@ -66,6 +66,9 @@ import {
   Sparkles,
   RefreshCw,
   Cloud,
+  User,
+  LogOut,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -111,7 +114,7 @@ export function SettingsPanel() {
     updateProvider,
     removeProvider,
   } = useAPIConfigStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, login, logout } = useAuthStore();
   const { testKey } = useApiKeyTester();
 
   const [activeTab, setActiveTab] = useState("ai-assistant");
@@ -120,6 +123,17 @@ export function SettingsPanel() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<IProvider | null>(null);
   const [syncingProvider, setSyncingProvider] = useState<string | null>(null);
+
+  // Handle login
+  const handleLogin = useCallback(() => {
+    login();
+  }, [login]);
+
+  // Handle logout
+  const handleLogout = useCallback(() => {
+    logout();
+    toast.success('已退出登录');
+  }, [logout]);
 
   // ====== Memefast 默认绑定自动补全 ======
   // 覆盖场景：
@@ -229,6 +243,52 @@ export function SettingsPanel() {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* User Account Section */}
+      <div className="border-b border-border px-6 py-4 bg-muted/30">
+        <div className="flex items-center justify-between max-w-5xl mx-auto">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-6 w-6 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-foreground">
+                  {isAuthenticated && user ? user.email : '未登录'}
+                </h3>
+                {isAuthenticated && (
+                  <span className="text-xs px-2 py-0.5 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">
+                    已登录
+                  </span>
+                )}
+              </div>
+              {isAuthenticated && user && (
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    注册于 {user.createdAt ? new Date(user.createdAt).toLocaleDateString('zh-CN') : '未知'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAuthenticated && user ? (
+              <>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-1" />
+                  退出登录
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={handleLogin}>
+                <User className="h-4 w-4 mr-1" />
+                登录 / 注册
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
