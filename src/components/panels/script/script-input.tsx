@@ -8,7 +8,7 @@
  * 左栏：剧本输入（导入/创作两种模式）
  */
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,6 @@ import {
   BookOpen,
   Palette,
   Upload,
-  SparklesIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { StylePicker } from "@/components/ui/style-picker";
@@ -44,7 +43,6 @@ import type { PromptLanguage } from "@/types/script";
 import { useScriptStore } from "@/stores/script-store";
 import { parseDocument, validateFile } from "@/lib/document-parser";
 import { toast } from "sonner";
-import { analyzeScript, type DetectedLanguage, type PromptLanguage as AnalyzedPromptLanguage } from "@/lib/script/script-analyzer";
 
 const PROMPT_LANGUAGE_OPTIONS = [
   { value: "zh", label: "仅中文" },
@@ -189,10 +187,6 @@ export function ScriptInput({
   const [isImporting, setIsImporting] = useState(false);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isGeneratingSynopsis, setIsGeneratingSynopsis] = useState(false);
-  const [autoDetecting, setAutoDetecting] = useState(false); // 自动检测中
-
-  // 防抖定时器
-  const detectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 剧本语言推荐视觉风格映射
   const languageRecommendedStyles: Record<string, string> = {
@@ -200,65 +194,6 @@ export function ScriptInput({
     'English': '3d_american',   // 英文 → 3D美式风格
     '日本語': '2d_animation',   // 日文 → 2D动画风格
   };
-
-  // 自动检测剧本内容（防抖处理）
-  const autoDetectScript = useCallback(() => {
-    if (!rawScript || rawScript.trim().length < 20) return;
-    
-    // 清除之前的定时器
-    if (detectTimerRef.current) {
-      clearTimeout(detectTimerRef.current);
-    }
-    
-    // 防抖 500ms 后自动检测
-    detectTimerRef.current = setTimeout(() => {
-      setAutoDetecting(true);
-      
-      try {
-        const result = analyzeScript(rawScript);
-        
-        console.log('[Script Analyzer] 检测结果:', result);
-        
-        // 自动填充语言
-        onLanguageChange(result.language);
-        
-        // 自动填充提示词语言
-        onPromptLanguageChange?.(result.promptLanguage);
-        
-        // 如果用户没有手动选择风格，且检测到风格关键词，则推荐
-        if (!styleManuallyChanged && result.styleKeywords.length > 0) {
-          const detectedStyle = result.styleKeywords[0];
-          onStyleChange(detectedStyle);
-        }
-        
-        console.log('[Script Analyzer] 已自动填充:', {
-          language: result.language,
-          promptLanguage: result.promptLanguage,
-          suggestedStyle: result.styleKeywords[0] || '未检测到',
-          characters: result.characters.length,
-          estimatedDuration: result.estimatedDuration,
-          estimatedSceneCount: result.estimatedSceneCount,
-        });
-      } catch (error) {
-        console.warn('[Script Analyzer] 自动检测失败:', error);
-      } finally {
-        setAutoDetecting(false);
-      }
-    }, 500);
-  }, [rawScript, onLanguageChange, onPromptLanguageChange, onStyleChange, styleManuallyChanged]);
-
-  // 监听剧本内容变化，自动检测
-  useEffect(() => {
-    if (rawScript && rawScript.trim().length >= 20) {
-      autoDetectScript();
-    }
-    
-    return () => {
-      if (detectTimerRef.current) {
-        clearTimeout(detectTimerRef.current);
-      }
-    };
-  }, [rawScript, autoDetectScript]);
 
   // 当剧本语言改变时，如果用户没有手动更改过风格，则自动更新
   useEffect(() => {
@@ -697,21 +632,12 @@ export function ScriptInput({
         {/* 导入模式：显示语言、场景数量、分镜数量 */}
         {mode === "import" && (
           <div className="space-y-3">
-            {/* 剧本语言 - 带自动检测指示 */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">剧本语言</Label>
-                {autoDetecting && (
-                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground animate-pulse">
-                    <SparklesIcon className="w-3 h-3" />
-                    自动检测中
-                  </span>
-                )}
-              </div>
+              <Label className="text-xs">剧本语言</Label>
               <Select
                 value={language}
                 onValueChange={onLanguageChange}
-                disabled={parseStatus === "parsing" || autoDetecting}
+                disabled={parseStatus === "parsing"}
               >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
@@ -722,12 +648,8 @@ export function ScriptInput({
                   <SelectItem value="日本語">日本語</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground">
-                已自动识别剧本内容并填充
-              </p>
             </div>
 
-            {/* 提示词语言 */}
             <div className="space-y-1">
               <Label className="text-xs">提示词语言</Label>
               <Select
