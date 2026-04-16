@@ -598,7 +598,7 @@ ${rawScript}
     };
 
     return scriptData;
-  } catch (e) {
+  } catch (e: any) {
     console.error('[parseScript] Failed to parse JSON:', cleaned.slice(0, 500));
     console.error('[parseScript] Raw response preview:', response.slice(0, 500));
     console.error('[parseScript] Parse error:', e);
@@ -613,7 +613,10 @@ ${rawScript}
       }
     } catch {}
     
-    throw new Error('无法解析AI返回的剧本数据，请检查API配置或稍后重试');
+    // 提供更具体的错误信息
+    const errorPreview = cleaned.slice(0, 100);
+    const errorDetail = e?.message || 'JSON解析失败';
+    throw new Error(`无法解析AI返回的剧本数据: ${errorDetail}。\nAI返回内容预览: ${errorPreview}...`);
   }
 }
 

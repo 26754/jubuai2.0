@@ -9,6 +9,7 @@
 /**
  * Clean JSON string from AI response
  * Removes markdown code fences and extra whitespace
+ * Handles various edge cases like nested JSON or extra text
  */
 export function cleanJsonString(str: string): string {
   if (!str) return "{}";
@@ -18,6 +19,11 @@ export function cleanJsonString(str: string): string {
   // Remove markdown code fences (```json ... ``` or ``` ... ```)
   cleaned = cleaned.replace(/```json\s*/gi, "");
   cleaned = cleaned.replace(/```\s*/g, "");
+  
+  // Remove common prefixes that AI might add
+  cleaned = cleaned.replace(/^以下是(?:JSON|json|数据|结果)：?\s*/i, "");
+  cleaned = cleaned.replace(/^JSON响应[：:]\s*/i, "");
+  cleaned = cleaned.replace(/^回复[：:]\s*/i, "");
   
   // Remove leading/trailing whitespace
   cleaned = cleaned.trim();
