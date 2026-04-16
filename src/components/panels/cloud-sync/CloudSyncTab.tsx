@@ -155,7 +155,7 @@ function SyncStatsCard({ result }: { result: SyncResult | null }) {
 }
 
 export function CloudSyncTab() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { currentUser: user, isAuthenticated } = useAuthStore();
   const {
     isSyncing,
     lastSyncTime,
