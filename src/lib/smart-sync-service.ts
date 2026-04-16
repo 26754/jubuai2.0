@@ -24,14 +24,14 @@ const SYNCABLE_SETTINGS_KEYS = [
 
 // Sync interval constants (in milliseconds)
 const SYNC_INTERVALS = {
-  manual: 0,
+  realtime: 10000,   // 10 seconds for real-time sync
   '5min': 5 * 60 * 1000,
   '15min': 15 * 60 * 1000,
   '30min': 30 * 60 * 1000,
   '1hour': 60 * 60 * 1000,
 };
 
-type SyncFrequency = keyof typeof SYNC_INTERVALS;
+type SyncFrequency = 'realtime' | '5min' | '15min' | '30min' | '1hour';
 
 // Data types
 interface ProjectSyncData {
@@ -72,6 +72,18 @@ interface SyncResult {
   timestamp: number;
 }
 
+// Sync status event for real-time updates
+type SyncStatusEvent = {
+  type: 'idle' | 'syncing' | 'success' | 'error' | 'progress';
+  progress?: number;
+  message?: string;
+  result?: SyncResult;
+  timestamp: number;
+};
+
+// Sync status listener callback
+type SyncStatusListener = (event: SyncStatusEvent) => void;
+
 // Sync service class
 class SmartSyncService {
   private static instance: SmartSyncService;
@@ -79,6 +91,8 @@ class SmartSyncService {
   private isSyncing = false;
   private syncIndex: SyncIndex = { projects: {}, settings: {}, lastSyncAt: 0 };
   private lastSyncResult: SyncResult | null = null;
+  private statusListeners: Set<SyncStatusListener> = new Set();
+  private currentProgress = 0;
 
   private constructor() {
     this.loadSyncIndex();
@@ -493,6 +507,37 @@ class SmartSyncService {
   }
 
   /**
+   * Emit sync status event to all listeners
+   */
+  private emitSyncStatus(event: SyncStatusEvent): void {
+    this.statusListeners.forEach(listener => {
+      try {
+        listener(event);
+      } catch (e) {
+        console.error('[SmartSync] Listener error:', e);
+      }
+    });
+  }
+
+  /**
+   * Add sync status listener
+   */
+  public addSyncStatusListener(listener: SyncStatusListener): () => void {
+    this.statusListeners.add(listener);
+    // Return unsubscribe function
+    return () => {
+      this.statusListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Get current sync progress
+   */
+  public getSyncProgress(): number {
+    return this.currentProgress;
+  }
+
+  /**
    * Perform full sync with smart merge (projects + settings)
    */
   public async performSmartSync(): Promise<SyncResult> {
@@ -524,18 +569,27 @@ class SmartSyncService {
     }
 
     this.isSyncing = true;
+    this.currentProgress = 0;
     let settingsUploaded = 0;
     let settingsDownloaded = 0;
+
+    // Emit syncing status
+    this.emitSyncStatus({ type: 'syncing', progress: 0, message: '开始同步...', timestamp: Date.now() });
 
     try {
       // ===== 1. Sync Projects =====
       const projectStore = useProjectStore.getState();
       const localProjects = projectStore.projects;
 
+      // Emit progress
+      this.currentProgress = 10;
+      this.emitSyncStatus({ type: 'syncing', progress: 10, message: '上传本地项目...', timestamp: Date.now() });
+
       // Upload local changes first
       const uploadResult = await this.uploadProjects(localProjects);
       if (!uploadResult.success) {
         this.isSyncing = false;
+        this.emitSyncStatus({ type: 'error', message: uploadResult.error, timestamp: Date.now() });
         return { 
           success: false, 
           uploaded: 0, 
@@ -548,10 +602,15 @@ class SmartSyncService {
         };
       }
 
+      // Emit progress
+      this.currentProgress = 40;
+      this.emitSyncStatus({ type: 'syncing', progress: 40, message: '下载云端项目...', timestamp: Date.now() });
+
       // Download cloud projects
       const downloadResult = await this.downloadProjects();
       if (!downloadResult.success) {
         this.isSyncing = false;
+        this.emitSyncStatus({ type: 'error', message: downloadResult.error, timestamp: Date.now() });
         return { 
           success: false, 
           uploaded: uploadResult.uploaded, 
@@ -564,6 +623,10 @@ class SmartSyncService {
         };
       }
 
+      // Emit progress
+      this.currentProgress = 60;
+      this.emitSyncStatus({ type: 'syncing', progress: 60, message: '合并项目数据...', timestamp: Date.now() });
+
       // Merge projects
       const { merged, conflicts } = this.mergeProjects(localProjects, downloadResult.projects);
 
@@ -572,11 +635,19 @@ class SmartSyncService {
         projectStore.syncProjects(merged);
       }
 
+      // Emit progress
+      this.currentProgress = 75;
+      this.emitSyncStatus({ type: 'syncing', progress: 75, message: '同步设置...', timestamp: Date.now() });
+
       // ===== 2. Sync Settings =====
       // Upload local settings
       const localSettings = this.getLocalSettings();
       const settingsUploadResult = await this.uploadSettings(localSettings);
       settingsUploaded = settingsUploadResult.uploaded;
+
+      // Emit progress
+      this.currentProgress = 90;
+      this.emitSyncStatus({ type: 'syncing', progress: 90, message: '下载云端设置...', timestamp: Date.now() });
 
       // Download cloud settings
       const settingsDownloadResult = await this.downloadSettings();
@@ -598,7 +669,7 @@ class SmartSyncService {
         });
       }
 
-      return { 
+      const result: SyncResult = { 
         success: true, 
         uploaded: uploadResult.uploaded, 
         downloaded: downloadResult.projects.length,
@@ -607,11 +678,18 @@ class SmartSyncService {
         conflicts,
         timestamp: Date.now() 
       };
+
+      this.currentProgress = 100;
+      this.lastSyncResult = result;
+      this.emitSyncStatus({ type: 'success', progress: 100, result, timestamp: Date.now() });
+
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '同步失败';
       if (import.meta.env.DEV) {
         console.error('[SmartSync] Sync failed:', errorMessage);
       }
+      this.emitSyncStatus({ type: 'error', message: errorMessage, timestamp: Date.now() });
       return { 
         success: false, 
         uploaded: 0, 
@@ -624,6 +702,7 @@ class SmartSyncService {
       };
     } finally {
       this.isSyncing = false;
+      this.currentProgress = 0;
     }
   }
 
@@ -772,4 +851,4 @@ class SmartSyncService {
 export const smartSyncService = SmartSyncService.getInstance();
 
 // Export types
-export type { SyncResult, SyncFrequency, ProjectSyncData, SyncIndex };
+export type { SyncResult, SyncFrequency, ProjectSyncData, SyncIndex, SyncStatusEvent };

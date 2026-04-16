@@ -3,12 +3,12 @@
 /**
  * Cloud Sync Tab Component
  * Manages cloud synchronization settings and manual sync operations
- * Enhanced with auto-sync support
+ * Enhanced with real-time sync support
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCloudSync, useSyncStatus } from "@/hooks/use-cloud-sync";
+import { useCloudSync, useSyncStatus, useSyncHistory } from "@/hooks/use-cloud-sync";
 import { smartSyncService, type SyncFrequency } from "@/lib/smart-sync-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   Cloud,
   CloudOff,
@@ -30,6 +31,8 @@ import {
   Upload,
   Download,
   Zap,
+  Radio,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -53,6 +56,96 @@ function SyncStatusBadge({ status }: { status: 'idle' | 'syncing' | 'success' | 
   );
 }
 
+// Real-time sync indicator
+function RealtimeSyncIndicator({ 
+  isSyncing, 
+  progress, 
+  message 
+}: { 
+  isSyncing: boolean; 
+  progress: number; 
+  message: string;
+}) {
+  if (!isSyncing && progress === 0) return null;
+
+  return (
+    <div className="space-y-2 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Radio className={cn("h-4 w-4 text-primary", isSyncing && "animate-pulse")} />
+          <span className="text-sm font-medium text-primary">实时同步中</span>
+        </div>
+        <span className="text-xs text-muted-foreground">{progress}%</span>
+      </div>
+      <Progress value={progress} className="h-2" />
+      {message && (
+        <p className="text-xs text-muted-foreground">{message}</p>
+      )}
+    </div>
+  );
+}
+
+// Sync history item
+function SyncHistoryItem({ result }: { result: any }) {
+  const time = new Date(result.timestamp).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+      <div className="flex items-center gap-2">
+        {result.success ? (
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        ) : (
+          <XCircle className="h-4 w-4 text-destructive" />
+        )}
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium">
+            {result.success ? '同步成功' : '同步失败'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            上传 {result.uploaded} | 下载 {result.downloaded}
+          </p>
+        </div>
+      </div>
+      <span className="text-xs text-muted-foreground">{time}</span>
+    </div>
+  );
+}
+
+// Sync stats card
+function SyncStatsCard({ result }: { result: any }) {
+  if (!result) return null;
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="p-3 bg-muted/50 rounded-lg text-center">
+        <Upload className="h-4 w-4 mx-auto mb-1 text-primary" />
+        <p className="text-lg font-bold">{result.uploaded}</p>
+        <p className="text-xs text-muted-foreground">已上传</p>
+      </div>
+      <div className="p-3 bg-muted/50 rounded-lg text-center">
+        <Download className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+        <p className="text-lg font-bold">{result.downloaded}</p>
+        <p className="text-xs text-muted-foreground">已下载</p>
+      </div>
+      <div className="p-3 bg-muted/50 rounded-lg text-center">
+        <Activity className="h-4 w-4 mx-auto mb-1 text-green-500" />
+        <p className="text-lg font-bold">{result.settingsUploaded + result.settingsDownloaded}</p>
+        <p className="text-xs text-muted-foreground">设置变更</p>
+      </div>
+      <div className="p-3 bg-muted/50 rounded-lg text-center">
+        <AlertCircle className={cn("h-4 w-4 mx-auto mb-1", result.conflicts > 0 ? "text-yellow-500" : "text-muted-foreground")} />
+        <p className="text-lg font-bold">{result.conflicts}</p>
+        <p className="text-xs text-muted-foreground">冲突</p>
+      </div>
+    </div>
+  );
+}
+
 export function CloudSyncTab() {
   const { user, isAuthenticated } = useAuthStore();
   const {
@@ -64,9 +157,17 @@ export function CloudSyncTab() {
     fetchFromCloud,
     setAutoSyncEnabled,
     setSyncFrequency,
+    syncProgress,
+    syncMessage,
+    lastResult,
   } = useCloudSync();
+  
+  const { status, lastError, progress: realtimeProgress, message: realtimeMessage } = useSyncStatus();
+  const syncHistory = useSyncHistory(5);
 
-  const { status, lastError } = useSyncStatus();
+  // Use real-time values when available
+  const currentProgress = realtimeProgress || syncProgress;
+  const currentMessage = realtimeMessage || syncMessage;
 
   // Local sync settings
   const [localAutoSync, setLocalAutoSync] = useState(isAutoSyncEnabled);
@@ -135,7 +236,7 @@ export function CloudSyncTab() {
     const result = await performSync();
     if (result.success) {
       toast.success('同步成功', {
-        description: `已同步 ${result.projectsSynced || 0} 个项目`,
+        description: `已上传 ${result.uploaded} 个项目，已下载 ${result.downloaded} 个项目`,
       });
     } else {
       toast.error('同步失败', {
@@ -152,7 +253,7 @@ export function CloudSyncTab() {
     if (result.success && result.projects) {
       toast.success(`从云端获取了 ${result.projects.length} 个项目`);
     } else {
-      toast.error('获取失败', { description: result.error });
+      toast.error('获取失败');
     }
   }, [isSyncing, fetchFromCloud]);
 
@@ -178,7 +279,7 @@ export function CloudSyncTab() {
             </div>
             <CardTitle>未登录</CardTitle>
             <CardDescription>
-              请先在「用户中心」登录账号，然后才能使用云端同步功能
+              请先在登录后使用云端同步功能
             </CardDescription>
           </CardHeader>
         </Card>
@@ -189,6 +290,13 @@ export function CloudSyncTab() {
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6 max-w-3xl mx-auto">
+        {/* Real-time Sync Status */}
+        <RealtimeSyncIndicator 
+          isSyncing={isSyncing || status === 'syncing'} 
+          progress={currentProgress}
+          message={currentMessage}
+        />
+
         {/* Account Info Card */}
         <Card>
           <CardHeader>
@@ -247,7 +355,7 @@ export function CloudSyncTab() {
               自动同步
             </CardTitle>
             <CardDescription>
-              启用后，登录或数据变更时自动同步到云端
+              启用后，数据将自动同步到云端
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -272,24 +380,38 @@ export function CloudSyncTab() {
                 {/* Sync Frequency */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">同步频率</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-5 gap-2">
                     {[
+                      { value: 'realtime', label: '实时', icon: Radio },
                       { value: '5min', label: '5分钟' },
                       { value: '15min', label: '15分钟' },
                       { value: '30min', label: '30分钟' },
                       { value: '1hour', label: '1小时' },
-                    ].map((option) => (
-                      <Button
-                        key={option.value}
-                        variant={localFrequency === option.value ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleFrequencyChange(option.value as SyncFrequency)}
-                        className={cn(localFrequency === option.value && 'pointer-events-none')}
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
+                    ].map((option) => {
+                      const IconComponent = 'icon' in option ? option.icon : undefined;
+                      return (
+                        <Button
+                          key={option.value}
+                          variant={localFrequency === option.value ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleFrequencyChange(option.value as SyncFrequency)}
+                          className={cn(
+                            localFrequency === option.value && 'pointer-events-none',
+                            option.value === 'realtime' && 'border-primary/50'
+                          )}
+                        >
+                          {IconComponent && <IconComponent className="h-3 w-3 mr-1" />}
+                          {option.label}
+                        </Button>
+                      );
+                    })}
                   </div>
+                  {localFrequency === 'realtime' && (
+                    <p className="text-xs text-primary flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
+                      实时同步：每 10 秒自动检查并同步数据
+                    </p>
+                  )}
                 </div>
                 
                 <Separator />
@@ -339,6 +461,45 @@ export function CloudSyncTab() {
             )}
           </CardContent>
         </Card>
+
+        {/* Last Sync Result */}
+        {(lastResult || syncHistory.length > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                同步结果
+              </CardTitle>
+              <CardDescription>
+                最近一次同步的详细信息
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stats */}
+              <SyncStatsCard result={lastResult} />
+              
+              {/* Error message if any */}
+              {lastError && (
+                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                  <p className="text-sm text-destructive">{lastError}</p>
+                </div>
+              )}
+              
+              {/* Sync History */}
+              {syncHistory.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">同步历史</Label>
+                  <div className="border border-border rounded-lg p-2">
+                    {syncHistory.map((item, index) => (
+                      <SyncHistoryItem key={`${item.timestamp}-${index}`} result={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         
         {/* Manual Sync Actions */}
         <Card>
@@ -385,7 +546,7 @@ export function CloudSyncTab() {
               {isSyncing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  同步中...
+                  同步中 {currentProgress > 0 ? `(${currentProgress}%)` : ''}...
                 </>
               ) : (
                 <>
@@ -394,13 +555,6 @@ export function CloudSyncTab() {
                 </>
               )}
             </Button>
-            
-            {lastError && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                <p className="text-sm text-destructive">{lastError}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
         
@@ -429,12 +583,6 @@ export function CloudSyncTab() {
               <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
                 API Key 仅存储在本地浏览器，不会上传
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-muted-foreground">
-                您可以随时在「用户中心」退出登录清除本地数据
               </p>
             </div>
           </CardContent>
