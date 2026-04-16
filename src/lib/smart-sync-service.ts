@@ -710,6 +710,14 @@ class SmartSyncService {
   public getIsSyncing(): boolean {
     return this.isSyncing;
   }
+
+  /**
+   * Perform full sync - alias for performSmartSync
+   * This method is used by use-cloud-sync hook for manual sync
+   */
+  public async performFullSync(): Promise<SyncResult> {
+    return this.performSmartSync();
+  }
 }
 
 // Export singleton
