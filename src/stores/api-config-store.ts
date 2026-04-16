@@ -610,9 +610,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
           if (isMemefast) {
             // MemeFast: /api/pricing_new 获取全量元数据（公开接口）
+            // 添加重试参数，应对 429 速率限制
             const pricingUrl = `${baseUrl}/api/pricing_new`;
 
-            const response = await corsFetch(pricingUrl);
+            const response = await corsFetch(pricingUrl, { retries: 3, timeout: 30000 });
             if (!response.ok) {
               return { success: false, count: 0, error: `pricing_new API 返回 ${response.status}` };
             }
@@ -662,6 +663,8 @@ export const useAPIConfigStore = create<APIConfigStore>()(
               try {
                 const resp = await corsFetch(memefastModelsUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
+                  retries: 3,
+                  timeout: 30000,
                 });
                 if (!resp.ok) {
                   console.warn(`[APIConfig] MemeFast key#${ki + 1} /v1/models returned ${resp.status}, skip`);
@@ -701,6 +704,8 @@ export const useAPIConfigStore = create<APIConfigStore>()(
                 
                 const response = await corsFetch(requestUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
+                  retries: 3,
+                  timeout: 30000,
                 });
 
                 if (!response.ok) {

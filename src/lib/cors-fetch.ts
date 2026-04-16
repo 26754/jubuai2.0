@@ -141,10 +141,12 @@ async function fetchWithRetry(
         );
       }
 
-      // 5xx 或网络错误重试
-      if (response.status >= 500 || !response.ok) {
+      // 429 (Too Many Requests) 和 5xx 需要重试
+      if (response.status === 429 || response.status >= 500 || !response.ok) {
         if (attempt < retries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          // 429 错误使用更长的延迟（60秒），因为是速率限制
+          const baseDelay = response.status === 429 ? 60000 : 1000;
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), response.status === 429 ? 120000 : 10000);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
