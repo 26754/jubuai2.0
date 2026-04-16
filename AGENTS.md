@@ -371,10 +371,35 @@ Phase 3 包含三大高级功能：AI 助手面板、项目分享系统、模板
 - **历史记录**：保存对话历史，支持继续对话
 
 #### 技术实现
-- 使用 `llm` Skill 进行 AI 对话
-- 流式响应支持（打字机效果）
+- 使用 `coze-coding-dev-sdk` 的 `LLMClient` 进行 AI 对话
+- 流式响应支持（打字机效果，SSE 协议）
 - 上下文管理（自动获取相关项目数据）
 - 预设提示词系统
+- 后端 API 端点: `POST /api/ai/assistant`
+- 默认使用模型: `doubao-seed-2-0-pro-260215`
+
+#### API 端点
+```bash
+POST /api/ai/assistant
+Content-Type: application/json
+
+{
+  "messages": [
+    { "role": "user", "content": "你好" }
+  ],
+  "mode": "chat",  // chat | script | character | scene | storyboard
+  "model": "doubao-seed-2-0-pro-260215",
+  "temperature": 0.7
+}
+```
+
+#### 响应格式（SSE 流式）
+```
+data: {"content":"你","done":false}
+data: {"content":"好","done":false}
+...
+data: {"done":true,"fullContent":"..."}
+```
 
 #### 使用方式
 1. 在设置面板中点击「AI 助手」Tab

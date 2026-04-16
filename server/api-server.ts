@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { LLMClient, Config } from 'coze-coding-dev-sdk';
 
 const { Pool } = pg;
 
@@ -564,6 +565,76 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
+// AI Assistant endpoint - 使用 coze-coding-dev-sdk 实现流式 AI 对话
+app.post('/api/ai/assistant', async (req, res) => {
+  try {
+    const { messages, model = 'doubao-seed-2-0-pro-260215', temperature = 0.7, mode = 'chat' } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ success: false, error: 'messages 参数无效' });
+    }
+
+    // 构建系统提示词
+    const systemPrompts: Record<string, string> = {
+      chat: '你是一个专业的动漫/短剧创作助手，可以帮助用户进行创意讨论、内容分析和优化建议。请用简洁、有条理的方式回答。',
+      script: '你是一个专业的编剧助手，专注于动漫和短剧剧本创作。可以帮助用户分析剧情结构、优化角色动机、设计对白、检查格式规范。请用专业且实用的方式提供建议。',
+      character: '你是一个专业的角色设计助手，专注于动漫和短剧角色创作。可以帮助用户设计角色背景、性格特点、外貌描述、成长弧线。请提供富有创意的角色建议。',
+      scene: '你是一个专业的场景设计助手，专注于动漫和短剧场景创作。可以帮助用户设计场景布局、光线氛围、空间感、环境细节。请用画面感强的方式描述。',
+      storyboard: '你是一个专业的分镜规划助手，专注于动漫和短剧分镜创作。可以帮助用户设计镜头语言、节奏控制、运动设计、连续性原则。请提供专业且可执行的分镜建议。',
+    };
+
+    // 构建消息列表，添加系统提示
+    const allMessages = [
+      { role: 'system' as const, content: systemPrompts[mode] || systemPrompts.chat },
+      ...messages,
+    ];
+
+    console.log('[AI Assistant] Request:', { mode, model, messageCount: messages.length });
+
+    // 设置 SSE 响应头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // 创建 LLM 客户端
+    const config = new Config();
+    const client = new LLMClient(config);
+
+    // 使用流式响应
+    let fullContent = '';
+    try {
+      for await (const chunk of client.stream(allMessages, { model, temperature, streaming: true })) {
+        if (chunk.content) {
+          fullContent += chunk.content;
+          // 发送 SSE 格式的数据
+          res.write(`data: ${JSON.stringify({ content: chunk.content, done: false })}\n\n`);
+        }
+      }
+    } catch (streamError: any) {
+      console.error('[AI Assistant] Stream error:', streamError.message);
+      // 流式输出失败，尝试非流式输出
+      console.log('[AI Assistant] Falling back to non-streaming...');
+      
+      try {
+        const response = await client.invoke(allMessages, { model, temperature, streaming: false });
+        fullContent = response.content;
+        res.write(`data: ${JSON.stringify({ content: fullContent, done: true })}\n\n`);
+      } catch (invokeError: any) {
+        console.error('[AI Assistant] Invoke error:', invokeError.message);
+        res.write(`data: ${JSON.stringify({ error: invokeError.message || 'AI 服务调用失败' })}\n\n`);
+      }
+    }
+
+    // 发送完成信号
+    res.write(`data: ${JSON.stringify({ done: true, fullContent })}\n\n`);
+    res.end();
+  } catch (error: any) {
+    console.error('[AI Assistant] Error:', error.message);
+    res.status(500).json({ success: false, error: error.message || 'AI 服务异常' });
+  }
+});
+
 // AI Chat endpoint
 app.post('/api/ai/chat', (req, res) => {
   res.json({ success: true, message: 'AI chat endpoint ready' });
@@ -837,7 +908,8 @@ app.listen(Number(PORT), HOST, () => {
   console.log('  GET    /auth/callback               - OAuth 回调处理');
   console.log('');
   console.log('  === AI API ===');
-  console.log('  POST   /api/ai/chat                 - AI 对话');
+  console.log('  POST   /api/ai/assistant            - AI 助手对话（流式）');
+  console.log('  POST   /api/ai/chat                 - AI 对话（旧版）');
   console.log('  POST   /api/ai/screenplay           - 剧本生成');
   console.log('  POST   /api/ai/image                - 图片生成');
   console.log('  POST   /api/ai/video                - 视频生成');

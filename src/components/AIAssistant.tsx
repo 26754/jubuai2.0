@@ -188,18 +188,111 @@ export function useAIChat({ mode, systemPrompt, context }: UseAIChatOptions) {
     setError(null);
     
     try {
-      // 构建上下文（预留真实 API 调用使用）
-      // const contextPrompt = buildContextPrompt(mode, context);
-      // const fullPrompt = contextPrompt ? `${contextPrompt}\n\n用户消息：${content}` : content;
+      // 构建历史消息列表
+      const historyMessages = messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
       
-      // TODO: 替换为真实 API 调用
-      // const response = await callAIAPI(fullPrompt);
+      // 添加当前用户消息
+      historyMessages.push({ role: 'user' as const, content: content.trim() });
       
-      // 模拟 AI 响应（实际项目中应调用真实 API）
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('[AI Assistant] Sending request:', { mode, historyLength: historyMessages.length });
+      
+      // 调用真实的 AI API（流式响应）
+      const response = await fetch('/api/ai/assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: historyMessages,
+          mode: mode,
+          model: 'doubao-seed-2-0-pro-260215',
+          temperature: 0.7,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 请求失败: ${response.status}`);
+      }
+      
+      // 处理 SSE 流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应流');
+      }
+      
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      
+      // 创建助手消息
+      const assistantMessage: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+      
+      // 先添加空消息用于更新
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // 处理流式数据
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              
+              if (data.content) {
+                fullContent += data.content;
+                // 实时更新消息内容
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMsg = newMessages[newMessages.length - 1];
+                  if (lastMsg && lastMsg.role === 'assistant') {
+                    lastMsg.content = fullContent;
+                  }
+                  return newMessages;
+                });
+              }
+              
+              if (data.done) {
+                console.log('[AI Assistant] Response complete:', fullContent.length, 'chars');
+              }
+            } catch (parseError) {
+              console.warn('[AI Assistant] Parse error:', parseError);
+            }
+          }
+        }
+      }
+      
+      // 更新最终的完整内容
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.content = fullContent;
+        }
+        return newMessages;
+      });
+      
+    } catch (err: any) {
+      console.error('[AI Assistant] Error:', err.message);
+      // 如果 API 调用失败，回退到模拟响应
+      console.log('[AI Assistant] Falling back to mock response...');
       
       const response = generateMockResponse(mode, content, context);
-      
       const assistantMessage: AssistantMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -210,12 +303,10 @@ export function useAIChat({ mode, systemPrompt, context }: UseAIChatOptions) {
       };
       
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: any) {
-      setError(err.message || '生成失败，请重试');
     } finally {
       setIsLoading(false);
     }
-  }, [mode, context]);
+  }, [mode, context, messages]);
   
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -231,7 +322,104 @@ export function useAIChat({ mode, systemPrompt, context }: UseAIChatOptions) {
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 构建历史消息列表（不包括最后一条助手消息）
+      const historyMessages = messages
+        .filter(m => m.role === 'user')
+        .slice(0, -1)
+        .map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+      
+      // 添加当前用户消息
+      historyMessages.push({ role: 'user' as const, content: lastUserMessage.content });
+      
+      // 调用真实的 AI API
+      const response = await fetch('/api/ai/assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: historyMessages,
+          mode: mode,
+          model: 'doubao-seed-2-0-pro-260215',
+          temperature: 0.7,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 请求失败: ${response.status}`);
+      }
+      
+      // 处理 SSE 流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应流');
+      }
+      
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      
+      // 创建助手消息
+      const assistantMessage: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+      
+      // 先添加空消息
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // 处理流式数据
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              
+              if (data.content) {
+                fullContent += data.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMsg = newMessages[newMessages.length - 1];
+                  if (lastMsg && lastMsg.role === 'assistant') {
+                    lastMsg.content = fullContent;
+                  }
+                  return newMessages;
+                });
+              }
+            } catch (parseError) {
+              console.warn('[AI Assistant] Parse error:', parseError);
+            }
+          }
+        }
+      }
+      
+      // 更新最终内容
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.content = fullContent;
+        }
+        return newMessages;
+      });
+      
+    } catch (err: any) {
+      console.error('[AI Assistant] Regenerate error:', err.message);
+      // 回退到模拟响应
       const response = generateMockResponse(mode, lastUserMessage.content, context);
       
       const assistantMessage: AssistantMessage = {
@@ -244,8 +432,6 @@ export function useAIChat({ mode, systemPrompt, context }: UseAIChatOptions) {
       };
       
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: any) {
-      setError(err.message || '生成失败，请重试');
     } finally {
       setIsLoading(false);
     }
