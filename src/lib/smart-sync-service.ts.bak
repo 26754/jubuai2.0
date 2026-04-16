@@ -100,7 +100,7 @@ class SmartSyncService {
         this.syncIndex = JSON.parse(stored);
       }
     } catch {
-      this.syncIndex = { projects: {}, settings: {}, lastSyncAt: 0 };
+      this.syncIndex = { projects: {}, lastSyncAt: 0 };
     }
   }
 
@@ -492,16 +492,14 @@ class SmartSyncService {
   }
 
   /**
-   * Perform full sync with smart merge (projects + settings)
+   * Perform full sync with smart merge
    */
   public async performSmartSync(): Promise<SyncResult> {
     if (this.isSyncing) {
       return { 
         success: false, 
         uploaded: 0, 
-        downloaded: 0,
-        settingsUploaded: 0,
-        settingsDownloaded: 0,
+        downloaded: 0, 
         conflicts: 0, 
         error: '同步进行中', 
         timestamp: Date.now() 
@@ -513,9 +511,7 @@ class SmartSyncService {
       return { 
         success: false, 
         uploaded: 0, 
-        downloaded: 0,
-        settingsUploaded: 0,
-        settingsDownloaded: 0,
+        downloaded: 0, 
         conflicts: 0, 
         error: '未登录', 
         timestamp: Date.now() 
@@ -523,11 +519,9 @@ class SmartSyncService {
     }
 
     this.isSyncing = true;
-    let settingsUploaded = 0;
-    let settingsDownloaded = 0;
 
     try {
-      // ===== 1. Sync Projects =====
+      // Get current local projects
       const projectStore = useProjectStore.getState();
       const localProjects = projectStore.projects;
 
@@ -538,9 +532,7 @@ class SmartSyncService {
         return { 
           success: false, 
           uploaded: 0, 
-          downloaded: 0,
-          settingsUploaded: 0,
-          settingsDownloaded: 0,
+          downloaded: 0, 
           conflicts: 0, 
           error: uploadResult.error, 
           timestamp: Date.now() 
@@ -554,9 +546,7 @@ class SmartSyncService {
         return { 
           success: false, 
           uploaded: uploadResult.uploaded, 
-          downloaded: 0,
-          settingsUploaded: 0,
-          settingsDownloaded: 0,
+          downloaded: 0, 
           conflicts: 0, 
           error: downloadResult.error, 
           timestamp: Date.now() 
@@ -568,41 +558,26 @@ class SmartSyncService {
 
       // Update local store if there are changes
       if (merged.length !== localProjects.length || conflicts > 0) {
+        // Update the project store
         projectStore.syncProjects(merged);
-      }
+        
+        // Update sync index
+        this.syncIndex.lastSyncAt = Date.now();
+        this.saveSyncIndex();
 
-      // ===== 2. Sync Settings =====
-      // Upload local settings
-      const localSettings = this.getLocalSettings();
-      const settingsUploadResult = await this.uploadSettings(localSettings);
-      settingsUploaded = settingsUploadResult.uploaded;
-
-      // Download cloud settings
-      const settingsDownloadResult = await this.downloadSettings();
-      if (settingsDownloadResult.success) {
-        settingsDownloaded = this.mergeAndApplySettings(settingsDownloadResult.settings);
-      }
-
-      // Update sync index
-      this.syncIndex.lastSyncAt = Date.now();
-      this.saveSyncIndex();
-
-      if (import.meta.env.DEV) {
-        console.log('[SmartSync] Full sync completed:', {
-          projectsUploaded: uploadResult.uploaded,
-          projectsDownloaded: downloadResult.projects.length,
-          settingsUploaded,
-          settingsDownloaded,
-          conflicts,
-        });
+        if (import.meta.env.DEV) {
+          console.log('[SmartSync] Merged projects:', {
+            total: merged.length,
+            conflicts,
+            uploaded: uploadResult.uploaded,
+          });
+        }
       }
 
       return { 
         success: true, 
         uploaded: uploadResult.uploaded, 
-        downloaded: downloadResult.projects.length,
-        settingsUploaded,
-        settingsDownloaded,
+        downloaded: downloadResult.projects.length, 
         conflicts,
         timestamp: Date.now() 
       };
@@ -614,9 +589,7 @@ class SmartSyncService {
       return { 
         success: false, 
         uploaded: 0, 
-        downloaded: 0,
-        settingsUploaded: 0,
-        settingsDownloaded: 0,
+        downloaded: 0, 
         conflicts: 0, 
         error: errorMessage, 
         timestamp: Date.now() 
