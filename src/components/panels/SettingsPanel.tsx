@@ -229,18 +229,18 @@ export function SettingsPanel() {
               API 供应商
             </TabsTrigger>
             <TabsTrigger 
-              value="cloud-sync" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
-            >
-              <Cloud className="h-4 w-4 mr-2" />
-              云端同步
-            </TabsTrigger>
-            <TabsTrigger 
               value="advanced" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
             >
               <Layers className="h-4 w-4 mr-2" />
               高级设置
+            </TabsTrigger>
+            <TabsTrigger 
+              value="cloud-sync" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 h-12"
+            >
+              <Cloud className="h-4 w-4 mr-2" />
+              云端同步
             </TabsTrigger>
           </TabsList>
         </div>
