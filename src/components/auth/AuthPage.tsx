@@ -74,7 +74,7 @@ function calculatePasswordStrength(password: string): {
 }
 
 export function AuthPage({ onSuccess, onCancel }: AuthPageProps) {
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>('register');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
