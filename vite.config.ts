@@ -118,17 +118,7 @@ export default defineConfig({
     host: true,
     proxy: mode === 'development' ? {
       // 开发环境：代理到 API 服务器
-      '/api/sync': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        rewrite: (path) => path,
-      },
-      '/api/auth': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        rewrite: (path) => path,
-      },
-      '/api/ai': {
+      '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path,
