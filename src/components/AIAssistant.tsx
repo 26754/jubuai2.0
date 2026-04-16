@@ -29,6 +29,7 @@ import {
   Minimize2,
   WandSparkles,
   Film,
+  AlignLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,7 +60,7 @@ import { cn } from '@/lib/utils';
 
 // ==================== 类型定义 ====================
 
-export type AssistantMode = 'chat' | 'script' | 'character' | 'scene' | 'storyboard';
+export type AssistantMode = 'chat' | 'script' | 'character' | 'scene' | 'storyboard' | 'script-format';
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface AssistantMessage {
@@ -148,6 +149,53 @@ export const ASSISTANT_PRESETS: AssistantPreset[] = [
     prompt: '你是一位资深的内容质量评审专家。请从以下角度评审用户的内容：1) 故事结构 2) 角色塑造 3) 对话质量 4) 视觉描述 5) 整体连贯性。请给出具体的改进建议。',
     mode: 'chat',
   },
+  {
+    id: 'script-format-converter',
+    name: '剧本格式转换',
+    icon: <AlignLeft className="w-4 h-4" />,
+    description: '将剧本转换为标准短剧格式',
+    prompt: `你是一位专业的短剧剧本格式化专家。请严格按照以下格式规则处理剧本内容：
+
+【剧本格式规则】
+
+1. 整体结构：剧本按固定顺序分为以下模块，模块之间以空行分隔，所有模块标题统一使用【模块名】：的格式：
+
+2. 前置元信息区：3个基础字段，每个字段单独占一行，顺序不可调整：
+   - 【剧名】：剧本正式名称
+   - 【版权状态】：版权属性说明
+   - 【全本集数】：全剧总集数
+
+3. 人物小传区：模块标题为【人物小传】：，之后逐个介绍全剧核心角色：
+   - 每个角色单独成段，段与段之间空一行
+   - 角色名单独占一行，下一行填写角色的身份、核心行为、人物特点等介绍内容
+
+4. 梗概与卖点区：
+   - 【故事梗概】：全剧完整的剧情脉络，整段内容无需拆分小段
+   - 【核心卖点】：剧本的商业亮点、类型特色、对标作品等说明
+
+5. 正文内容区：模块标题为【全文】：，之后按集数顺序排列分集内容：
+   - 每一集的开头，以「第X集」单独占一行
+   - 每集内的场景为独立单元，场景之间以空行分隔
+   - 单场景格式：
+     * 第一行：场景X-Y：场景具体地点 场景时间 室内/室外（X为当前集数，Y为该集内的场景序号）
+     * 第二行：人物：该场景内所有出场人物，每个人物标注年龄/身份/状态，用顿号分隔
+     * 第三行：【场景描述】后接该场景的整体环境、氛围、布局的介绍
+     * 之后按时间顺序排列场景内的具体内容：
+       - 所有的画面描述、镜头动作、角色动作、镜头提示，前面统一加△符号
+       - 对话格式为：角色名（语气/状态补充）：对话内容
+       - 画外音用「角色名VO：内容」格式
+       - 内心独白/旁白用「角色名OS：内容」格式
+       - 转场指令单独占一行，用【】包裹，如【闪入】【闪出】【切至】
+       - 画面提示字幕单独占一行，格式为「字幕：内容」
+
+6. 通用排版规则：
+   - 所有标点统一使用中文标点
+   - 大模块之间、不同角色之间、不同场景之间，均以空行分隔
+   - 正文内容按时间顺序排列，无需额外空行
+
+请按照上述规则处理用户提供的剧本内容，保留所有原有剧情、对话、人物等核心内容，仅调整格式与排版。`,
+    mode: 'script-format',
+  },
 ];
 
 // ==================== 模式配置 ====================
@@ -158,6 +206,7 @@ const MODE_CONFIG: Record<AssistantMode, { icon: React.ReactNode; label: string;
   character: { icon: <Users className="w-4 h-4" />, label: '角色', colorClass: 'text-[hsl(var(--style-anime))]', bgClass: 'bg-[hsl(var(--style-anime))/10]' },
   scene: { icon: <Film className="w-4 h-4" />, label: '场景', colorClass: 'text-[hsl(var(--warning))]', bgClass: 'bg-[hsl(var(--warning))/10]' },
   storyboard: { icon: <Clapperboard className="w-4 h-4" />, label: '分镜', colorClass: 'text-[hsl(var(--style-watercolor))]', bgClass: 'bg-[hsl(var(--style-watercolor))/10]' },
+  'script-format': { icon: <AlignLeft className="w-4 h-4" />, label: '格式转换', colorClass: 'text-[hsl(var(--destructive))]', bgClass: 'bg-[hsl(var(--destructive))/10]' },
 };
 
 // ==================== AI 消息处理 ====================
