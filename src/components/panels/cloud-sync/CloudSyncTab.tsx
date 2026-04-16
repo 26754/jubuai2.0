@@ -390,16 +390,37 @@ export function CloudSyncTab() {
               </div>
             </div>
             
-            {/* Last Sync Time */}
+            {/* Last Sync Time - 联动实际同步结果 */}
             <div className="flex items-center justify-between p-3 mt-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">上次同步</span>
               </div>
-              <span className="text-sm font-medium">
-                {formatLastSyncTime(lastSyncTime)}
+              <span className={cn(
+                "text-sm font-medium",
+                lastResult && !lastResult.success && "text-destructive"
+              )}>
+                {lastResult ? formatLastSyncTime(lastResult.timestamp) : formatLastSyncTime(lastSyncTime)}
               </span>
             </div>
+            
+            {/* Manual Upload Button - 同步失败时显示 */}
+            {lastResult && !lastResult.success && (
+              <Button
+                className="w-full mt-2"
+                variant="default"
+                onClick={() => {
+                  const result = smartSyncService.getLastSyncResult();
+                  if (result?.error) {
+                    // 尝试重新同步
+                    smartSyncService.performFullSync();
+                  }
+                }}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                重新上传数据
+              </Button>
+            )}
           </CardContent>
         </Card>
         
@@ -510,9 +531,20 @@ export function CloudSyncTab() {
               
               {/* Error message if any */}
               {lastError && (
-                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                  <p className="text-sm text-destructive">{lastError}</p>
+                <div className="flex flex-col gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                    <p className="text-sm text-destructive">{lastError}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="self-end border-destructive/30 text-destructive hover:bg-destructive/10"
+                    onClick={() => smartSyncService.performFullSync()}
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    重新上传
+                  </Button>
                 </div>
               )}
               
