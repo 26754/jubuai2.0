@@ -610,10 +610,16 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
           if (isMemefast) {
             // MemeFast: /api/pricing_new 获取全量元数据（公开接口）
+            // 注意：pricing_new 是公开接口，不需要 API Key
             // 添加重试参数，应对 429 速率限制
             const pricingUrl = `${baseUrl}/api/pricing_new`;
 
-            const response = await corsFetch(pricingUrl, { retries: 3, timeout: 30000 });
+            const response = await corsFetch(pricingUrl, { retries: 2, timeout: 15000 });
+            // 401 可能是服务端问题或 IP 限制，静默跳过
+            if (response.status === 401 || response.status === 403) {
+              console.warn(`[APIConfig] pricing_new returned ${response.status}, skipping sync`);
+              return { success: false, count: 0, error: 'API 认证失败，请检查配置' };
+            }
             if (!response.ok) {
               return { success: false, count: 0, error: `pricing_new API 返回 ${response.status}` };
             }
@@ -663,9 +669,14 @@ export const useAPIConfigStore = create<APIConfigStore>()(
               try {
                 const resp = await corsFetch(memefastModelsUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
-                  retries: 3,
-                  timeout: 30000,
+                  retries: 2,
+                  timeout: 15000,
                 });
+                // 401/403 意味着 API Key 无效或过期，停止重试
+                if (resp.status === 401 || resp.status === 403) {
+                  console.warn(`[APIConfig] MemeFast key#${ki + 1} returned ${resp.status}, skipping`);
+                  continue;
+                }
                 if (!resp.ok) {
                   console.warn(`[APIConfig] MemeFast key#${ki + 1} /v1/models returned ${resp.status}, skip`);
                   continue;
@@ -704,9 +715,16 @@ export const useAPIConfigStore = create<APIConfigStore>()(
                 
                 const response = await corsFetch(requestUrl, {
                   headers: { 'Authorization': `Bearer ${keys[ki]}` },
-                  retries: 3,
-                  timeout: 30000,
+                  retries: 2,
+                  timeout: 15000,
                 });
+
+                // 401/403 意味着 API Key 无效或过期，停止重试
+                if (response.status === 401 || response.status === 403) {
+                  lastError = `key#${ki + 1} API Key 无效 (${response.status})`;
+                  console.warn(`[APIConfig] ${lastError} - 平台: ${provider.platform}, BaseURL: ${baseUrl}`);
+                  continue;
+                }
 
                 if (!response.ok) {
                   lastError = `key#${ki + 1} API 返回 ${response.status}`;

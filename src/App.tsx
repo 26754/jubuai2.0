@@ -262,8 +262,22 @@ function App() {
         .filter((p) => parseApiKeys(p.apiKey).length > 0)
         .sort((a, b) => Number(b.platform === 'memefast') - Number(a.platform === 'memefast'));
 
-      for (const p of configuredProviders) {
+      // 如果没有配置任何供应商，跳过同步
+      if (configuredProviders.length === 0) {
+        console.log('[App] No configured providers, skipping model sync');
+        return;
+      }
+
+      // 逐个同步，每个间隔 2 秒，避免同时发起多个请求
+      for (let i = 0; i < configuredProviders.length; i++) {
         if (cancelled) return;
+        const p = configuredProviders[i];
+        
+        // 首次同步前等待 3 秒，让应用先完成初始化
+        if (i === 0) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        
         try {
           const result = await syncProviderModels(p.id);
           if (cancelled) return;
@@ -276,6 +290,11 @@ function App() {
           if (!cancelled) {
             console.warn(`[App] Auto-sync failed for ${p.name}:`, error);
           }
+        }
+        
+        // 每个供应商同步后等待 2 秒
+        if (i < configuredProviders.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     };
