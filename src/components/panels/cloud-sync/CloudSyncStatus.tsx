@@ -7,8 +7,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCloudSyncV2, useSyncStatusV2, useSyncStatsV2, useSyncLogsV2 } from "@/hooks/use-cloud-sync-v2";
-import { cloudSyncEngine, type SyncStatus } from "@/lib/cloud-sync-engine";
+import { useCloudSyncV2, useSyncStatusV2, useSyncStatsV2 } from "@/hooks/use-cloud-sync-v2";
+import { cloudSyncEngine, type SyncStatus, type SyncEvent } from "@/lib/cloud-sync-engine";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -37,6 +37,29 @@ import { cloudAuth } from "@/lib/cloud-auth";
 interface CloudSyncStatusProps {
   compact?: boolean; // 紧凑模式
   showSettings?: boolean; // 显示设置选项
+}
+
+// ==================== 本地 useSyncLogs Hook ====================
+
+function useSyncLogsLocal(limit = 50) {
+  const [logs, setLogs] = useState<SyncEvent[]>([]);
+
+  useEffect(() => {
+    setLogs(cloudSyncEngine.getLogs(limit));
+    
+    const unsub = cloudSyncEngine.subscribeLogs((event) => {
+      setLogs(prev => [...prev.slice(-(limit - 1)), event]);
+    });
+
+    return () => unsub();
+  }, [limit]);
+
+  const clear = useCallback(() => {
+    cloudSyncEngine.clearLogs();
+    setLogs([]);
+  }, []);
+
+  return { logs, clear };
 }
 
 // ==================== 状态徽章 ====================
@@ -371,7 +394,7 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
 // ==================== 同步历史组件 ====================
 
 export function CloudSyncHistory({ limit = 5 }: { limit?: number }) {
-  const { logs, clear } = useSyncLogsV2(limit);
+  const { logs, clear } = useSyncLogsLocal(limit);
   const [showLogs, setShowLogs] = useState(false);
 
   if (logs.length === 0) {
