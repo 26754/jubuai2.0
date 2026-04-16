@@ -78,6 +78,7 @@ class SmartSyncService {
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private isSyncing = false;
   private syncIndex: SyncIndex = { projects: {}, settings: {}, lastSyncAt: 0 };
+  private lastSyncResult: SyncResult | null = null;
 
   private constructor() {
     this.loadSyncIndex();
@@ -712,11 +713,58 @@ class SmartSyncService {
   }
 
   /**
+   * Get last sync result
+   */
+  public getLastSyncResult(): SyncResult | null {
+    return this.lastSyncResult;
+  }
+
+  /**
+   * Set auto sync enabled/disabled
+   */
+  public setAutoSyncEnabled(enabled: boolean): void {
+    localStorage.setItem(SYNC_SETTINGS_KEY, String(enabled));
+    if (enabled) {
+      this.startAutoSync();
+    } else {
+      this.stopAutoSync();
+    }
+  }
+
+  /**
+   * Fetch projects from cloud (for UI display)
+   */
+  public async fetchProjectsFromCloud(): Promise<ProjectSyncData[]> {
+    const headers = this.getAuthHeader();
+    if (!headers) {
+      return [];
+    }
+
+    try {
+      const response = await fetch('/api/sync/projects', {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+      return data.projects || [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Perform full sync - alias for performSmartSync
    * This method is used by use-cloud-sync hook for manual sync
    */
   public async performFullSync(): Promise<SyncResult> {
-    return this.performSmartSync();
+    const result = await this.performSmartSync();
+    this.lastSyncResult = result;
+    return result;
   }
 }
 
