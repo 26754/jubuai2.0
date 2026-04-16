@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
  * Cloud Sync Tab Component
- * Manages cloud synchronization settings and manual sync operations
+ * Manages cloud synchronization settings
  * Enhanced with real-time sync support
  */
 
@@ -10,7 +10,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCloudSync, useSyncStatus, useSyncHistory } from "@/hooks/use-cloud-sync";
 import { smartSyncService } from "@/lib/smart-sync-service";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,9 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
-  Cloud,
   CloudOff,
-  RefreshCw,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -36,6 +33,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+// Sync result type
+interface SyncResult {
+  timestamp: number;
+  success: boolean;
+  uploaded: number;
+  downloaded: number;
+  settingsUploaded: number;
+  settingsDownloaded: number;
+  conflicts: number;
+}
 
 // Sync status component
 function SyncStatusBadge({ status }: { status: 'idle' | 'syncing' | 'success' | 'error' }) {
@@ -86,7 +94,7 @@ function RealtimeSyncIndicator({
 }
 
 // Sync history item
-function SyncHistoryItem({ result }: { result: any }) {
+function SyncHistoryItem({ result }: { result: SyncResult }) {
   const time = new Date(result.timestamp).toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
@@ -117,7 +125,7 @@ function SyncHistoryItem({ result }: { result: any }) {
 }
 
 // Sync stats card
-function SyncStatsCard({ result }: { result: any }) {
+function SyncStatsCard({ result }: { result: SyncResult | null }) {
   if (!result) return null;
 
   return (
@@ -152,8 +160,6 @@ export function CloudSyncTab() {
     isSyncing,
     lastSyncTime,
     isAutoSyncEnabled,
-    performSync,
-    fetchFromCloud,
     setAutoSyncEnabled,
     syncProgress,
     syncMessage,
@@ -212,37 +218,6 @@ export function CloudSyncTab() {
       toast.info('已关闭自动同步');
     }
   }, [setAutoSyncEnabled]);
-
-  // Handle manual sync
-  const handleManualSync = useCallback(async () => {
-    if (isSyncing) {
-      toast.warning('同步进行中，请稍候');
-      return;
-    }
-    
-    const result = await performSync();
-    if (result.success) {
-      toast.success('同步成功', {
-        description: `已上传 ${result.uploaded} 个项目，已下载 ${result.downloaded} 个项目`,
-      });
-    } else {
-      toast.error('同步失败', {
-        description: result.error,
-      });
-    }
-  }, [isSyncing, performSync]);
-
-  // Handle download from cloud
-  const handleDownloadFromCloud = useCallback(async () => {
-    if (isSyncing) return;
-    
-    const result = await fetchFromCloud();
-    if (result.success && result.projects) {
-      toast.success(`从云端获取了 ${result.projects.length} 个项目`);
-    } else {
-      toast.error('获取失败');
-    }
-  }, [isSyncing, fetchFromCloud]);
 
   // Format last sync time
   const formatLastSyncTime = (timestamp: number | null): string => {
@@ -461,63 +436,6 @@ export function CloudSyncTab() {
             </CardContent>
           </Card>
         )}
-        
-        {/* Manual Sync Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5" />
-              手动同步
-            </CardTitle>
-            <CardDescription>
-              手动将本地数据上传或从云端下载
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                className="h-auto py-4 flex-col gap-2"
-              >
-                {isSyncing ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Upload className="h-5 w-5" />
-                )}
-                <span className="text-sm">上传到云端</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleDownloadFromCloud}
-                disabled={isSyncing}
-                className="h-auto py-4 flex-col gap-2"
-              >
-                <Download className="h-5 w-5" />
-                <span className="text-sm">从云端下载</span>
-              </Button>
-            </div>
-            
-            <Button
-              className="w-full"
-              onClick={handleManualSync}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  同步中 {currentProgress > 0 ? `(${currentProgress}%)` : ''}...
-                </>
-              ) : (
-                <>
-                  <Cloud className="h-4 w-4 mr-2" />
-                  全量同步
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
         
         {/* Security Info */}
         <Card>
