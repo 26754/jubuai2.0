@@ -38,7 +38,7 @@ interface SplashScreenProps {
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const { theme, setTheme } = useThemeStore();
   useAuthStore();
-  const [showAuthPage, setShowAuthPage] = useState(false);
+  const [showAuthPage, setShowAuthPage] = useState(true); // 默认显示登录页面
   const [isHovered, setIsHovered] = useState<string | null>(null);
   const [showHelpGuide, setShowHelpGuide] = useState(false);
 
