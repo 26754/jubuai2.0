@@ -30,9 +30,15 @@ import {
   Zap,
   Radio,
   Activity,
+  BadgeCheck,
+  RefreshCw,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { cloudAuth } from "@/lib/cloud-auth";
 
 // Sync result type
 interface SyncResult {
@@ -155,7 +161,7 @@ function SyncStatsCard({ result }: { result: SyncResult | null }) {
 }
 
 export function CloudSyncTab() {
-  const { currentUser: user, isAuthenticated } = useAuthStore();
+  const { currentUser: user, isAuthenticated, checkSession } = useAuthStore();
   const {
     isSyncing,
     lastSyncTime,
@@ -177,6 +183,33 @@ export function CloudSyncTab() {
   const [syncOnStartup, setSyncOnStartup] = useState(() => smartSyncService.getSyncSettingsBundle().syncOnStartup);
   const [syncOnChange, setSyncOnChange] = useState(() => smartSyncService.getSyncSettingsBundle().syncOnChange);
   const [notifyOnSync, setNotifyOnSync] = useState(() => smartSyncService.getSyncSettingsBundle().notifyOnSync);
+  const [isValidatingSession, setIsValidatingSession] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'valid' | 'expired' | 'checking'>('checking');
+
+  // Check token validity on mount and periodically
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSessionStatus('expired');
+      return;
+    }
+
+    const validateSession = async () => {
+      setIsValidatingSession(true);
+      try {
+        const result = await cloudAuth.validateSession();
+        setSessionStatus(result.valid ? 'valid' : 'expired');
+      } catch {
+        setSessionStatus('checking');
+      } finally {
+        setIsValidatingSession(false);
+      }
+    };
+
+    validateSession();
+    // Re-validate every 5 minutes
+    const interval = setInterval(validateSession, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // Update settings bundle when any setting changes
   useEffect(() => {
@@ -198,6 +231,33 @@ export function CloudSyncTab() {
       toast.info('已关闭自动同步');
     }
   }, [setAutoSyncEnabled]);
+
+  // Handle session validation
+  const handleValidateSession = useCallback(async () => {
+    setIsValidatingSession(true);
+    try {
+      const result = await cloudAuth.validateSession();
+      if (result.valid) {
+        setSessionStatus('valid');
+        toast.success('会话有效');
+      } else {
+        setSessionStatus('expired');
+        if (result.expired) {
+          toast.error('会话已过期，请重新登录');
+        }
+      }
+    } catch {
+      toast.error('验证失败');
+    } finally {
+      setIsValidatingSession(false);
+    }
+  }, []);
+
+  // Get avatar initial
+  const getAvatarInitial = useCallback((email?: string, username?: string) => {
+    const name = username || email || 'U';
+    return name[0].toUpperCase();
+  }, []);
 
   // Format last sync time
   const formatLastSyncTime = (timestamp: number | null): string => {
@@ -240,28 +300,68 @@ export function CloudSyncTab() {
         />
 
         {/* Account Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              云端账号信息
-            </CardTitle>
-            <CardDescription>
-              当前登录的云端账号详情
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">用户邮箱</Label>
-                <p className="text-sm font-medium truncate" title={user?.email}>
-                  {user?.email || '未知'}
+        <Card className="bg-gradient-to-br from-card to-muted/30">
+          <CardContent className="pt-6">
+            {/* User Profile Header */}
+            <div className="flex items-center gap-4 mb-6 pb-4 border-b border-border">
+              {/* Avatar */}
+              <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-md">
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-xl font-bold">
+                  {getAvatarInitial(user?.email, user?.username)}
+                </AvatarFallback>
+              </Avatar>
+              
+              {/* User Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-foreground truncate">
+                    {user?.username || '未设置用户名'}
+                  </h3>
+                  {user?.username && (
+                    <Badge variant="secondary" className="gap-1 text-xs">
+                      <BadgeCheck className="h-3 w-3" />
+                      已验证
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground truncate" title={user?.email}>
+                  {user?.email}
                 </p>
               </div>
+
+              {/* Session Status */}
+              <div className="flex flex-col items-end gap-1">
+                <Badge 
+                  variant={sessionStatus === 'valid' ? 'default' : sessionStatus === 'expired' ? 'destructive' : 'secondary'}
+                  className={cn(
+                    "gap-1",
+                    sessionStatus === 'valid' && "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20",
+                  )}
+                >
+                  {sessionStatus === 'valid' && <CheckCircle2 className="h-3 w-3" />}
+                  {sessionStatus === 'expired' && <XCircle className="h-3 w-3" />}
+                  {sessionStatus === 'checking' && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {sessionStatus === 'valid' ? '会话有效' : sessionStatus === 'expired' ? '会话过期' : '验证中'}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleValidateSession}
+                  disabled={isValidatingSession}
+                >
+                  <RefreshCw className={cn("h-3 w-3 mr-1", isValidatingSession && "animate-spin")} />
+                  验证会话
+                </Button>
+              </div>
+            </div>
+
+            {/* Account Details Grid */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">用户 ID</Label>
                 <p className="text-sm font-medium font-mono truncate" title={user?.id}>
-                  {user?.id ? `${user.id.slice(0, 8)}...` : '未知'}
+                  {user?.id ? `${user.id.slice(0, 12)}...` : '未知'}
                 </p>
               </div>
               <div className="space-y-1">
@@ -278,10 +378,20 @@ export function CloudSyncTab() {
                 <Label className="text-xs text-muted-foreground">同步状态</Label>
                 <SyncStatusBadge status={status} />
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">自动同步</Label>
+                <p className="text-sm font-medium">
+                  {localAutoSync ? (
+                    <span className="text-green-600 dark:text-green-400">已启用</span>
+                  ) : (
+                    <span className="text-muted-foreground">已关闭</span>
+                  )}
+                </p>
+              </div>
             </div>
             
             {/* Last Sync Time */}
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 mt-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">上次同步</span>

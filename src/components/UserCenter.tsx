@@ -740,10 +740,22 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [clearCacheDialogOpen, setClearCacheDialogOpen] = useState(false);
 
-  // 更新用户名
-  const handleUpdateUsername = useCallback((newUsername: string) => {
+  // 更新用户名 - 自动同步到云端
+  const handleUpdateUsername = useCallback(async (newUsername: string) => {
     if (updateUsername) {
       updateUsername(newUsername);
+      toast.success('用户名已更新');
+      
+      // 如果启用了自动同步且有变更时同步设置，触发数据同步
+      const syncEnabled = localStorage.getItem('jubuai_auto_sync_enabled') !== 'false';
+      const syncOnChange = JSON.parse(localStorage.getItem('jubuai_sync_settings_bundle') || '{}').syncOnChange;
+      if (syncEnabled && syncOnChange) {
+        // 延迟执行，等待状态更新
+        setTimeout(() => {
+          const event = new CustomEvent('trigger-sync');
+          window.dispatchEvent(event);
+        }, 500);
+      }
     }
   }, [updateUsername]);
 
