@@ -47,8 +47,33 @@ export function TabBar() {
             </Tooltip>
           </TooltipProvider>
         </nav>
-        {/* Bottom: Theme Toggle */}
-        <div className="mt-auto border-t border-border py-1">
+        {/* Bottom: Navigation + Theme Toggle */}
+        <div className="mt-auto border-t border-border py-1 space-y-1">
+          {/* Bottom nav items */}
+          {bottomNavItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+            
+            return (
+              <TooltipProvider key={item.id} delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setActiveTab(item.id)}
+                      className={cn(
+                        "w-full flex flex-col items-center py-2 transition-colors",
+                        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-[8px]">{item.label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
           {/* Theme Toggle */}
           <TooltipProvider delayDuration={300}>
             <Tooltip>
