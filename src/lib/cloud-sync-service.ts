@@ -63,9 +63,15 @@ class CloudSyncService {
 
   /**
    * Check if auto-sync is enabled
+   * 默认返回 true（启用自动同步）
    */
   public isAutoSyncEnabled(): boolean {
-    return localStorage.getItem(SYNC_SETTINGS_KEY) === 'true';
+    const stored = localStorage.getItem(SYNC_SETTINGS_KEY);
+    // 如果没有设置，默认启用自动同步
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
   }
 
   /**
@@ -289,6 +295,7 @@ class CloudSyncService {
       // First, upload local data to cloud
       const uploadResult = await this.syncProjects();
       if (!uploadResult.success) {
+        this.isSyncing = false;
         return uploadResult;
       }
 
@@ -306,14 +313,51 @@ class CloudSyncService {
       this.saveLastSyncTime(Date.now());
       this.lastSyncResult = result;
 
-      console.log('[CloudSync] Full sync completed:', result);
+      // Silent log only in development
+      if (import.meta.env.DEV) {
+        console.log('[CloudSync] Full sync completed:', result);
+      }
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '同步失败';
+      // Silent fail - don't log errors in production
+      if (import.meta.env.DEV) {
+        console.error('[CloudSync] Sync failed:', errorMessage);
+      }
       return { success: false, error: errorMessage, timestamp: Date.now() };
     } finally {
       this.isSyncing = false;
     }
+  }
+
+  /**
+   * Silent sync - performs sync without any user feedback
+   * Used for automatic background syncs
+   */
+  public async silentSync(): Promise<void> {
+    if (!this.isAutoSyncEnabled()) return;
+    
+    try {
+      await this.performFullSync();
+    } catch {
+      // Silent fail - no user notification
+    }
+  }
+
+  /**
+   * Debounced silent sync - prevents rapid successive syncs
+   */
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  public debouncedSilentSync(delayMs: number = 3000): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    
+    this.debounceTimer = setTimeout(() => {
+      this.silentSync();
+      this.debounceTimer = null;
+    }, delayMs);
   }
 
   /**
@@ -323,8 +367,8 @@ class CloudSyncService {
     // Check if user is already logged in
     const token = localStorage.getItem('jubuai_jwt_token');
     if (token && this.isAutoSyncEnabled()) {
-      // Auto-sync on page load if logged in and auto-sync is enabled
-      console.log('[CloudSync] Auto-syncing on page load...');
+      // Silent sync on page load
+      this.silentSync();
       this.startAutoSync();
     }
   }
@@ -338,15 +382,13 @@ class CloudSyncService {
 
     const frequency = this.getSyncFrequency();
     if (frequency === 'manual') {
-      console.log('[CloudSync] Auto-sync disabled (manual mode)');
       return;
     }
 
     const interval = SYNC_INTERVALS[frequency];
     if (interval > 0) {
-      console.log(`[CloudSync] Starting auto-sync with interval: ${frequency}`);
       this.syncTimer = setInterval(() => {
-        this.performFullSync();
+        this.silentSync();
       }, interval);
     }
   }

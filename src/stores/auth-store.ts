@@ -192,6 +192,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isCloudConfigured: true,
         });
         console.log('[Auth] Restored session for:', user.email);
+        
+        // 🚀 自动静默同步：用户有有效Token，自动同步数据
+        const autoSyncEnabled = localStorage.getItem('jubuai_auto_sync_enabled') !== 'false'; // 默认开启
+        if (autoSyncEnabled) {
+          console.log('[Auth] Auto-syncing data silently...');
+          cloudSyncService.performFullSync().catch(err => {
+            console.warn('[Auth] Silent sync failed (non-blocking):', err);
+          });
+        }
       } else {
         set({
           isAuthenticated: false,
@@ -267,11 +276,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       console.log('[Auth] User logged in:', email);
 
-      // Auto-sync to cloud after successful login
-      if (cloudSyncService.isAutoSyncEnabled()) {
-        console.log('[Auth] Triggering auto-sync after login...');
-        cloudSyncService.performFullSync();
-      }
+      // 🚀 静默自动同步：登录后自动后台同步，不打扰用户
+      cloudSyncService.silentSync();
 
       return true;
     } catch (err: any) {
@@ -314,9 +320,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       console.log('[Auth] User registered:', email);
 
-      // Auto-sync to cloud after successful registration
-      console.log('[Auth] Triggering initial sync after registration...');
-      cloudSyncService.performFullSync();
+      // 🚀 静默自动同步：注册后自动后台同步，不打扰用户
+      cloudSyncService.silentSync();
 
       return true;
     } catch (err: any) {
