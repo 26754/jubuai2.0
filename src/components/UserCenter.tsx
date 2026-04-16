@@ -34,6 +34,7 @@ import {
   MessageSquare,
   BookOpen,
   ChevronRight,
+  Cloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +66,7 @@ import { cloudAuth } from '@/lib/cloud-auth';
 import { useProjectStore } from '@/stores/project-store';
 import { useCharacterLibraryStore } from '@/stores/character-library-store';
 import { useSceneStore } from '@/stores/scene-store';
+import { CloudSyncStatus, CloudSyncHistory } from '@/components/panels/cloud-sync/CloudSyncStatus';
 
 // ==================== 类型定义 ====================
 
@@ -982,6 +984,16 @@ export function UserCenter({ onRefresh }: UserCenterProps = {}) {
             user={currentUser}
             onEditProfile={() => setEditProfileOpen(true)}
           />
+
+          {/* 云端同步状态 */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Cloud className="h-5 w-5" />
+              云端同步
+            </h3>
+            <CloudSyncStatus showSettings />
+            <CloudSyncHistory />
+          </div>
 
           {/* 统计概览 */}
           <div className="space-y-4">
