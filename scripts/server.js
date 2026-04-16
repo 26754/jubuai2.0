@@ -396,11 +396,14 @@ app.get('/api/sync/projects/:id', authMiddleware, async (req, res) => {
 app.post('/api/sync/projects', authMiddleware, async (req, res) => {
   try {
     const body = req.body;
+    console.log('[API] POST /api/sync/projects - body:', JSON.stringify(body).substring(0, 200));
     
     // 支持单个项目或项目数组
     const projects = Array.isArray(body) ? body : (body.projects || [body]);
+    console.log('[API] Parsed projects:', projects.length, 'items');
     
     if (projects.length === 0) {
+      console.warn('[API] No projects to insert');
       return res.status(400).json({ success: false, error: 'No projects provided' });
     }
     
@@ -410,9 +413,10 @@ app.post('/api/sync/projects', authMiddleware, async (req, res) => {
     
     for (const item of projects) {
       const { id, name, script_data, created_at, updated_at } = item;
+      console.log('[API] Processing project:', id, name);
       
       if (!id || !name) {
-        console.warn('[API] Skipping project without id or name');
+        console.warn('[API] Skipping project without id or name:', { id, name });
         continue;
       }
       

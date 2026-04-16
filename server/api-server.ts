@@ -103,6 +103,25 @@ const toCamelCase = (obj: any): any => {
   return obj;
 };
 
+// 辅助函数：将时间戳转换为 ISO 8601 格式字符串
+const normalizeTimestamp = (value: any, fallback: string): string => {
+  if (!value) return fallback;
+  if (typeof value === 'number') {
+    // 毫秒时间戳 (> 1e12) 或秒时间戳 (<= 1e12)
+    if (value > 1e12) {
+      return new Date(value).toISOString();
+    }
+    return new Date(value * 1000).toISOString();
+  }
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+  return fallback;
+};
+
 // ==================== Projects API ====================
 
 // 获取所有项目
@@ -174,7 +193,7 @@ app.post('/api/sync/projects', authMiddleware, async (req: express.Request, res:
            script_data = EXCLUDED.script_data,
            updated_at = EXCLUDED.updated_at
          RETURNING *`,
-        [id, userId, name, JSON.stringify(script_data || {}), created_at || now, updated_at || now]
+        [id, userId, name, JSON.stringify(script_data || {}), normalizeTimestamp(created_at, now), normalizeTimestamp(updated_at, now)]
       );
       
       results.push(toCamelCase(result.rows[0]));
