@@ -330,7 +330,9 @@ class SmartSyncService {
       }
 
       const data = await response.json();
-      const projects: ProjectSyncData[] = Array.isArray(data) ? data : [];
+      const projects: ProjectSyncData[] = Array.isArray(data) 
+        ? data 
+        : (data.data ? data.data : data.projects ? data.projects : []);
       
       return { success: true, projects };
     } catch (error) {
@@ -432,7 +434,7 @@ class SmartSyncService {
       }
 
       const data = await response.json();
-      const settings: SettingsSyncData[] = data?.settings || [];
+      const settings: SettingsSyncData[] = data?.data ? [data.data] : (data?.settings || []);
       
       return { success: true, settings };
     } catch (error) {
