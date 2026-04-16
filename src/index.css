@@ -367,3 +367,12 @@
   background-color: hsl(var(--timeline-effect) / 0.2);
   border-left: 3px solid hsl(var(--timeline-effect));
 }
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

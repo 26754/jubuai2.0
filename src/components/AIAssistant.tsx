@@ -19,7 +19,6 @@ import {
   Check,
   RefreshCw,
   Trash2,
-  Settings,
   BookOpen,
   Layers,
   Star,
@@ -42,14 +41,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -744,60 +735,53 @@ export function AIAssistantPanel({
   
   return (
     <Card className={cn('flex flex-col border-border/50 bg-card/80 backdrop-blur-sm', className)}>
-      {/* 头部 */}
-      <CardHeader className="pb-2 border-b border-border/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={cn('p-2 rounded-lg', MODE_CONFIG[mode].bgClass)}>
-              <Bot className={cn('w-5 h-5', MODE_CONFIG[mode].colorClass)} />
-            </div>
-            <CardTitle className="text-lg">AI 创作助手</CardTitle>
-            <Badge variant="secondary" className={cn('text-xs gap-1', MODE_CONFIG[mode].colorClass)}>
-              {MODE_CONFIG[mode].icon}
-              <span className="ml-1">{MODE_CONFIG[mode].label}</span>
-            </Badge>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            {/* 模式选择 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border">
-                <DropdownMenuLabel>选择模式</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {(Object.keys(MODE_CONFIG) as AssistantMode[]).map(m => (
-                  <DropdownMenuItem
-                    key={m}
-                    onClick={() => handleModeChange(m)}
-                    className={cn(mode === m && 'bg-muted')}
-                  >
-                    <span className="mr-2">{MODE_CONFIG[m].icon}</span>
-                    {MODE_CONFIG[m].label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            {/* 展开/收起 */}
+      {/* 模式选择按钮区域 */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 bg-muted/20">
+        <Bot className="w-4 h-4 text-primary shrink-0" />
+        <div className="flex items-center gap-1.5 overflow-x-auto flex-1 scrollbar-hide">
+          {(Object.keys(MODE_CONFIG) as AssistantMode[]).map(m => (
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:bg-muted/50"
-              onClick={() => setIsExpanded(!isExpanded)}
+              key={m}
+              variant={mode === m ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleModeChange(m)}
+              className={cn(
+                'h-8 px-3 gap-1.5 shrink-0 transition-all',
+                mode === m && 'shadow-sm',
+                mode !== m && 'text-muted-foreground hover:text-foreground'
+              )}
             >
-              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              {MODE_CONFIG[m].icon}
+              <span className="text-xs">{MODE_CONFIG[m].label}</span>
             </Button>
-          </div>
+          ))}
         </div>
-      </CardHeader>
+        {/* 展开/收起 */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 hover:bg-muted/50"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
+      </div>
       
       {/* 内容区域 */}
       {isExpanded && (
         <>
+          {/* 头部 */}
+          <CardHeader className="pb-2 border-b border-border/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn('p-2 rounded-lg', MODE_CONFIG[mode].bgClass)}>
+                  <Bot className={cn('w-5 h-5', MODE_CONFIG[mode].colorClass)} />
+                </div>
+                <CardTitle className="text-lg">AI 创作助手</CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          
           <CardContent className="flex-1 flex flex-col p-0 min-h-0">
             {/* 预设快捷按钮 */}
             {showPresets && messages.length === 0 && (
