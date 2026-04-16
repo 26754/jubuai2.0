@@ -70,7 +70,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useApiKeyTester } from "@/hooks/use-api-key-tester";
-import { CloudSyncTab } from "./cloud-sync/CloudSyncTab";
+import { CloudSyncSettingsPanel } from "./cloud-sync/CloudSyncSettingsPanel";
 
 // Platform icon mapping
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
@@ -247,7 +247,7 @@ export function SettingsPanel() {
 
         {/* Cloud Sync Tab */}
         <TabsContent value="cloud-sync" className="flex-1 overflow-hidden mt-0">
-          <CloudSyncTab />
+          <CloudSyncSettingsPanel />
         </TabsContent>
 
         {/* API Management Tab */}

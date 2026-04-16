@@ -29,9 +29,15 @@
 │   │   │   └── AuthPage.tsx    # 登录/注册页面
 │   │   ├── panels/              # 面板组件
 │   │   │   └── SettingsPanel.tsx  # 设置面板（包含用户中心、API管理、AI助手、项目分享、模板市场、高级选项）
+│   │   │   └── cloud-sync/       # 云端同步组件
+│   │   │       ├── CloudSyncSettingsPanel.tsx  # 新版同步设置面板
+│   │   │       ├── CloudSyncStatus.tsx         # 同步状态组件
+│   │   │       └── CloudSyncTab.tsx             # 旧版同步面板
 │   │   └── ui/                  # UI 基础组件
 │   ├── lib/
-│   │   ├── data-export.ts       # 数据导出/导入工具
+│   │   ├── cloud-sync-engine.ts      # 新版云端同步引擎
+│   │   ├── cloud-auth.ts              # 云端认证模块
+│   │   ├── smart-sync-service.ts      # 旧版智能同步服务
 │   │   ├── error-handler.tsx
 │   │   ├── proxy-config.ts
 │   │   ├── api-key-manager.ts
@@ -44,6 +50,9 @@
 │   │   ├── scene-store.ts
 │   │   ├── director-store.ts
 │   │   └── api-config-store.ts
+│   └── hooks/
+│       ├── use-cloud-sync.ts        # 旧版云同步 Hook
+│       └── use-cloud-sync-v2.ts     # 新版云同步 Hook
 │   └── storage/
 │       └── database/
 │           ├── supabase-client.ts     # Supabase 客户端
@@ -253,7 +262,119 @@ proxy: {
 }
 ```
 
-## 云端同步 - Neon PostgreSQL
+## 云端同步 - 新版架构
+
+### 技术方案
+
+新版云端同步采用模块化架构，提供更强的灵活性和可扩展性。
+
+#### 核心模块
+
+1. **CloudSyncEngine** (`src/lib/cloud-sync-engine.ts`)
+   - 模块化同步引擎，支持选择性同步
+   - 离线队列管理
+   - 冲突检测与解决
+   - 自动同步定时器
+   - 实时状态通知
+
+2. **CloudSyncSettingsPanel** (`src/components/panels/cloud-sync/CloudSyncSettingsPanel.tsx`)
+   - 同步概览面板
+   - 选择性同步开关（项目/角色/场景/设置）
+   - 冲突管理界面
+   - 详细同步日志
+   - WiFi 仅同步选项
+
+3. **use-cloud-sync-v2** (`src/hooks/use-cloud-sync-v2.ts`)
+   - React Hooks 集成
+   - 状态订阅机制
+   - 便捷的数据变更触发同步
+
+### 同步设置
+
+```typescript
+interface CloudSyncSettings {
+  enabled: boolean;           // 启用云端同步
+  autoSync: boolean;          // 自动同步
+  syncOnStartup: boolean;     // 启动时同步
+  syncOnChange: boolean;      // 变更时同步
+
+  syncProjects: boolean;      // 同步项目
+  syncCharacters: boolean;    // 同步角色
+  syncScenes: boolean;        // 同步场景
+  syncSettings: boolean;      // 同步设置
+
+  wifiOnly: boolean;          // 仅 WiFi 同步
+  syncInterval: number;       // 同步间隔（毫秒）
+  maxRetries: number;        // 最大重试次数
+  compression: boolean;       // 数据压缩
+
+  notifyOnSync: boolean;      // 同步完成通知
+  notifyOnConflict: boolean;  // 冲突提醒
+  notifyOnError: boolean;     // 错误通知
+}
+```
+
+### 使用示例
+
+```typescript
+import { cloudSyncEngine } from '@/lib/cloud-sync-engine';
+import { useCloudSyncV2 } from '@/hooks/use-cloud-sync-v2';
+
+// 使用 Hook
+function MyComponent() {
+  const { isSyncing, status, sync, updateSettings } = useCloudSyncV2();
+
+  // 手动同步
+  const handleSync = async () => {
+    await sync();
+  };
+
+  // 更新设置
+  const handleToggleSync = () => {
+    updateSettings({ autoSync: !autoSync });
+  };
+}
+
+// 在数据变更时触发同步
+import { useSyncOnChange } from '@/hooks/use-cloud-sync-v2';
+
+function ProjectEditor() {
+  // 数据变更时自动同步项目
+  useSyncOnChange('projects', projectData);
+
+  return <Editor />;
+}
+```
+
+### 冲突解决
+
+```typescript
+import { cloudSyncEngine } from '@/lib/cloud-sync-engine';
+
+// 解决单个冲突
+cloudSyncEngine.resolveConflict(conflictId, 'local');  // 使用本地版本
+cloudSyncEngine.resolveConflict(conflictId, 'cloud'); // 使用云端版本
+cloudSyncEngine.resolveConflict(conflictId, 'merge', mergedData); // 使用合并版本
+
+// 一键解决所有冲突
+cloudSyncEngine.resolveAllConflicts('local'); // 全部使用本地
+cloudSyncEngine.resolveAllConflicts('cloud'); // 全部使用云端
+```
+
+### API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/sync/projects` | GET/POST | 项目同步 |
+| `/api/sync/characters` | GET/POST | 角色同步 |
+| `/api/sync/scenes` | GET/POST | 场景同步 |
+| `/api/sync/settings` | GET/POST | 设置同步 |
+
+所有端点需要 JWT Token 认证。
+
+---
+
+## 云端同步 - Neon PostgreSQL（旧版）
 
 ### 技术方案
 

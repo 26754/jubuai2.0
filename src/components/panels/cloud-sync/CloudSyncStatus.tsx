@@ -1,14 +1,14 @@
 // Copyright (c) 2025 JuBu AI
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 /**
- * 云端同步状态组件
+ * 云端同步状态组件 (新版)
  * 用于在用户中心显示同步状态和快捷操作
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { useCloudSync, useSyncStatus } from "@/hooks/use-cloud-sync";
-import { smartSyncService } from "@/lib/smart-sync-service";
+import { useCloudSyncV2, useSyncStatusV2, useSyncStatsV2 } from "@/hooks/use-cloud-sync-v2";
+import { cloudSyncEngine, type SyncStatus } from "@/lib/cloud-sync-engine";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -22,6 +22,9 @@ import {
   Upload,
   RefreshCw,
   Radio,
+  Wifi,
+  WifiOff,
+  Shield,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,25 +32,51 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { cloudAuth } from "@/lib/cloud-auth";
 
-// 云端同步状态组件 - 用于用户中心显示
+// ==================== 类型 ====================
+
 interface CloudSyncStatusProps {
   compact?: boolean; // 紧凑模式
   showSettings?: boolean; // 显示设置选项
 }
 
+// ==================== 状态徽章 ====================
+
+function StatusBadge({ status }: { status: SyncStatus }) {
+  const config = {
+    idle: { icon: Clock, color: 'text-muted-foreground', bg: 'bg-muted', label: '就绪' },
+    syncing: { icon: Loader2, color: 'text-primary animate-spin', bg: 'bg-primary/10', label: '同步中' },
+    paused: { icon: WifiOff, color: 'text-amber-500', bg: 'bg-amber-500/10', label: '已暂停' },
+    error: { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', label: '错误' },
+    offline: { icon: CloudOff, color: 'text-muted-foreground', bg: 'bg-muted', label: '离线' },
+  };
+
+  const { icon: Icon, color, bg, label } = config[status];
+
+  return (
+    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full", bg)}>
+      <Icon className={cn("h-4 w-4", color)} />
+      <span className={cn("text-sm font-medium", color)}>{label}</span>
+    </div>
+  );
+}
+
+// ==================== 主组件 ====================
+
 export function CloudSyncStatus({ compact = false, showSettings = false }: CloudSyncStatusProps) {
   const { currentUser, isAuthenticated } = useAuthStore();
-  const {
-    isSyncing,
-    lastSyncTime,
-    setAutoSyncEnabled,
-    lastResult,
-  } = useCloudSync();
+  const { 
+    isSyncing, 
+    settings, 
+    stats,
+    sync,
+    updateSettings,
+  } = useCloudSyncV2();
   
-  const { status, lastError, progress, message } = useSyncStatus();
+  const { status } = useSyncStatusV2();
+  const syncStats = useSyncStatsV2();
 
-  // 本地同步设置
-  const [localAutoSync, setLocalAutoSync] = useState(() => smartSyncService.isAutoSyncEnabled());
+  // 本地状态
+  const [localAutoSync, setLocalAutoSync] = useState(() => cloudSyncEngine.getSettings().autoSync);
   const [isValidatingSession, setIsValidatingSession] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'valid' | 'expired' | 'checking'>('checking');
 
@@ -75,6 +104,11 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
+  // 同步设置状态
+  useEffect(() => {
+    setLocalAutoSync(settings.autoSync);
+  }, [settings.autoSync]);
+
   // 格式化上次同步时间
   const formatLastSyncTime = useCallback((timestamp: number | null): string => {
     if (!timestamp) return '从未同步';
@@ -89,21 +123,22 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
   // 处理自动同步开关
   const handleAutoSyncToggle = useCallback((checked: boolean) => {
     setLocalAutoSync(checked);
-    setAutoSyncEnabled(checked);
+    updateSettings({ autoSync: checked });
     if (checked) {
       toast.success('已启用自动同步');
       // 立即触发一次同步
-      smartSyncService.performFullSync();
+      cloudSyncEngine.sync();
     } else {
       toast.info('已关闭自动同步');
     }
-  }, [setAutoSyncEnabled]);
+  }, [updateSettings]);
 
   // 手动同步
-  const handleManualSync = useCallback(() => {
-    smartSyncService.performFullSync();
+  const handleManualSync = useCallback(async () => {
     toast.info('正在同步...');
-  }, []);
+    await sync();
+    toast.success('同步完成');
+  }, [sync]);
 
   // 验证会话
   const handleValidateSession = useCallback(async () => {
@@ -123,6 +158,47 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
       setIsValidatingSession(false);
     }
   }, []);
+
+  // 获取同步状态配置
+  const getSyncStatusConfig = () => {
+    if (isSyncing || status === 'syncing') {
+      return {
+        icon: Loader2,
+        iconClass: 'animate-spin text-primary',
+        bgClass: 'bg-primary/10',
+        badge: 'bg-primary/10 text-primary border-primary/20',
+        label: '同步中...',
+      };
+    }
+    if (syncStats.lastError || status === 'error') {
+      return {
+        icon: XCircle,
+        iconClass: 'text-destructive',
+        bgClass: 'bg-destructive/10',
+        badge: 'bg-destructive/10 text-destructive border-destructive/20',
+        label: '同步失败',
+      };
+    }
+    if (localAutoSync && syncStats.lastSyncAt) {
+      return {
+        icon: CheckCircle2,
+        iconClass: 'text-green-500',
+        bgClass: 'bg-green-500/10',
+        badge: 'bg-green-500/10 text-green-600 border-green-500/20',
+        label: '已同步',
+      };
+    }
+    return {
+      icon: Cloud,
+      iconClass: 'text-muted-foreground',
+      bgClass: 'bg-muted',
+      badge: 'bg-muted text-muted-foreground',
+      label: syncStats.lastSyncAt ? '已同步' : '未同步',
+    };
+  };
+
+  const syncConfig = getSyncStatusConfig();
+  const StatusIcon = syncConfig.icon;
 
   // 未登录状态
   if (!isAuthenticated) {
@@ -147,47 +223,6 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
     );
   }
 
-  // 获取同步状态图标和颜色
-  const getSyncStatusConfig = () => {
-    if (isSyncing || status === 'syncing') {
-      return {
-        icon: Loader2,
-        iconClass: 'animate-spin text-primary',
-        bgClass: 'bg-primary/10',
-        badge: 'bg-primary/10 text-primary border-primary/20',
-        label: '同步中...',
-      };
-    }
-    if (lastError || status === 'error') {
-      return {
-        icon: XCircle,
-        iconClass: 'text-destructive',
-        bgClass: 'bg-destructive/10',
-        badge: 'bg-destructive/10 text-destructive border-destructive/20',
-        label: '同步失败',
-      };
-    }
-    if (localAutoSync && lastResult?.success) {
-      return {
-        icon: CheckCircle2,
-        iconClass: 'text-green-500',
-        bgClass: 'bg-green-500/10',
-        badge: 'bg-green-500/10 text-green-600 border-green-500/20',
-        label: '已同步',
-      };
-    }
-    return {
-      icon: Cloud,
-      iconClass: 'text-muted-foreground',
-      bgClass: 'bg-muted',
-      badge: 'bg-muted text-muted-foreground',
-      label: lastResult ? '已同步' : '未同步',
-    };
-  };
-
-  const syncConfig = getSyncStatusConfig();
-  const StatusIcon = syncConfig.icon;
-
   // 紧凑模式 - 只显示状态
   if (compact) {
     return (
@@ -198,189 +233,186 @@ export function CloudSyncStatus({ compact = false, showSettings = false }: Cloud
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{syncConfig.label}</span>
-            <Badge variant="outline" className={cn("text-xs", syncConfig.badge)}>
-              {sessionStatus === 'valid' ? '在线' : sessionStatus === 'expired' ? '离线' : '验证中'}
-            </Badge>
+            {sessionStatus === 'expired' && (
+              <Badge variant="destructive" className="text-xs">会话过期</Badge>
+            )}
           </div>
-          {isSyncing && (
-            <Progress value={progress} className="h-1 mt-1" />
-          )}
-        </div>
-        {lastError && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleManualSync}
-            className="h-8"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  // 完整模式 - 显示更多信息
-  return (
-    <div className={cn(
-      "rounded-lg border border-border/50 bg-gradient-to-br from-card to-muted/30",
-      compact ? "p-3" : "p-4"
-    )}>
-      {/* 同步状态头部 */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={cn("p-2.5 rounded-lg", syncConfig.bgClass)}>
-            <StatusIcon className={cn("h-5 w-5", syncConfig.iconClass)} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">云端同步</span>
-              <Badge variant="outline" className={cn("text-xs", syncConfig.badge)}>
-                {localAutoSync ? '自动' : '手动'}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isSyncing ? message : `上次同步: ${formatLastSyncTime(lastResult?.timestamp || lastSyncTime)}`}
-            </p>
-          </div>
-        </div>
-        
-        {/* 同步按钮 */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleManualSync}
-          disabled={isSyncing}
-          className="gap-1.5"
-        >
-          {isSyncing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          同步
-        </Button>
-      </div>
-
-      {/* 同步进度 */}
-      {isSyncing && (
-        <div className="mb-4">
-          <Progress value={progress} className="h-2" />
-          <p className="text-xs text-muted-foreground mt-1 text-center">{progress}%</p>
-        </div>
-      )}
-
-      {/* 错误提示 */}
-      {lastError && (
-        <div className="flex items-center gap-2 p-2 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span className="flex-1">{lastError}</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleManualSync}
-            className="h-6 text-xs"
-          >
-            重试
-          </Button>
-        </div>
-      )}
-
-      {/* 会话状态 */}
-      <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-        <div className="flex items-center gap-2">
-          <Radio className={cn(
-            "h-3.5 w-3.5",
-            sessionStatus === 'valid' ? 'text-green-500' : 
-            sessionStatus === 'expired' ? 'text-destructive' : 'text-muted-foreground animate-pulse'
-          )} />
-          <span className="text-xs text-muted-foreground">
-            {sessionStatus === 'valid' ? '会话有效' : 
-             sessionStatus === 'expired' ? '会话已过期' : '正在验证...'}
-          </span>
+          <p className="text-xs text-muted-foreground">
+            {formatLastSyncTime(syncStats.lastSyncAt)}
+          </p>
         </div>
         <Button
           size="sm"
           variant="ghost"
-          onClick={handleValidateSession}
-          disabled={isValidatingSession}
-          className="h-6 text-xs"
+          onClick={handleManualSync}
+          disabled={isSyncing}
         >
-          {isValidatingSession && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-          验证
+          <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
         </Button>
       </div>
+    );
+  }
 
-      {/* 设置选项 */}
+  // 完整模式
+  return (
+    <div className="space-y-4">
+      {/* 状态卡片 */}
+      <div className={cn(
+        "flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border/50"
+      )}>
+        <div className={cn("p-3 rounded-lg", syncConfig.bgClass)}>
+          <StatusIcon className={cn("h-6 w-6", syncConfig.iconClass)} />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-lg">{syncConfig.label}</span>
+            <Badge className={syncConfig.badge}>
+              {sessionStatus === 'valid' ? '已验证' : 
+               sessionStatus === 'expired' ? '会话过期' : '验证中...'}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {currentUser?.email}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            上次同步: {formatLastSyncTime(syncStats.lastSyncAt)}
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-1", isSyncing && "animate-spin")} />
+            同步
+          </Button>
+          {sessionStatus === 'expired' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleValidateSession}
+              disabled={isValidatingSession}
+            >
+              {isValidatingSession ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* 统计概览 */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center">
+          <div className="text-lg font-bold">{syncStats.totalSyncs}</div>
+          <div className="text-xs text-muted-foreground">同步次数</div>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center">
+          <div className="text-lg font-bold text-green-500">{syncStats.totalUploaded}</div>
+          <div className="text-xs text-muted-foreground">上传</div>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center">
+          <div className="text-lg font-bold text-purple-500">{syncStats.totalDownloaded}</div>
+          <div className="text-xs text-muted-foreground">下载</div>
+        </div>
+      </div>
+
+      {/* 控制选项 */}
       {showSettings && (
-        <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+        <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">自动同步</Label>
-              <p className="text-xs text-muted-foreground">每 10 秒自动检查并同步数据</p>
+            <div className="flex items-center gap-2">
+              <Radio className="h-4 w-4 text-primary" />
+              <span className="text-sm">自动同步</span>
             </div>
-            <Switch
-              checked={localAutoSync}
+            <Switch 
+              checked={localAutoSync} 
               onCheckedChange={handleAutoSyncToggle}
             />
           </div>
+          
+          {settings.wifiOnly && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Wifi className="h-3 w-3" />
+              <span>仅在 WiFi 下同步</span>
+            </div>
+          )}
+
+          {syncStats.lastError && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="text-sm text-destructive font-medium">同步错误</div>
+                <div className="text-xs text-destructive/80">{syncStats.lastError}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 进度条 */}
+      {(isSyncing || status === 'syncing') && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">正在同步...</span>
+            <span className="text-primary">100%</span>
+          </div>
+          <Progress value={100} className="h-1" />
         </div>
       )}
     </div>
   );
 }
 
-// 云端同步历史记录组件
-interface CloudSyncHistoryProps {
-  limit?: number;
-}
+// ==================== 同步历史组件 ====================
 
-export function CloudSyncHistory({ limit = 5 }: CloudSyncHistoryProps) {
-  const { lastResult } = useCloudSync();
-  const { status } = useSyncStatus();
+export function CloudSyncHistory({ limit = 5 }: { limit?: number }) {
+  const { logs, clear } = useSyncLogsV2?.() || { logs: [], clear: () => {} };
+  const [showLogs, setShowLogs] = useState(false);
 
-  if (!lastResult) return null;
+  if (logs.length === 0) {
+    return null;
+  }
 
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('zh-CN', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
+  const getLogIcon = (type: string) => {
+    switch (type) {
+      case 'success': return <CheckCircle2 className="h-3 w-3 text-green-500" />;
+      case 'error': return <XCircle className="h-3 w-3 text-destructive" />;
+      case 'conflict': return <AlertCircle className="h-3 w-3 text-amber-500" />;
+      default: return <RefreshCw className="h-3 w-3 text-muted-foreground" />;
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">同步历史</span>
-        {lastResult && (
-          <span className="text-xs text-muted-foreground">
-            {formatTime(lastResult.timestamp)}
-          </span>
-        )}
+        <span className="text-xs text-muted-foreground">最近 {Math.min(logs.length, limit)} 条记录</span>
+        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowLogs(!showLogs)}>
+          {showLogs ? '收起' : '查看全部'}
+        </Button>
       </div>
       
       <div className="space-y-1">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-          <div className="flex items-center gap-2">
-            {lastResult.success ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            ) : (
-              <XCircle className="h-4 w-4 text-destructive" />
-            )}
-            <span className="text-sm">
-              {lastResult.success ? '同步成功' : '同步失败'}
-            </span>
+        {(showLogs ? logs : logs.slice(0, limit)).map((log, index) => (
+          <div key={log.id || index} className="flex items-center gap-2 text-xs">
+            {getLogIcon(log.type)}
+            <span className="flex-1 truncate">{log.message}</span>
+            <span className="text-muted-foreground shrink-0">{formatTime(log.timestamp)}</span>
           </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>上传 {lastResult.uploaded}</span>
-            <span>下载 {lastResult.downloaded}</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
-
-export default CloudSyncStatus;
