@@ -145,27 +145,42 @@ app.get('/api/sync/projects/:id', authMiddleware, async (req: express.Request, r
 app.post('/api/sync/projects', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const userId = (req as any).userId;
-    const { id, name, script_data, created_at, updated_at } = req.body;
+    const body = req.body;
     
-    if (!id || !name) {
-      return res.status(400).json({ success: false, error: 'Missing required fields: id, name' });
+    // 支持单个项目或项目数组
+    const projects = Array.isArray(body) ? body : (body.projects || [body]);
+    
+    if (projects.length === 0) {
+      return res.status(400).json({ success: false, error: 'No projects provided' });
     }
     
     const pool = getDbPool();
     const now = new Date().toISOString();
+    const results = [];
     
-    const result = await pool.query(
-      `INSERT INTO projects (id, user_id, name, script_data, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         script_data = EXCLUDED.script_data,
-         updated_at = EXCLUDED.updated_at
-       RETURNING *`,
-      [id, userId, name, JSON.stringify(script_data || {}), created_at || now, updated_at || now]
-    );
+    for (const item of projects) {
+      const { id, name, script_data, created_at, updated_at } = item;
+      
+      if (!id || !name) {
+        console.warn('[API] Skipping project without id or name');
+        continue;
+      }
+      
+      const result = await pool.query(
+        `INSERT INTO projects (id, user_id, name, script_data, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           script_data = EXCLUDED.script_data,
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [id, userId, name, JSON.stringify(script_data || {}), created_at || now, updated_at || now]
+      );
+      
+      results.push(toCamelCase(result.rows[0]));
+    }
     
-    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+    res.json({ success: true, data: results.length === 1 ? results[0] : results });
   } catch (error: any) {
     console.error('[API] Upsert project error:', error.message);
     res.status(500).json({ success: false, error: error.message });
@@ -353,26 +368,40 @@ app.get('/api/sync/settings', authMiddleware, async (req: express.Request, res: 
 app.post('/api/sync/settings', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const userId = (req as any).userId;
-    const { theme, language, api_configs, editor_settings, sync_preferences } = req.body;
+    const body = req.body;
+    
+    // 支持单个设置对象或设置数组
+    const settings = Array.isArray(body) ? body : (body.settings || [body]);
+    
+    if (settings.length === 0) {
+      return res.json({ success: true, data: null });
+    }
     
     const pool = getDbPool();
     const now = new Date().toISOString();
+    const results = [];
     
-    const result = await pool.query(
-      `INSERT INTO user_settings (user_id, theme, language, api_configs, editor_settings, sync_preferences, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (user_id) DO UPDATE SET
-         theme = COALESCE(EXCLUDED.theme, user_settings.theme),
-         language = COALESCE(EXCLUDED.language, user_settings.language),
-         api_configs = COALESCE(EXCLUDED.api_configs, user_settings.api_configs),
-         editor_settings = COALESCE(EXCLUDED.editor_settings, user_settings.editor_settings),
-         sync_preferences = COALESCE(EXCLUDED.sync_preferences, user_settings.sync_preferences),
-         updated_at = EXCLUDED.updated_at
-       RETURNING *`,
-      [userId, theme, language, JSON.stringify(api_configs || {}), JSON.stringify(editor_settings || {}), JSON.stringify(sync_preferences || {}), now]
-    );
+    for (const item of settings) {
+      const { theme, language, api_configs, editor_settings, sync_preferences } = item;
+      
+      const result = await pool.query(
+        `INSERT INTO user_settings (user_id, theme, language, api_configs, editor_settings, sync_preferences, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id) DO UPDATE SET
+           theme = COALESCE(EXCLUDED.theme, user_settings.theme),
+           language = COALESCE(EXCLUDED.language, user_settings.language),
+           api_configs = COALESCE(EXCLUDED.api_configs, user_settings.api_configs),
+           editor_settings = COALESCE(EXCLUDED.editor_settings, user_settings.editor_settings),
+           sync_preferences = COALESCE(EXCLUDED.sync_preferences, user_settings.sync_preferences),
+           updated_at = EXCLUDED.updated_at
+         RETURNING *`,
+        [userId, theme, language, JSON.stringify(api_configs || {}), JSON.stringify(editor_settings || {}), JSON.stringify(sync_preferences || {}), now]
+      );
+      
+      results.push(toCamelCase(result.rows[0]));
+    }
     
-    res.json({ success: true, data: toCamelCase(result.rows[0]) });
+    res.json({ success: true, data: results.length === 1 ? results[0] : results });
   } catch (error: any) {
     console.error('[API] Upsert settings error:', error.message);
     res.status(500).json({ success: false, error: error.message });
